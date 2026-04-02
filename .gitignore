@@ -1,0 +1,19 @@
+# build output
+dist/
+.output/
+
+# generated files
+.astro/
+
+# dependencies
+node_modules/
+package-lock.json
+
+# environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
