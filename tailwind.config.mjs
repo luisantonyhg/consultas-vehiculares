@@ -1,17 +1,18 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         brand: {
-          red: '#e30613',
-          'red-dark': '#b8050f',
-          green: '#2ecc71',
-          'green-light': '#d4efdf',
-          blue: '#3498db',
-          'blue-light': '#ebf5fb',
-          yellow: '#f1c40f',
+          red: '#e31837',
+          yellow: '#ffd000',
+          navy: {
+            dark: '#0b1c36',
+            medium: '#1a3a6b',
+            light: '#1e3a8a',
+          },
         },
         surface: {
           bg: '#f5f6f8',
@@ -22,10 +23,13 @@ export default {
         text: {
           primary: '#1c1c1c',
           secondary: '#6b6b6b',
-          muted: '#999999',
+          muted: '#8892a3',
         },
       },
       fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+        dancing: ['"Dancing Script"', 'cursive'],
+        archivo: ['"Archivo Black"', 'sans-serif'],
         rubik: ['Rubik', 'sans-serif'],
       },
       fontSize: {

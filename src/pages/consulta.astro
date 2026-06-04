@@ -1,0 +1,1113 @@
+---
+// Vista de consulta específica por placa - Integrada con el Backend real
+---
+
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta por Placa - Análisis Vehicular Perú</title>
+    <meta name="description" content="Consulta en tiempo real el estado de SOAT y CITV de cualquier vehículo peruano ingresando su placa.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+            0%   { background-position: -600px 0; }
+            100% { background-position: 600px 0; }
+        }
+        @keyframes pulseRing {
+            0%   { box-shadow: 0 0 0 0 rgba(234,179,8,0.35); }
+            70%  { box-shadow: 0 0 0 10px rgba(234,179,8,0); }
+            100% { box-shadow: 0 0 0 0 rgba(234,179,8,0); }
+        }
+        .card-animate { animation: fadeSlideIn 0.4s ease both; }
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 600px 100%;
+            animation: shimmer 1.5s infinite linear;
+            border-radius: 6px;
+        }
+        .spin-icon { animation: spin 1.2s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .results-card { transition: box-shadow 0.25s ease, transform 0.2s ease; }
+        .results-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.10); transform: translateY(-1px); }
+    </style>
+
+</head>
+
+<body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-inter flex flex-col pb-10">
+
+    {/* Header / Barra de Navegación */}
+    <header class="w-full max-w-[1100px] flex justify-between items-center px-5 py-4 mx-auto md:px-[15px] z-20">
+        <a
+            href="/"
+            class="px-4 py-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95"
+        >
+            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+        </a>
+        
+        <button
+            id="theme-toggle"
+            class="p-2.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
+            aria-label="Cambiar tema"
+        >
+            <i id="theme-toggle-icon" class="fas fa-moon text-lg transition-transform duration-300 hover:rotate-12"></i>
+        </button>
+    </header>
+
+    <main class="w-full flex-1 flex flex-col items-center">
+        {/* Banner Section */}
+        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-y border-white/5 px-5 py-8 md:py-4 md:px-2 flex justify-center items-center overflow-hidden relative">
+            <div class="max-w-[1100px] w-full flex flex-row flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-5 px-0 md:px-2.5">
+                
+                <img
+                    src="/assets/fortuner.png"
+                    alt="Toyota Fortuner"
+                    class="car-img order-1 md:order-1 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 -translate-x-3 md:translate-x-0 md:-ml-5 transition-transform duration-500 hover:scale-105"
+                />
+
+                {/* Contenido Central */}
+                <div class="banner-content order-3 md:order-2 text-center flex-1 z-10 w-full md:w-auto -mt-2 md:mt-0 px-2">
+                    <h1 class="text-brand-yellow font-archivo text-[36px] md:text-[55px] italic leading-[0.9] m-0 tracking-[-1.5px] md:tracking-[-2px] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] uppercase">
+                        CONSULTA
+                    </h1>
+                    <div class="text-brand-yellow font-dancing text-[26px] md:text-[38px] -my-[3px] flex justify-center items-center gap-2">
+                        <span>de tu</span>
+                        <span class="text-white">Vehículo</span>
+                        <span class="text-white/80 font-normal font-sans text-lg md:text-2xl">por</span>
+                        <span>Placa</span>
+                    </div>
+                    
+                    <p class="text-white/95 text-xs md:text-sm mt-3.5 font-medium tracking-wide">
+                        Ingresa el número de placa para consultar SOAT y CITV en tiempo real
+                    </p>
+
+                    {/* Módulo de Búsqueda */}
+                    <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 dark:bg-white/5 border border-white/20 p-2 rounded-xl flex items-center gap-2 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
+                        <input
+                            type="text"
+                            id="plate-search-input"
+                            placeholder="ABC-123"
+                            maxlength="9"
+                            class="bg-transparent border-0 font-archivo text-xl text-white font-bold placeholder-white/30 uppercase text-center w-full focus:ring-0 focus:outline-none"
+                            required
+                            aria-label="Ingresa tu placa vehicular para consultar"
+                        />
+                        <button
+                            type="submit"
+                            id="submit-btn"
+                            class="bg-brand-yellow hover:bg-[#ffd000]/80 text-brand-navy-dark px-4 py-2 rounded-lg transition-all duration-300 font-extrabold flex items-center gap-1.5 active:scale-95 whitespace-nowrap text-xs shadow-md"
+                        >
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </form>
+                    
+                    <p
+                        id="query-status"
+                        class="text-xs text-brand-yellow mt-2 font-medium opacity-0 transition-opacity duration-300 pointer-events-none"
+                    >
+                        &nbsp;
+                    </p>
+                </div>
+
+                <img
+                    src="/assets/hilux.png"
+                    alt="Toyota Hilux"
+                    class="car-img order-2 md:order-3 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 translate-x-3 md:translate-x-0 md:-mr-5 transition-transform duration-500 hover:scale-105"
+                />
+            </div>
+        </section>
+
+        {/* Backend Status Banner */}
+        <div id="backend-status-banner" class="hidden w-full bg-amber-500/10 border-b border-amber-500/30 px-5 py-2.5 text-center">
+            <p class="text-amber-400 text-xs font-semibold">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                Backend no disponible en este momento. Asegúrate de iniciar el servidor en <code class="bg-black/20 px-1 rounded">http://localhost:8000</code>
+            </p>
+        </div>
+
+        {/* Sección de Resultados */}
+        <div class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
+            <div class="flex items-center gap-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2 mb-6">
+                <i class="fas fa-chart-line text-brand-red dark:text-brand-yellow text-xl"></i>
+                <h2 class="text-xl font-bold tracking-wide font-inter">Resultados del Análisis</h2>
+            </div>
+            
+            {/* Estado inicial */}
+            <div
+                id="results-container"
+                class="w-full max-w-xl mx-auto text-center py-12 px-6 rounded-2xl border border-dashed border-slate-200 bg-white shadow-md text-slate-900"
+            >
+                <i class="fas fa-folder-open text-4xl text-slate-300 mb-3.5 block"></i>
+                <p class="font-extrabold text-slate-700 text-lg">Esperando Datos</p>
+                <p class="text-xs text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">
+                    Ingresa una placa arriba para consultar el SOAT y CITV de ese vehículo en tiempo real.
+                </p>
+            </div>
+        </div>
+
+    </main>
+
+    {/* Footer */}
+    <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
+        <div class="max-w-[1100px] mx-auto">
+            <p class="text-xs text-slate-400 dark:text-text-muted mb-1.5 uppercase tracking-widest">Realizado por:</p>
+            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-5">Luis Antony Huamani Gonzales</p>
+        </div>
+    </footer>
+
+                    <script>
+        // ====================================================
+        // CONFIG
+        // ====================================================
+        const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000/api/v1';
+
+        // ====================================================
+        // TEMA
+        // ====================================================
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-toggle-icon');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                if (themeIcon) themeIcon.className = 'fas fa-sun text-brand-yellow text-lg transition-transform duration-500 hover:rotate-45';
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                if (themeIcon) themeIcon.className = 'fas fa-moon text-slate-700 text-lg transition-transform duration-500 hover:rotate-12';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        applyTheme(savedTheme);
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
+            });
+        }
+
+        // ====================================================
+        // FORMATO DE PLACA
+        // ====================================================
+        const plateInput = document.getElementById('plate-search-input') as HTMLInputElement;
+        if (plateInput) {
+            plateInput.addEventListener('input', () => {
+                let val = plateInput.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
+                const cleanVal = val.replace(/-/g, '');
+                if (cleanVal.length === 6 && !val.includes('-')) {
+                    val = cleanVal.slice(0, 3) + '-' + cleanVal.slice(3);
+                }
+                plateInput.value = val;
+            });
+        }
+
+        // ====================================================
+        // VERIFICAR BACKEND AL CARGAR
+        // ====================================================
+        async function checkBackend() {
+            try {
+                const res = await fetch('http://localhost:8000/health', { signal: AbortSignal.timeout(3000) });
+                if (!res.ok) throw new Error();
+                document.getElementById('backend-status-banner')?.classList.add('hidden');
+            } catch {
+                document.getElementById('backend-status-banner')?.classList.remove('hidden');
+            }
+        }
+        checkBackend();
+
+        // ====================================================
+        // ORDENAMIENTO DINÁMICO DE TARJETAS
+        // ====================================================
+        function reorderCards() {
+            const wrapper = document.getElementById('results-cards-wrapper');
+            if (!wrapper) return;
+            const cards = Array.from(wrapper.children);
+            const statusOrder: Record<string, number> = {
+                'funciona': 1,
+                'loading': 2,
+                'no-funciona': 3,
+                'mantenimiento': 4
+            };
+            cards.sort((a: any, b: any) => {
+                if (a.id === 'lima-card-container' && b.id !== 'lima-card-container') return 1;
+                if (b.id === 'lima-card-container' && a.id !== 'lima-card-container') return -1;
+                const statusA = a.getAttribute('data-status') || 'loading';
+                const statusB = b.getAttribute('data-status') || 'loading';
+                const orderA = statusOrder[statusA] ?? 2;
+                const orderB = statusOrder[statusB] ?? 2;
+                if (orderA !== orderB) return orderA - orderB;
+                const defaultOrder = ['soat-card-container','citv-card-container','lunas-card-container','callao-card-container','sutran-card-container','atu-card-container'];
+                return defaultOrder.indexOf(a.id) - defaultOrder.indexOf(b.id);
+            });
+            cards.forEach(card => wrapper.appendChild(card));
+        }
+
+        // ====================================================
+        // SKELETON LOADER  (shimmer blocks)
+        // ====================================================
+        function skeletonBody() {
+            return `
+                <div class="flex flex-col gap-3 pt-1">
+                    <div class="skeleton h-4 w-2/3"></div>
+                    <div class="skeleton h-3 w-1/2"></div>
+                    <div class="skeleton h-3 w-3/4"></div>
+                    <div class="skeleton h-3 w-1/3"></div>
+                    <div class="skeleton h-3 w-2/3"></div>
+                </div>`;
+        }
+
+        // ====================================================
+        // COLOR PALETTE POR SERVICIO
+        // ====================================================
+        const SERVICE_COLORS: Record<string, { bg: string; icon: string; ring: string }> = {
+            soat:   { bg: 'bg-blue-50',   icon: 'text-blue-600',  ring: 'ring-blue-200' },
+            citv:   { bg: 'bg-emerald-50', icon: 'text-emerald-600', ring: 'ring-emerald-200' },
+            lunas:  { bg: 'bg-purple-50',  icon: 'text-purple-600', ring: 'ring-purple-200' },
+            callao: { bg: 'bg-red-50',     icon: 'text-red-600',   ring: 'ring-red-200' },
+            lima:   { bg: 'bg-amber-50',   icon: 'text-amber-600', ring: 'ring-amber-200' },
+            sutran: { bg: 'bg-orange-50',  icon: 'text-orange-600',ring: 'ring-orange-200' },
+            atu:    { bg: 'bg-teal-50',    icon: 'text-teal-600',  ring: 'ring-teal-200' },
+        };
+
+        function getColors(cardId: string) {
+            return SERVICE_COLORS[cardId] || { bg: 'bg-slate-50', icon: 'text-slate-600', ring: 'ring-slate-200' };
+        }
+
+        // ====================================================
+        // BADGE DE ESTADO
+        // ====================================================
+        function estadoBadge(estado: string) {
+            const s = (estado || '').toUpperCase();
+            if (s === 'VIGENTE' || s === 'APROBADO' || s === 'APROBADA') {
+                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                    <i class="fas fa-circle-check"></i> ${estado}
+                </span>`;
+            }
+            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
+                <i class="fas fa-circle-xmark"></i> ${estado || 'VENCIDO'}
+            </span>`;
+        }
+
+        // ====================================================
+        // FILA DE TABLA (label + value)
+        // ====================================================
+        function fila(label: string, value: string) {
+            if (!value || value === 'null' || value === 'undefined' || value.trim() === '') return '';
+            return `<tr class="border-b border-slate-200 last:border-0 hover:bg-slate-50/80 transition-colors duration-150 group">
+                <td class="py-3 px-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider bg-slate-50 border-r-2 border-slate-200 whitespace-nowrap w-[38%] group-hover:bg-slate-100 transition-colors">${label}</td>
+                <td class="py-3 px-4 text-sm font-bold text-slate-800 leading-snug">${value}</td>
+            </tr>`;
+        }
+
+        // ====================================================
+        // HEADER DE TARJETA REUTILIZABLE
+        // ====================================================
+        function cardHeader(cardId: string, title: string, sourceName: string, iconClass: string, badgeHTML: string) {
+            const c = getColors(cardId);
+            return `
+                <div class="flex items-center justify-between gap-4 w-full">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl ${c.bg} ring-2 ${c.ring} flex items-center justify-center shrink-0 shadow-sm">
+                            <i class="${iconClass} ${c.icon} text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-900 text-sm md:text-base leading-tight uppercase tracking-wide font-archivo">${title}</h3>
+                            <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${sourceName}</p>
+                        </div>
+                    </div>
+                    <div class="shrink-0">${badgeHTML}</div>
+                </div>
+                <div class="border-t-2 border-slate-100 w-full my-1"></div>`;
+        }
+
+        // ====================================================
+        // SET CARD LOADING — Skeleton premium
+        // ====================================================
+        function setCardLoading(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string) {
+            const container = document.getElementById(`${cardId}-card-container`);
+            if (!container) return;
+            container.setAttribute('data-status', 'loading');
+            container.className = "results-card card-animate bg-white border-2 border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col gap-4 text-slate-900";
+            const loadingBadge = `<span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                <span class="inline-block w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent spin-icon"></span> Consultando...
+            </span>`;
+            container.innerHTML = `
+                ${cardHeader(cardId, title, sourceName, iconClass, loadingBadge)}
+                <div class="space-y-3">
+                    ${skeletonBody()}
+                    <div class="flex items-center gap-2 pt-2">
+                        <div class="skeleton h-3 w-1/4"></div>
+                        <div class="skeleton h-3 w-1/3"></div>
+                    </div>
+                </div>`;
+            reorderCards();
+        }
+
+        // ====================================================
+        // SET CARD DATA
+        // ====================================================
+        function setCardData(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, htmlContent: string, isSuccess: boolean, hasData: boolean) {
+            const container = document.getElementById(`${cardId}-card-container`);
+            if (!container) return;
+            let badgeHTML = '';
+            if (isSuccess) {
+                container.setAttribute('data-status', 'funciona');
+                if (hasData) {
+                    badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                        <i class="fas fa-circle-check text-emerald-500"></i> Con Registros
+                    </span>`;
+                } else {
+                    badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-50 text-slate-600 border border-slate-300 shadow-sm">
+                        <i class="fas fa-circle-info text-slate-400"></i> Sin Registros
+                    </span>`;
+                }
+            } else {
+                container.setAttribute('data-status', 'mantenimiento');
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm animate-pulse">
+                    <i class="fas fa-triangle-exclamation text-amber-500"></i> Mantenimiento
+                </span>`;
+            }
+            container.className = "results-card card-animate bg-white border-2 border-slate-900 rounded-2xl p-5 md:p-6 shadow-md flex flex-col gap-4 text-slate-900";
+            container.innerHTML = `
+                ${cardHeader(cardId, title, sourceName, iconClass, badgeHTML)}
+                <div class="w-full">${htmlContent}</div>`;
+            reorderCards();
+        }
+
+        // ====================================================
+        // SET CARD ERROR
+        // ====================================================
+        function setCardError(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) {
+            const container = document.getElementById(`${cardId}-card-container`);
+            if (!container) return;
+            const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento");
+            let badgeHTML = '';
+            let rightContent = '';
+            if (isMantenimiento) {
+                container.setAttribute('data-status', 'mantenimiento');
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm">
+                    <i class="fas fa-wrench text-amber-500"></i> Mantenimiento
+                </span>`;
+                rightContent = `
+                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6">
+                        <div class="w-14 h-14 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center mb-1">
+                            <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-extrabold text-slate-800 leading-tight">Servicio en Mantenimiento</p>
+                            <p class="text-xs text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                        </div>
+                        <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
+                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                            <i class="fas fa-rotate-right"></i> Reintentar Consulta
+                        </button>
+                    </div>`;
+            } else {
+                container.setAttribute('data-status', 'no-funciona');
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
+                    <i class="fas fa-circle-xmark text-red-500"></i> Sin Acceso
+                </span>`;
+                rightContent = `
+                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6">
+                        <div class="w-14 h-14 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center mb-1">
+                            <i class="fas fa-circle-xmark text-2xl text-red-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-extrabold text-red-700 leading-tight">Error al conectar con la fuente</p>
+                            <p class="text-xs text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                        </div>
+                        <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
+                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                            <i class="fas fa-rotate-right"></i> Reintentar Consulta
+                        </button>
+                    </div>`;
+            }
+            container.className = "results-card card-animate bg-white border-2 border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col gap-4 text-slate-900";
+            container.innerHTML = `
+                ${cardHeader(cardId, title, sourceName, iconClass, badgeHTML)}
+                <div class="w-full">${rightContent}</div>`;
+            reorderCards();
+        }
+
+        // ====================================================
+        // RENDER SOAT
+        // ====================================================
+        function renderSOAT(data: any[], plate: string) {
+            if (!data || data.length === 0) {
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                        <i class="fas fa-file-slash text-slate-300 text-xl"></i>
+                    </div>
+                    <p class="font-extrabold text-slate-600 text-sm">Sin SOAT registrado</p>
+                    <p class="text-xs text-slate-400">No se encontraron certificados SOAT para <strong class="text-slate-600">${plate}</strong></p>
+                </div>`;
+            }
+            const cert = data[0];
+            const esVigente = (cert.Estado || '').toUpperCase() === 'VIGENTE';
+            return `
+                <div class="flex items-start justify-between mb-4 gap-3">
+                    <div>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Aseguradora</p>
+                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.NombreCompania || 'N/A'}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Placa: <strong class="text-slate-700">${cert.Placa || plate}</strong></p>
+                    </div>
+                    <div class="shrink-0">${estadoBadge(cert.Estado)}</div>
+                </div>
+                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <tbody>
+                            ${fila('Certificado N°', cert.NumeroPoliza)}
+                            ${fila('Tipo', cert.TipoCertificado)}
+                            ${fila('Vigencia Inicio', cert.FechaInicio)}
+                            ${fila('Vigencia Fin', cert.FechaFin)}
+                            ${fila('Uso', cert.NombreUsoVehiculo)}
+                            ${fila('Clase', cert.NombreClaseVehiculo)}
+                            ${fila('Marca', cert.Marca)}
+                            ${fila('Modelo', cert.ModeloVehiculo)}
+                            ${fila('Asientos', cert.NumeroAsientos)}
+                        </tbody>
+                    </table>
+                </div>
+                ${data.length > 1 ? `<p class="text-[11px] text-slate-400 mt-3 text-right font-semibold"><i class="fas fa-layer-group mr-1"></i>+ ${data.length - 1} certificado(s) anterior(es)</p>` : ''}`;
+        }
+
+        // ====================================================
+        // RENDER CITV
+        // ====================================================
+        function renderCITV(data: any[], plate: string) {
+            if (!data || data.length === 0) {
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                        <i class="fas fa-clipboard-list text-slate-300 text-xl"></i>
+                    </div>
+                    <p class="font-extrabold text-slate-600 text-sm">Sin CITV registrado</p>
+                    <p class="text-xs text-slate-400">No se encontraron inspecciones técnicas para <strong class="text-slate-600">${plate}</strong></p>
+                </div>`;
+            }
+            const cert = data[0];
+            const estadoDisplay = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
+            return `
+                <div class="flex items-start justify-between mb-4 gap-3">
+                    <div>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Centro de Inspección</p>
+                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.centroInspeccion || 'Centro MTC'}</p>
+                    </div>
+                    <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
+                </div>
+                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <tbody>
+                            ${fila('N° Informe', cert.numeroInforme)}
+                            ${fila('Fecha Inspección', cert.fechaInspeccion)}
+                            ${fila('Fecha Vencimiento', cert.fechaVencimiento)}
+                            ${fila('Clase Vehículo', cert.clase)}
+                            ${fila('Marca', cert.marca)}
+                            ${fila('Modelo', cert.modelo)}
+                            ${fila('Año Fabricación', cert.anio)}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        // ====================================================
+        // RENDER LUNAS
+        // ====================================================
+        function renderLunas(data: any[], plate: string) {
+            if (!data || data.length === 0) {
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                        <i class="fas fa-eye text-slate-300 text-xl"></i>
+                    </div>
+                    <p class="font-extrabold text-slate-600 text-sm">Sin Permiso de Lunas</p>
+                    <p class="text-xs text-slate-400">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600">${plate}</strong></p>
+                </div>`;
+            }
+            const cert = data[0];
+            return `
+                <div class="flex items-start justify-between mb-4 gap-3">
+                    <div>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">N° Certificado</p>
+                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.nroCertificado || 'N/A'}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Placa: <strong class="text-slate-700">${cert.placa || plate}</strong></p>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm shrink-0">
+                        <i class="fas fa-certificate"></i> AUTORIZADO
+                    </span>
+                </div>
+                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <tbody>
+                            ${fila('Categoría', cert.categoria)}
+                            ${fila('Marca', cert.marca)}
+                            ${fila('Modelo', cert.modelo)}
+                            ${fila('Color', cert.color)}
+                            ${fila('Año', cert.anio)}
+                            ${fila('Fecha Emisión', cert.fechaEmision)}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        // ====================================================
+        // RENDER CALLAO
+        // ====================================================
+        function renderCallao(data: any[], plate: string, total: string) {
+            if (!data || data.length === 0) {
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <div class="w-12 h-12 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mb-1">
+                        <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
+                    </div>
+                    <p class="font-extrabold text-emerald-700 text-sm">¡Sin Papeletas!</p>
+                    <p class="text-xs text-slate-400">No se registraron infracciones para <strong class="text-slate-600">${plate}</strong> en el Callao</p>
+                </div>`;
+            }
+            const rows = data.map((p: any) => `
+                <tr class="border-b border-slate-200 last:border-0 hover:bg-red-50/50 transition-colors duration-150">
+                    <td class="py-2.5 px-3 text-xs font-extrabold text-slate-800 border-r-2 border-slate-200">${p.nroPapeleta || '-'}</td>
+                    <td class="py-2.5 px-3 text-xs font-bold text-slate-600 border-r-2 border-slate-200">${p.codigo || '-'}</td>
+                    <td class="py-2.5 px-3 text-xs text-slate-500 border-r-2 border-slate-200">${p.fechaInfraccion || '-'}</td>
+                    <td class="py-2.5 px-3 text-xs font-extrabold text-red-600 border-r-2 border-slate-200">S/ ${p.total || '0'}</td>
+                    <td class="py-2.5 px-3 text-center">
+                        ${p.detalleUrl ? `
+                            <button onclick="window.abrirModalPapeleta('${p.detalleUrl}')"
+                                class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-all active:scale-95 shadow-sm"
+                                title="Ver imagen de papeleta">
+                                <i class="fas fa-file-image text-xs"></i>
+                            </button>
+                        ` : '<span class="text-slate-300 text-xs">—</span>'}
+                    </td>
+                </tr>`).join('');
+            return `
+                <div class="flex items-start justify-between mb-4 gap-3">
+                    <div>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Infracciones encontradas</p>
+                        <p class="text-2xl font-extrabold text-red-600 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Total adeudado</p>
+                        <p class="text-2xl font-extrabold text-red-700 leading-tight">S/ ${total || '0.00'}</p>
+                        <p class="text-[10px] text-red-500 mt-0.5 font-bold">⚠ PAGA O EVITA EMBARGO</p>
+                    </div>
+                </div>
+                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse bg-white">
+                            <thead>
+                                <tr class="bg-slate-900 text-white">
+                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">N° Papeleta</th>
+                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Código</th>
+                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Fecha</th>
+                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Total</th>
+                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest text-center">Doc.</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        // ====================================================
+        // RENDER LIMA
+        // ====================================================
+        function renderLima(plate: string, message: string, directUrl: string) {
+            return `
+                <div class="flex flex-col gap-5 text-slate-900">
+                    <div class="flex items-center gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0">
+                            <i class="fas fa-gavel text-amber-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-extrabold text-slate-800 text-sm">Consulta directa requerida</p>
+                            <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">${message}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center gap-3">
+                        <p class="text-[11px] text-slate-400">Placa a consultar: <strong class="font-extrabold text-slate-800 font-archivo text-sm">${plate}</strong></p>
+                        <a href="${directUrl}" target="_blank" rel="noopener"
+                           class="w-full max-w-xs flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                            <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
+                        </a>
+                    </div>
+                </div>`;
+        }
+
+        // ====================================================
+        // RENDER SUTRAN
+        // ====================================================
+        function renderSutran(data: any[], plate: string, infoReporte: string) {
+            let bodyHTML = '';
+            if (!data || data.length === 0) {
+                bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <div class="w-12 h-12 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mb-1">
+                        <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
+                    </div>
+                    <p class="font-extrabold text-emerald-700 text-sm">¡Sin Papeletas SUTRAN!</p>
+                    <p class="text-xs text-slate-400">No se encontraron infracciones para <strong class="text-slate-600">${plate}</strong></p>
+                </div>`;
+            } else {
+                const rows = data.map((p: any) => `
+                    <tr class="border-b border-slate-200 last:border-0 hover:bg-orange-50/50 transition-colors duration-150">
+                        <td class="py-2.5 px-3 text-[11px] font-extrabold text-slate-800 border-r-2 border-slate-200">${p.nroDocumento || '-'}</td>
+                        <td class="py-2.5 px-3 text-[11px] font-bold text-slate-600 border-r-2 border-slate-200">${p.codigoInfraccion || '-'}</td>
+                        <td class="py-2.5 px-3 text-[11px] text-slate-500 border-r-2 border-slate-200">${p.fechaDocumento || '-'}</td>
+                        <td class="py-2.5 px-3 text-[11px] font-bold text-orange-700">${p.clasificacion || '-'}</td>
+                    </tr>`).join('');
+                bodyHTML = `
+                    <div class="flex items-start justify-between mb-4 gap-3">
+                        <div>
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Infracciones SUTRAN</p>
+                            <p class="text-2xl font-extrabold text-red-600 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                        </div>
+                    </div>
+                    <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                        <div class="overflow-x-auto max-h-[240px]">
+                            <table class="w-full text-left border-collapse bg-white">
+                                <thead>
+                                    <tr class="bg-slate-900 text-white">
+                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">N° Documento</th>
+                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Código</th>
+                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Fecha</th>
+                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest sticky top-0">Clasificación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                    </div>`;
+            }
+            if (infoReporte) {
+                bodyHTML += `
+                    <div class="mt-4 pt-3 border-t-2 border-slate-100 flex items-start gap-2">
+                        <i class="fas fa-circle-info text-slate-400 mt-0.5 shrink-0"></i>
+                        <p class="text-[10px] text-slate-400 italic leading-relaxed">${infoReporte}</p>
+                    </div>`;
+            }
+            return bodyHTML;
+        }
+
+        // ====================================================
+        // RENDER ATU
+        // ====================================================
+        function renderAtu(data: any, plate: string) {
+            if (!data || data.fuenteDato === 'NOREGISTRADO') {
+                const marca = data?.marcaSunarp || 'N/A';
+                const modelo = data?.modeloSunarp || 'N/A';
+                const color = data?.color || 'N/A';
+                return `
+                    <div class="flex flex-col items-center justify-center py-6 gap-2 text-center">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center mb-1">
+                            <i class="fas fa-ban text-slate-400 text-xl"></i>
+                        </div>
+                        <p class="font-extrabold text-slate-700 text-sm">No registrado como taxi</p>
+                        <p class="text-xs text-slate-400 max-w-[260px] leading-relaxed">Este vehículo no cuenta con habilitación vigente para prestar servicio de taxi ante la ATU.</p>
+                    </div>
+                    <div class="mt-2 pt-3 border-t-2 border-slate-100">
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2"><i class="fas fa-database mr-1"></i>Datos SUNARP del vehículo</p>
+                        <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                            <table class="w-full text-left border-collapse bg-white">
+                                <tbody>
+                                    ${fila('Marca', marca)}
+                                    ${fila('Modelo', modelo)}
+                                    ${fila('Color', color)}
+                                    ${fila('N° Serie', data?.serie)}
+                                    ${fila('N° Motor', data?.motor)}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+            }
+            let badgeHTML = '';
+            const estadoNum = data.estadoCertificado;
+            const estadoTexto = estadoNum === 1 ? 'HABILITADO' : estadoNum === 2 ? 'SUSPENDIDO' : estadoNum === 3 ? 'BAJA' : 'NO HABILITADO';
+            if (estadoNum === 1) {
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                    <i class="fas fa-circle-check text-emerald-500"></i> HABILITADO
+                </span>`;
+            } else if (estadoNum === 2) {
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm">
+                    <i class="fas fa-triangle-exclamation text-amber-500"></i> SUSPENDIDO
+                </span>`;
+            } else {
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
+                    <i class="fas fa-circle-xmark text-red-500"></i> ${estadoTexto}
+                </span>`;
+            }
+            let conductoresHTML = '';
+            if (data.conductores && data.conductores.length > 0) {
+                const rows = data.conductores.map((c: any) => `
+                    <tr class="border-b border-slate-200 last:border-0 hover:bg-teal-50/50 transition-colors duration-150">
+                        <td class="py-2 px-3 text-[10px] font-bold text-slate-800 border-r-2 border-slate-200 leading-tight">${c.nombreOperador || '-'}</td>
+                        <td class="py-2 px-3 text-[10px] text-slate-600 border-r-2 border-slate-200">${c.numeroDocumento || '-'}</td>
+                        <td class="py-2 px-3 text-[10px] text-slate-600">${c.nroLicenciaConducir || '-'}</td>
+                    </tr>`).join('');
+                conductoresHTML = `
+                    <div class="mt-4 pt-3 border-t-2 border-slate-100">
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2"><i class="fas fa-users mr-1"></i>Conductores Vinculados</p>
+                        <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                            <div class="overflow-x-auto max-h-[130px]">
+                                <table class="w-full text-left border-collapse bg-white">
+                                    <thead>
+                                        <tr class="bg-slate-900 text-white">
+                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Nombre</th>
+                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Documento</th>
+                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest sticky top-0">Licencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${rows}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            return `
+                <div class="flex items-start justify-between mb-4 gap-3">
+                    <div>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Modalidad</p>
+                        <p class="text-base font-extrabold text-slate-900 leading-tight">${data.modalidad || 'Taxi'}</p>
+                    </div>
+                    <div class="shrink-0">${badgeHTML}</div>
+                </div>
+                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <tbody>
+                            ${fila('N° TUC', data.certificadoTuc)}
+                            ${fila('Propietario', data.propietario)}
+                            ${fila('Documento', data.rucDNI)}
+                            ${fila('Fecha Emisión', data.fechaEmision)}
+                            ${fila('Fecha Vencimiento', data.fechaVencimiento)}
+                            ${fila('Vehículo', [data.marcaSunarp, data.modeloSunarp, data.color].filter(Boolean).join(' · '))}
+                        </tbody>
+                    </table>
+                </div>
+                ${conductoresHTML}`;
+        }
+
+        // ====================================================
+        // PETICIONES INDEPENDIENTES
+        // ====================================================
+        async function fetchSOAT(plate: string) {
+            setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderSOAT(data.data, plate);
+                    setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0);
+                } else {
+                    setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', data.error || 'Error desconocido', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
+                setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', msg, plate);
+            }
+        }
+
+        async function fetchCITV(plate: string) {
+            setCardLoading('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 130000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/citv/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderCITV(data.data, plate);
+                    setCardData('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0);
+                } else {
+                    setCardError('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (35s).' : (err.message || 'Error de conexión');
+                setCardError('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
+            }
+        }
+
+        async function fetchLunas(plate: string) {
+            const content = `
+                <div class="flex flex-col items-center justify-center gap-4 py-6 text-center">
+                    <div class="w-14 h-14 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center">
+                        <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
+                    </div>
+                    <div>
+                        <p class="font-extrabold text-slate-800 text-sm">En Mantenimiento Temporal</p>
+                        <p class="text-xs text-slate-400 mt-1 max-w-[280px] mx-auto leading-relaxed">
+                            La consulta de lunas oscurecidas está temporalmente en mantenimiento para mejoras del sistema.
+                        </p>
+                    </div>
+                </div>`;
+            setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, false, false);
+        }
+
+        async function fetchCallao(plate: string) {
+            setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 165000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderCallao(data.data, plate, data.total);
+                    setCardData('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', content, true, data.data?.length > 0);
+                } else {
+                    setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || 'Error al consultar papeletas', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+                setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', msg, plate);
+            }
+        }
+
+        async function fetchLima(plate: string) {
+            setCardLoading('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/lima/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const content = renderLima(plate, data.message || 'Para consultar papeletas en Lima, ingresa directamente al portal SAT.', data.url || `https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx`);
+                setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, true, false);
+            } catch {
+                const content = renderLima(plate, 'Para consultar papeletas en Lima, ingresa directamente al portal SAT.', `https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx`);
+                setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, true, false);
+            }
+        }
+
+        async function fetchSutran(plate: string) {
+            setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderSutran(data.data, plate, data.infoReporte || '');
+                    setCardData('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', content, true, data.data?.length > 0);
+                } else {
+                    setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', data.error || 'Error al consultar SUTRAN', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+                setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', msg, plate);
+            }
+        }
+
+        async function fetchATU(plate: string) {
+            setCardLoading('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderAtu(data.data, plate);
+                    const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
+                    setCardData('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
+                } else {
+                    setCardError('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+                setCardError('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
+            }
+        }
+
+        (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
+            if (cardId === 'soat')   await fetchSOAT(plate);
+            else if (cardId === 'citv')   await fetchCITV(plate);
+            else if (cardId === 'lunas')  await fetchLunas(plate);
+            else if (cardId === 'callao') await fetchCallao(plate);
+            else if (cardId === 'lima')   await fetchLima(plate);
+            else if (cardId === 'sutran') await fetchSutran(plate);
+            else if (cardId === 'atu')    await fetchATU(plate);
+        };
+
+        // ====================================================
+        // SUBMIT DEL FORMULARIO
+        // ====================================================
+        const queryForm = document.getElementById('query-form');
+        const queryStatus = document.getElementById('query-status');
+        const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+        if (queryForm && plateInput && queryStatus) {
+            queryForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const plate = plateInput.value.trim().toUpperCase();
+                if (!plate) return;
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
+                }
+                queryStatus.textContent = 'Iniciando consulta multiorigen...';
+                queryStatus.classList.remove('opacity-0');
+
+                const rc = document.getElementById('results-container')!;
+                rc.className = 'w-full bg-white rounded-2xl border-2 border-slate-100 p-6 md:p-8 shadow-lg text-left text-slate-900';
+                rc.innerHTML = `
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b-2 border-slate-100">
+                        <div>
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Placa consultada</p>
+                            <p class="text-2xl font-extrabold text-slate-900 font-archivo tracking-wide">${plate}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
+                            <p class="text-sm font-bold text-slate-600">APESEG · MTC · Callao · SUTRAN · ATU</p>
+                        </div>
+                    </div>
+                    <div id="results-cards-wrapper" class="flex flex-col gap-5 w-full">
+                        <div id="soat-card-container" data-status="loading"></div>
+                        <div id="citv-card-container" data-status="loading"></div>
+                        <div id="lunas-card-container" data-status="loading"></div>
+                        <div id="callao-card-container" data-status="loading"></div>
+                        <div id="lima-card-container" data-status="loading"></div>
+                        <div id="sutran-card-container" data-status="loading"></div>
+                        <div id="atu-card-container" data-status="loading"></div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t-2 border-slate-100 flex items-center justify-center gap-2">
+                        <i class="fas fa-circle-info text-slate-300 text-xs"></i>
+                        <p class="text-[11px] text-slate-400">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 font-archivo">${plate}</strong> · <span id="last-query-time"></span></p>
+                    </div>`;
+
+                document.getElementById('last-query-time')!.textContent = new Date().toLocaleString('es-PE');
+
+                Promise.all([
+                    fetchSOAT(plate),
+                    fetchCITV(plate),
+                    fetchLunas(plate),
+                    fetchCallao(plate),
+                    fetchLima(plate),
+                    fetchSutran(plate),
+                    fetchATU(plate)
+                ]).finally(() => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                    }
+                    queryStatus.classList.add('opacity-0');
+                });
+            });
+
+            (window as any).abrirModalPapeleta = async function(nroPapeleta: string) {
+                const modal = document.getElementById('papeleta-modal')!;
+                const title = document.getElementById('modal-papeleta-title')!;
+                const loading = document.getElementById('modal-loading')!;
+                const error = document.getElementById('modal-error')!;
+                const errorMsg = document.getElementById('modal-error-msg')!;
+                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+
+                title.textContent = `Papeleta de Infracción N° ${nroPapeleta}`;
+                modal.classList.remove('hidden');
+                loading.classList.remove('hidden');
+                error.classList.add('hidden');
+                pdfViewer.classList.add('hidden');
+                imgViewer.classList.add('hidden');
+                pdfViewer.src = "";
+                imgViewer.src = "";
+
+                try {
+                    const res = await fetch(`http://localhost:8000/api/v1/callao/pdf/${nroPapeleta}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const result = await res.json();
+                    if (result.success && result.data) {
+                        loading.classList.add('hidden');
+                        const base64Data = result.data.trim();
+                        if (base64Data.startsWith('JVBER')) {
+                            pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
+                            pdfViewer.classList.remove('hidden');
+                        } else if (base64Data.startsWith('/9j/') || base64Data.startsWith('iVBOR')) {
+                            const mime = base64Data.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+                            imgViewer.src = `data:${mime};base64,${base64Data}`;
+                            imgViewer.classList.remove('hidden');
+                        } else {
+                            if (nroPapeleta.endsWith('A') || nroPapeleta.endsWith('B')) {
+                                imgViewer.src = `data:image/jpeg;base64,${base64Data}`;
+                                imgViewer.classList.remove('hidden');
+                            } else {
+                                pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
+                                pdfViewer.classList.remove('hidden');
+                            }
+                        }
+                    } else {
+                        throw new Error(result.error || 'No se obtuvieron datos de la papeleta');
+                    }
+                } catch (err: any) {
+                    loading.classList.add('hidden');
+                    error.classList.remove('hidden');
+                    errorMsg.textContent = err.message || 'Error de conexión con el servidor.';
+                }
+            };
+
+            (window as any).cerrarModalPapeleta = function() {
+                const modal = document.getElementById('papeleta-modal')!;
+                modal.classList.add('hidden');
+                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+                pdfViewer.src = "";
+                imgViewer.src = "";
+            };
+        }
+    </script>
+
+
+
+
+
+    <!-- Modal para ver PDF/Imagen de Papeleta -->
+    <div id="papeleta-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                <h3 id="modal-papeleta-title" class="font-bold text-slate-800 dark:text-white text-base font-inter">Papeleta de Infracción</h3>
+                <button onclick="window.cerrarModalPapeleta()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-all text-xl p-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="flex-1 overflow-auto p-5 min-h-[400px] flex items-center justify-center bg-slate-100 dark:bg-slate-900/30">
+                <div id="modal-loading" class="hidden flex flex-col items-center gap-3">
+                    <div class="w-10 h-10 rounded-full border-4 border-brand-yellow/20 border-t-brand-yellow animate-spin"></div>
+                    <p class="text-xs text-slate-500 font-inter">Cargando documento desde el portal...</p>
+                </div>
+                <div id="modal-error" class="hidden text-center max-w-sm">
+                    <i class="fas fa-exclamation-circle text-3xl text-red-500 mb-2 block"></i>
+                    <p class="text-sm font-bold text-red-700 dark:text-red-400 font-inter">No se pudo cargar el documento</p>
+                    <p id="modal-error-msg" class="text-xs text-slate-500 mt-1 font-inter"></p>
+                </div>
+                <iframe id="pdf-viewer" class="hidden w-full h-[65vh] border-0 rounded-lg shadow-sm" src=""></iframe>
+                <img id="image-viewer" class="hidden max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm" src="" alt="Papeleta" />
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

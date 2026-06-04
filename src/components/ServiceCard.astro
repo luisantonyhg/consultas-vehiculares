@@ -1,0 +1,54 @@
+---
+import type { Service } from '../data/services';
+
+interface Props {
+  service: Service;
+}
+
+const { service } = Astro.props;
+const { id, title, url, logo, reverse = false } = service;
+---
+
+<div
+  class="service-card-wrapper relative group"
+  data-id={id}
+  data-title={title.toLowerCase()}
+  data-url={url}
+>
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    class={`service-card flex items-center ${reverse ? 'flex-row-reverse' : 'flex-row'} relative overflow-hidden min-h-[75px] md:min-h-[105px] px-3.5 py-2.5 md:px-[18px] md:py-4 rounded-[10px] md:rounded-[15px] transition-all duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.3)] hover:-translate-y-1 hover:scale-[1.03] hover:brightness-110 border border-white/20 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50
+      bg-gradient-to-br from-[#42d9e8] to-[#1045b0] text-white`}
+  >
+    {/* Contenedor de Logo */}
+    <div class="service-logo-container flex items-center justify-center p-1 bg-white rounded-[6px] md:rounded-[8px] z-10 w-[45px] h-[45px] md:w-[68px] md:h-[68px] shrink-0 transition-transform duration-300 group-hover:scale-105 shadow-sm">
+      <img
+        src={logo}
+        alt={title}
+        class="max-w-full max-h-full object-contain rounded-[4px]"
+        loading="lazy"
+      />
+    </div>
+
+    {/* Título del Servicio */}
+    <div class={`service-title font-inter text-[13px] md:text-[16px] font-extrabold flex-1 leading-[1.2] z-10 px-2.5 md:px-4 transition-colors duration-300 text-white
+      ${reverse ? 'text-left ml-0 mr-1 md:mr-2' : 'text-center ml-1 md:ml-2 mr-0'}
+      group-hover:text-brand-yellow`}
+    >
+      {title}
+    </div>
+  </a>
+
+  {/* Botón de Favorito */}
+  <button
+    type="button"
+    class="favorite-btn absolute top-1 right-1 md:top-2 md:right-2 text-white/60 hover:text-brand-yellow focus:outline-none transition-all duration-200 z-20 p-1.5 rounded-full hover:bg-white/15"
+    data-fav-id={id}
+    title="Agregar a favoritos"
+    aria-label="Agregar a favoritos"
+  >
+    <i class="far fa-star text-xs md:text-sm"></i>
+  </button>
+</div>
