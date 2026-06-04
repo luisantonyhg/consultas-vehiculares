@@ -71,7 +71,7 @@
                 <img
                     src="/assets/fortuner.png"
                     alt="Toyota Fortuner"
-                    class="car-img order-1 md:order-1 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 -translate-x-3 md:translate-x-0 md:-ml-5 transition-transform duration-500 hover:scale-105"
+                    class="hidden md:block car-img order-1 md:order-1 max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 -ml-5 transition-transform duration-500 hover:scale-105"
                 />
 
                 {/* Contenido Central */}
@@ -121,7 +121,7 @@
                 <img
                     src="/assets/hilux.png"
                     alt="Toyota Hilux"
-                    class="car-img order-2 md:order-3 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 translate-x-3 md:translate-x-0 md:-mr-5 transition-transform duration-500 hover:scale-105"
+                    class="hidden md:block car-img order-2 md:order-3 max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 -mr-5 transition-transform duration-500 hover:scale-105"
                 />
             </div>
         </section>
@@ -309,9 +309,9 @@
         // ====================================================
         function fila(label: string, value: string) {
             if (!value || value === 'null' || value === 'undefined' || value.trim() === '') return '';
-            return `<tr class="border-b border-slate-200 last:border-0 hover:bg-slate-50/80 transition-colors duration-150 group">
-                <td class="py-3 px-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider bg-slate-50 border-r-2 border-slate-200 whitespace-nowrap w-[38%] group-hover:bg-slate-100 transition-colors">${label}</td>
-                <td class="py-3 px-4 text-sm font-bold text-slate-800 leading-snug">${value}</td>
+            return `<tr class="flex flex-col md:table-row border-b border-slate-200 last:border-0 hover:bg-slate-50/80 transition-colors duration-150 group">
+                <td class="py-2.5 px-3 md:py-3 md:px-4 text-[10px] md:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider bg-slate-50 border-b md:border-b-0 md:border-r-2 border-slate-200 whitespace-normal md:whitespace-nowrap w-full md:w-[38%] group-hover:bg-slate-100 transition-colors">${label}</td>
+                <td class="py-2.5 px-3 md:py-3 md:px-4 text-xs md:text-sm font-bold text-slate-800 leading-snug w-full md:w-auto">${value}</td>
             </tr>`;
         }
 
@@ -321,17 +321,17 @@
         function cardHeader(cardId: string, title: string, sourceName: string, iconClass: string, badgeHTML: string) {
             const c = getColors(cardId);
             return `
-                <div class="flex items-center justify-between gap-4 w-full">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-12 h-12 rounded-2xl ${c.bg} ring-2 ${c.ring} flex items-center justify-center shrink-0 shadow-sm">
-                            <i class="${iconClass} ${c.icon} text-lg"></i>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 md:w-12 md:h-12 rounded-2xl ${c.bg} ring-2 ${c.ring} flex items-center justify-center shrink-0 shadow-sm">
+                            <i class="${iconClass} ${c.icon} text-base md:text-lg"></i>
                         </div>
                         <div>
-                            <h3 class="font-extrabold text-slate-900 text-sm md:text-base leading-tight uppercase tracking-wide font-archivo">${title}</h3>
-                            <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${sourceName}</p>
+                            <h3 class="font-extrabold text-slate-900 text-xs md:text-base leading-tight uppercase tracking-wide font-archivo">${title}</h3>
+                            <p class="text-[9px] md:text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${sourceName}</p>
                         </div>
                     </div>
-                    <div class="shrink-0">${badgeHTML}</div>
+                    <div class="self-start sm:self-auto shrink-0">${badgeHTML}</div>
                 </div>
                 <div class="border-t-2 border-slate-100 w-full my-1"></div>`;
         }
@@ -979,14 +979,14 @@
                 const rc = document.getElementById('results-container')!;
                 rc.className = 'w-full bg-white rounded-2xl border-2 border-slate-100 p-6 md:p-8 shadow-lg text-left text-slate-900';
                 rc.innerHTML = `
-                    <div class="flex items-center justify-between mb-6 pb-4 border-b-2 border-slate-100">
+                    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-6 pb-4 border-b-2 border-slate-100">
                         <div>
                             <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Placa consultada</p>
                             <p class="text-2xl font-extrabold text-slate-900 font-archivo tracking-wide">${plate}</p>
                         </div>
-                        <div class="text-right">
+                        <div class="text-left sm:text-right">
                             <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                            <p class="text-sm font-bold text-slate-600">APESEG · MTC · Callao · SUTRAN · ATU</p>
+                            <p class="text-xs md:text-sm font-bold text-slate-600">APESEG · MTC · Callao · SUTRAN · ATU</p>
                         </div>
                     </div>
                     <div id="results-cards-wrapper" class="flex flex-col gap-5 w-full">
@@ -1041,7 +1041,7 @@
                 imgViewer.src = "";
 
                 try {
-                    const res = await fetch(`http://localhost:8000/api/v1/callao/pdf/${nroPapeleta}`);
+                    const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const result = await res.json();
                     if (result.success && result.data) {
