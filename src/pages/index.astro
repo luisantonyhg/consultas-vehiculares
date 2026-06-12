@@ -4,7 +4,7 @@ import { SERVICES_DATA } from '../data/services';
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -178,7 +178,70 @@ import { SERVICES_DATA } from '../data/services';
     <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
             <p class="text-xs text-slate-400 dark:text-text-muted mb-1.5 uppercase tracking-widest">Realizado por:</p>
-            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-5">Luis Antony Huamani Gonzales</p>
+            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-2">Luis Antony Huamani Gonzales</p>
+
+            {/* Aviso Legal y Uso Ético */}
+            <div class="mt-8 pt-8 border-t border-slate-200 dark:border-white/10 text-left max-w-3xl mx-auto font-inter">
+                <div class="bg-white/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 p-4 md:p-6 rounded-2xl shadow-sm">
+                    <h4 class="text-xs font-extrabold text-slate-700 dark:text-brand-yellow uppercase tracking-widest flex items-center gap-2 mb-3 font-inter">
+                        <i class="fas fa-shield-halved text-brand-red dark:text-brand-yellow"></i>
+                        Aviso Legal y Uso Ético de la Información
+                    </h4>
+                    <p class="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+                        Este portal web es una herramienta estrictamente académica y de divulgación sin fines de lucro. Facilita la centralización de enlaces y consultas públicas de libre acceso. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[10px] md:text-[11px] leading-relaxed">
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-database text-blue-500"></i> Cero Almacenamiento
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Luis Antony Huamani Gonzales NO recopila, almacena ni comparte datos de placas o búsquedas. Las consultas operan en tiempo real como intermediario directo.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-gavel text-amber-500"></i> Uso Legítimo
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Prohibido el uso de este portal para actividades de acoso, extorsión o fraude. El portal implementa captchas para evitar abusos automatizados.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-globe text-emerald-500"></i> Responsabilidad
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                El usuario final asume plena responsabilidad legal y moral por las consultas realizadas y la interpretación de la información mostrada.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-arrow-up-right-from-square text-cyan-500"></i> Verificación Oficial
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Se proveen enlaces directos en el pie de cada sección para que el investigador pueda corroborar los resultados directamente con el portal del estado respectivo.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-graduation-cap text-indigo-500"></i> Fines Académicos
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Este aplicativo ha sido creado para fines educativos e ilustrativos para la demostración práctica de consumo seguro de servicios públicos descentralizados.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-circle-info text-rose-500"></i> Límites de Servicio
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                La exactitud y disponibilidad temporal de los datos dependen enteramente del funcionamiento y estabilidad de los servidores externos de terceros.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </footer>
 
@@ -419,7 +482,7 @@ import { SERVICES_DATA } from '../data/services';
         }
 
         // Tema inicial
-        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const savedTheme = localStorage.getItem('theme') || 'light';
         applyTheme(savedTheme);
 
         if (themeToggleBtn) {

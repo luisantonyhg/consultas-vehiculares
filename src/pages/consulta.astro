@@ -3,15 +3,15 @@
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consulta por Placa - Análisis Vehicular Perú</title>
-    <meta name="description" content="Consulta en tiempo real el estado de SOAT y CITV de cualquier vehículo peruano ingresando su placa.">
+    <meta name="description" content="Realiza un análisis vehicular integral en tiempo real consultando múltiples fuentes oficiales ingresando la placa del vehículo.">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
@@ -35,15 +35,29 @@
             animation: shimmer 1.5s infinite linear;
             border-radius: 6px;
         }
+        .dark .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 600px 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
         .spin-icon { animation: spin 1.2s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .results-card { transition: box-shadow 0.25s ease, transform 0.2s ease; }
-        .results-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.10); transform: translateY(-1px); }
+        .results-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.12); transform: translateY(-2px); }
+        .accordion-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .accordion-card:hover {
+            box-shadow: 0 8px 24px rgba(26, 58, 107, 0.12);
+        }
+        .dark .accordion-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
     </style>
 
 </head>
 
-<body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-inter flex flex-col pb-10">
+<body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
 
     {/* Header / Barra de Navegación */}
     <header class="w-full max-w-[1100px] flex justify-between items-center px-5 py-4 mx-auto md:px-[15px] z-20">
@@ -87,27 +101,51 @@
                     </div>
                     
                     <p class="text-white/95 text-xs md:text-sm mt-3.5 font-medium tracking-wide">
-                        Ingresa el número de placa para consultar SOAT y CITV en tiempo real
+                        Ingresa el número de placa para realizar un análisis vehicular integral en tiempo real
                     </p>
 
                     {/* Módulo de Búsqueda */}
-                    <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 dark:bg-white/5 border border-white/20 p-2 rounded-xl flex items-center gap-2 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
-                        <input
-                            type="text"
-                            id="plate-search-input"
-                            placeholder="ABC-123"
-                            maxlength="9"
-                            class="bg-transparent border-0 font-archivo text-xl text-white font-bold placeholder-white/30 uppercase text-center w-full focus:ring-0 focus:outline-none"
-                            required
-                            aria-label="Ingresa tu placa vehicular para consultar"
-                        />
-                        <button
-                            type="submit"
-                            id="submit-btn"
-                            class="bg-brand-yellow hover:bg-[#ffd000]/80 text-brand-navy-dark px-4 py-2 rounded-lg transition-all duration-300 font-extrabold flex items-center gap-1.5 active:scale-95 whitespace-nowrap text-xs shadow-md"
-                        >
-                            <i class="fas fa-search"></i> Buscar
-                        </button>
+                    <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 dark:bg-white/5 border border-white/20 p-3 rounded-2xl flex flex-col gap-3 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
+                        <div class="flex items-center gap-2 w-full">
+                            <input
+                                type="text"
+                                id="plate-search-input"
+                                placeholder="ABC-123"
+                                maxlength="9"
+                                class="bg-transparent border-0 font-archivo text-xl text-white font-bold placeholder-white/30 uppercase text-center w-full focus:ring-0 focus:outline-none"
+                                required
+                                aria-label="Ingresa tu placa vehicular para consultar"
+                            />
+                            <button
+                                type="submit"
+                                id="submit-btn"
+                                class="bg-brand-yellow hover:bg-[#ffd000]/80 text-brand-navy-dark px-4 py-2 rounded-lg transition-all duration-300 font-extrabold flex items-center gap-1.5 active:scale-95 whitespace-nowrap text-xs shadow-md"
+                            >
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                        <div id="captcha-row" class="flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
+                            <div class="flex items-center gap-2 shrink-0">
+                                <canvas id="captcha-canvas" class="rounded bg-white/10 cursor-pointer border border-white/10 select-none shadow-sm" width="105" height="34" title="Clic para recargar captcha"></canvas>
+                                <button
+                                    type="button"
+                                    id="refresh-captcha-btn"
+                                    class="text-white/40 hover:text-white transition-all text-xs p-1 focus:outline-none"
+                                    title="Recargar Captcha"
+                                >
+                                    <i class="fas fa-rotate-right"></i>
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                id="captcha-input"
+                                placeholder="Poner código captcha"
+                                maxlength="4"
+                                class="flex-1 text-center rounded-lg border border-white/20 bg-white/5 text-white text-xs font-bold uppercase py-1.5 px-2 focus:ring-1 focus:ring-brand-yellow focus:outline-none placeholder-white/30 placeholder:normal-case"
+                                required
+                                autocomplete="off"
+                            />
+                        </div>
                     </form>
                     
                     <p
@@ -116,6 +154,9 @@
                     >
                         &nbsp;
                     </p>
+
+                    <p class="text-white/60 text-[10px] md:text-xs mt-4 font-semibold tracking-widest uppercase">Realizado por:</p>
+                    <p class="text-white text-base md:text-lg mt-0.5 font-light tracking-wide">Huamani Gonzales Luis Antony</p>
                 </div>
 
                 <img
@@ -138,18 +179,18 @@
         <div class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
             <div class="flex items-center gap-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2 mb-6">
                 <i class="fas fa-chart-line text-brand-red dark:text-brand-yellow text-xl"></i>
-                <h2 class="text-xl font-bold tracking-wide font-inter">Resultados del Análisis</h2>
+                <h2 class="text-xl font-bold tracking-wide font-poppins">Resultados del Análisis</h2>
             </div>
             
             {/* Estado inicial */}
             <div
                 id="results-container"
-                class="w-full max-w-xl mx-auto text-center py-12 px-6 rounded-2xl border border-dashed border-slate-200 bg-white shadow-md text-slate-900"
+                class="w-full max-w-xl mx-auto text-center py-12 px-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md text-slate-900 dark:text-slate-100 font-poppins"
             >
-                <i class="fas fa-folder-open text-4xl text-slate-300 mb-3.5 block"></i>
-                <p class="font-extrabold text-slate-700 text-lg">Esperando Datos</p>
-                <p class="text-xs text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">
-                    Ingresa una placa arriba para consultar el SOAT y CITV de ese vehículo en tiempo real.
+                <i class="fas fa-folder-open text-4xl text-slate-300 dark:text-slate-700 mb-3.5 block"></i>
+                <p class="font-extrabold text-slate-755 dark:text-slate-200 text-lg">Esperando Datos</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">
+                    Ingresa una placa arriba para realizar un análisis vehicular integral en tiempo real.
                 </p>
             </div>
         </div>
@@ -160,7 +201,70 @@
     <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
             <p class="text-xs text-slate-400 dark:text-text-muted mb-1.5 uppercase tracking-widest">Realizado por:</p>
-            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-5">Luis Antony Huamani Gonzales</p>
+            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-2">Luis Antony Huamani Gonzales</p>
+
+            {/* Aviso Legal y Uso Ético */}
+            <div class="mt-8 pt-8 border-t border-slate-200 dark:border-white/10 text-left max-w-3xl mx-auto">
+                <div class="bg-white/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 p-4 md:p-6 rounded-2xl shadow-sm font-poppins">
+                    <h4 class="text-xs font-extrabold text-slate-700 dark:text-brand-yellow uppercase tracking-widest flex items-center gap-2 mb-3 font-inter">
+                        <i class="fas fa-shield-halved text-brand-red dark:text-brand-yellow"></i>
+                        Aviso Legal y Uso Ético de la Información
+                    </h4>
+                    <p class="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+                        Este portal web es una herramienta estrictamente académica y de divulgación sin fines de lucro. Facilita la centralización de enlaces y consultas públicas de libre acceso. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[10px] md:text-[11px] leading-relaxed">
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-database text-blue-500"></i> Cero Almacenamiento
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Luis Antony Huamani Gonzales NO recopila, almacena ni comparte datos de placas o búsquedas. Las consultas operan en tiempo real como intermediario directo.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-gavel text-amber-500"></i> Uso Legítimo
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Prohibido el uso de este portal para actividades de acoso, extorsión o fraude. El portal implementa captchas para evitar abusos automatizados.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-globe text-emerald-500"></i> Responsabilidad
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                El usuario final asume plena responsabilidad legal y moral por las consultas realizadas y la interpretación de la información mostrada.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-arrow-up-right-from-square text-cyan-500"></i> Verificación Oficial
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Se proveen enlaces directos en el pie de cada sección para que el investigador pueda corroborar los resultados directamente con el portal del estado respectivo.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-graduation-cap text-indigo-500"></i> Fines Académicos
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                Este aplicativo ha sido creado para fines educativos e ilustrativos para la demostración práctica de consumo seguro de servicios públicos descentralizados.
+                            </p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-circle-info text-rose-500"></i> Límites de Servicio
+                            </p>
+                            <p class="text-slate-500 dark:text-slate-400">
+                                La exactitud y disponibilidad temporal de los datos dependen enteramente del funcionamiento y estabilidad de los servidores externos de terceros.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </footer>
 
@@ -169,6 +273,83 @@
         // CONFIG
         // ====================================================
         const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000/api/v1';
+
+        // ====================================================
+        // CAPTCHA DE SEGURIDAD
+        // ====================================================
+        let currentCaptchaCode = '';
+
+        function generateCaptchaCode() {
+            const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Evitamos caracteres confusos como 0, 1, O, I
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function drawCaptcha() {
+            const canvas = document.getElementById('captcha-canvas') as HTMLCanvasElement;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            currentCaptchaCode = generateCaptchaCode();
+
+            // Fondo adaptado al tema actual
+            ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#1e293b' : '#f8fafc';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Líneas de ruido de fondo
+            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.stroke();
+            }
+
+            // Puntos de ruido
+            ctx.fillStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            for (let i = 0; i < 15; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Caracteres distorsionados y de colores premium
+            const colors = ['#f59e0b', '#fbbf24', '#f59e0b', '#fbbf24', '#e2e8f0', '#38bdf8', '#f43f5e', '#34d399'];
+            ctx.font = 'bold 18px "Archivo Black", sans-serif';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i < currentCaptchaCode.length; i++) {
+                const char = currentCaptchaCode[i];
+                ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                
+                ctx.save();
+                const x = 12 + i * 22 + Math.random() * 5;
+                const y = canvas.height / 2 + (Math.random() * 6 - 3);
+                const angle = (Math.random() * 30 - 15) * Math.PI / 180;
+                
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                ctx.fillText(char, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // Registrar inicialización de captcha al cargar DOM
+        window.addEventListener('DOMContentLoaded', () => {
+            drawCaptcha();
+
+            const canvas = document.getElementById('captcha-canvas');
+            const refreshBtn = document.getElementById('refresh-captcha-btn');
+            const themeBtn = document.getElementById('theme-toggle');
+
+            if (canvas) canvas.addEventListener('click', drawCaptcha);
+            if (refreshBtn) refreshBtn.addEventListener('click', drawCaptcha);
+            if (themeBtn) themeBtn.addEventListener('click', () => setTimeout(drawCaptcha, 120));
+        });
 
         // ====================================================
         // TEMA
@@ -188,7 +369,7 @@
             }
         }
 
-        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const savedTheme = localStorage.getItem('theme') || 'light';
         applyTheme(savedTheme);
         if (themeToggleBtn) {
             themeToggleBtn.addEventListener('click', () => {
@@ -232,6 +413,153 @@
         checkBackend();
 
         // ====================================================
+        // VEHICLE DATA ACCUMULATION
+        // ====================================================
+        let vehicleData: Record<string, string> = {};
+
+        function processVehicleInfo(cardId: string, data: any) {
+            if (!data) return;
+            let updated = false;
+
+            if (cardId === 'soat' && Array.isArray(data) && data.length > 0) {
+                const cert = data[0];
+                if (cert.Marca && !vehicleData.marca) { vehicleData.marca = cert.Marca; updated = true; }
+                if (cert.ModeloVehiculo && !vehicleData.modelo) { vehicleData.modelo = cert.ModeloVehiculo; updated = true; }
+                if (cert.NombreClaseVehiculo && !vehicleData.categoria) { vehicleData.categoria = cert.NombreClaseVehiculo; updated = true; }
+                if (cert.NombreUsoVehiculo && !vehicleData.uso) { vehicleData.uso = cert.NombreUsoVehiculo; updated = true; }
+            }
+
+            if (cardId === 'citv' && Array.isArray(data) && data.length > 0) {
+                const cert = data[0];
+                if (cert.marca && !vehicleData.marca) { vehicleData.marca = cert.marca; updated = true; }
+                if (cert.modelo && !vehicleData.modelo) { vehicleData.modelo = cert.modelo; updated = true; }
+                if (cert.clase && !vehicleData.categoria) { vehicleData.categoria = cert.clase; updated = true; }
+                if (cert.anio && !vehicleData.anio) { vehicleData.anio = cert.anio; updated = true; }
+            }
+
+            if (cardId === 'atu' && data) {
+                if (data.fuenteDato !== 'NOREGISTRADO') {
+                    if (data.marcaSunarp && !vehicleData.marca) { vehicleData.marca = data.marcaSunarp; updated = true; }
+                    if (data.modeloSunarp && !vehicleData.modelo) { vehicleData.modelo = data.modeloSunarp; updated = true; }
+                    if (data.color && !vehicleData.color) { vehicleData.color = data.color; updated = true; }
+                    if (data.serie && !vehicleData.serie) { vehicleData.serie = data.serie; updated = true; }
+                    if (data.motor && !vehicleData.motor) { vehicleData.motor = data.motor; updated = true; }
+                    if (data.propietario && !vehicleData.propietario) { vehicleData.propietario = data.propietario; updated = true; }
+                } else {
+                    if (data.marcaSunarp && !vehicleData.marca) { vehicleData.marca = data.marcaSunarp; updated = true; }
+                    if (data.modeloSunarp && !vehicleData.modelo) { vehicleData.modelo = data.modeloSunarp; updated = true; }
+                    if (data.color && !vehicleData.color) { vehicleData.color = data.color; updated = true; }
+                    if (data.serie && !vehicleData.serie) { vehicleData.serie = data.serie; updated = true; }
+                    if (data.motor && !vehicleData.motor) { vehicleData.motor = data.motor; updated = true; }
+                }
+            }
+
+            if (updated) {
+                renderVehicleInfoCard();
+            }
+        }
+
+        // ====================================================
+        // LOGO MAPPING FOR EACH SOURCE
+        // ====================================================
+        const LOGO_MAPPING: Record<string, string> = {
+            soat: '/assets/apeseg.png',
+            citv: '/assets/mtc.png',
+            lunas: '/assets/pnp.png',
+            callao: '/assets/callao.png',
+            lima: '/assets/sat.png',
+            sutran: '/assets/sutran.png',
+            atu: '/assets/atu.png',
+            vehiculo: '/assets/sunarp.jpeg'
+        };
+
+        // ====================================================
+        // OFFICIAL PORTAL URLS FOR EACH SOURCE
+        // ====================================================
+        const SOURCE_URLS: Record<string, string> = {
+            soat: 'https://www.apeseg.org.pe/consultas-soat/',
+            citv: 'https://citv.mtc.gob.pe/citv-portal/',
+            lunas: 'https://www.policia.gob.pe/',
+            callao: 'https://pagos.municallao.gob.pe/infracciones-transito',
+            lima: 'https://www.sat.gob.pe/',
+            sutran: 'http://webinterno.sutran.gob.pe/BusquedaPapeletas/',
+            atu: 'https://sistemas.atu.gob.pe/Consultas/Vehiculo',
+            vehiculo: 'https://www.sunarp.gob.pe/'
+        };
+
+        // ====================================================
+        // HELPER: GET CURRENT FORMATTED TIMESTAMP
+        // ====================================================
+        function getFormattedTimestamp() {
+            const now = new Date();
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const date = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+            const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            return `${date} ${time}`;
+        }
+
+        function renderVehicleInfoCard() {
+            const container = document.getElementById('vehiculo-card-container');
+            if (!container) return;
+
+            const hasData = Object.keys(vehicleData).length > 0;
+            let badgeHTML = '';
+
+            if (hasData) {
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> DISPONIBLE
+                </span>`;
+            } else {
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider animate-pulse">
+                    <i class="fas fa-circle-notch fa-spin"></i> BUSCANDO
+                </span>`;
+            }
+
+            const isExpanded = hasData;
+
+            let tableRows = '';
+            if (hasData) {
+                tableRows = `
+                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 font-poppins">
+                        <tbody>
+                            ${fila('Marca', vehicleData.marca || '—')}
+                            ${fila('Modelo', vehicleData.modelo || '—')}
+                            ${fila('Año Fabricación', vehicleData.anio || '—')}
+                            ${fila('Color', vehicleData.color || '—')}
+                            ${fila('Categoría / Clase', vehicleData.categoria || '—')}
+                            ${fila('Uso registrado', vehicleData.uso || '—')}
+                            ${fila('Número Serie / Chasis', vehicleData.serie || '—')}
+                            ${fila('Número Motor', vehicleData.motor || '—')}
+                            ${fila('Propietario SUNARP', vehicleData.propietario || '—')}
+                        </tbody>
+                    </table>`;
+            } else {
+                tableRows = `
+                    <div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                            <i class="fas fa-car-side text-slate-300 dark:bg-slate-600 text-xl animate-pulse"></i>
+                        </div>
+                        <p class="font-extrabold text-slate-600 dark:text-slate-400 text-sm">Esperando información técnica</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[280px] leading-relaxed">Los datos se completarán conforme se obtengan de las consultas en tiempo real.</p>
+                    </div>`;
+            }
+
+            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+            container.innerHTML = `
+                ${cardHeaderAccordion('vehiculo', 'Información Vehículo', 'REGISTRO MULTIFUENTE', 'fas fa-car-side', badgeHTML, isExpanded)}
+                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
+                    <div class="rounded-xl overflow-hidden">
+                        ${tableRows}
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+                        <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a></span>
+                        <span>Consultado: ${getFormattedTimestamp()}</span>
+                    </div>
+                </div>`;
+            reorderCards();
+        }
+
+        // ====================================================
         // ORDENAMIENTO DINÁMICO DE TARJETAS
         // ====================================================
         function reorderCards() {
@@ -242,17 +570,28 @@
                 'funciona': 1,
                 'loading': 2,
                 'no-funciona': 3,
-                'mantenimiento': 4
+                'mantenimiento': 3
             };
             cards.sort((a: any, b: any) => {
-                if (a.id === 'lima-card-container' && b.id !== 'lima-card-container') return 1;
-                if (b.id === 'lima-card-container' && a.id !== 'lima-card-container') return -1;
+                if (a.id === 'vehiculo-card-container') return -1;
+                if (b.id === 'vehiculo-card-container') return 1;
+
                 const statusA = a.getAttribute('data-status') || 'loading';
                 const statusB = b.getAttribute('data-status') || 'loading';
                 const orderA = statusOrder[statusA] ?? 2;
                 const orderB = statusOrder[statusB] ?? 2;
                 if (orderA !== orderB) return orderA - orderB;
-                const defaultOrder = ['soat-card-container','citv-card-container','lunas-card-container','callao-card-container','sutran-card-container','atu-card-container'];
+
+                const defaultOrder = [
+                    'vehiculo-card-container',
+                    'soat-card-container',
+                    'citv-card-container',
+                    'lunas-card-container',
+                    'callao-card-container',
+                    'sutran-card-container',
+                    'atu-card-container',
+                    'lima-card-container'
+                ];
                 return defaultOrder.indexOf(a.id) - defaultOrder.indexOf(b.id);
             });
             cards.forEach(card => wrapper.appendChild(card));
@@ -276,17 +615,18 @@
         // COLOR PALETTE POR SERVICIO
         // ====================================================
         const SERVICE_COLORS: Record<string, { bg: string; icon: string; ring: string }> = {
-            soat:   { bg: 'bg-blue-50',   icon: 'text-blue-600',  ring: 'ring-blue-200' },
-            citv:   { bg: 'bg-emerald-50', icon: 'text-emerald-600', ring: 'ring-emerald-200' },
-            lunas:  { bg: 'bg-purple-50',  icon: 'text-purple-600', ring: 'ring-purple-200' },
-            callao: { bg: 'bg-red-50',     icon: 'text-red-600',   ring: 'ring-red-200' },
-            lima:   { bg: 'bg-amber-50',   icon: 'text-amber-600', ring: 'ring-amber-200' },
-            sutran: { bg: 'bg-orange-50',  icon: 'text-orange-600',ring: 'ring-orange-200' },
-            atu:    { bg: 'bg-teal-50',    icon: 'text-teal-600',  ring: 'ring-teal-200' },
+            soat:     { bg: 'bg-blue-50 dark:bg-blue-950/20',     icon: 'text-blue-600 dark:text-blue-400',    ring: 'ring-blue-200 dark:ring-blue-900' },
+            citv:     { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
+            lunas:    { bg: 'bg-purple-50 dark:bg-purple-950/20',   icon: 'text-purple-600 dark:text-purple-400',  ring: 'ring-purple-200 dark:ring-purple-900' },
+            callao:   { bg: 'bg-red-50 dark:bg-red-950/20',       icon: 'text-red-600 dark:text-red-400',      ring: 'ring-red-200 dark:ring-red-900' },
+            lima:     { bg: 'bg-amber-50 dark:bg-amber-950/20',     icon: 'text-amber-600 dark:text-amber-400',    ring: 'ring-amber-200 dark:ring-amber-900' },
+            sutran:   { bg: 'bg-orange-50 dark:bg-orange-950/20',   icon: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-900' },
+            atu:      { bg: 'bg-teal-50 dark:bg-teal-950/20',       icon: 'text-teal-600 dark:text-teal-400',    ring: 'ring-teal-200 dark:ring-teal-900' },
+            vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
         };
 
         function getColors(cardId: string) {
-            return SERVICE_COLORS[cardId] || { bg: 'bg-slate-50', icon: 'text-slate-600', ring: 'ring-slate-200' };
+            return SERVICE_COLORS[cardId] || { bg: 'bg-slate-50 dark:bg-slate-900', icon: 'text-slate-600 dark:text-slate-400', ring: 'ring-slate-200 dark:ring-slate-800' };
         }
 
         // ====================================================
@@ -295,11 +635,11 @@
         function estadoBadge(estado: string) {
             const s = (estado || '').toUpperCase();
             if (s === 'VIGENTE' || s === 'APROBADO' || s === 'APROBADA') {
-                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900 shadow-sm font-poppins">
                     <i class="fas fa-circle-check"></i> ${estado}
                 </span>`;
             }
-            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
+            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900 shadow-sm font-poppins">
                 <i class="fas fa-circle-xmark"></i> ${estado || 'VENCIDO'}
             </span>`;
         }
@@ -309,32 +649,133 @@
         // ====================================================
         function fila(label: string, value: string) {
             if (!value || value === 'null' || value === 'undefined' || value.trim() === '') return '';
-            return `<tr class="flex flex-col md:table-row border-b border-slate-200 last:border-0 hover:bg-slate-50/80 transition-colors duration-150 group">
-                <td class="py-2.5 px-3 md:py-3 md:px-4 text-[10px] md:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider bg-slate-50 border-b md:border-b-0 md:border-r-2 border-slate-200 whitespace-normal md:whitespace-nowrap w-full md:w-[38%] group-hover:bg-slate-100 transition-colors">${label}</td>
-                <td class="py-2.5 px-3 md:py-3 md:px-4 text-xs md:text-sm font-bold text-slate-800 leading-snug w-full md:w-auto">${value}</td>
+            return `<tr class="border-b border-slate-100 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 group font-poppins">
+                <td class="py-1.5 px-2 md:py-2 md:px-4 text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/30 dark:bg-slate-900/10 border-r border-slate-150 dark:border-slate-800/40 w-[38%] align-middle font-poppins">${label}</td>
+                <td class="py-1.5 px-2 md:py-2 md:px-4 text-[11px] md:text-xs font-bold text-slate-850 dark:text-slate-200 leading-tight w-auto align-middle font-poppins">${value}</td>
             </tr>`;
         }
 
         // ====================================================
-        // HEADER DE TARJETA REUTILIZABLE
+        // HEADER DE TARJETA ACCORDION
         // ====================================================
-        function cardHeader(cardId: string, title: string, sourceName: string, iconClass: string, badgeHTML: string) {
+        function cardHeaderAccordion(cardId: string, title: string, sourceName: string, iconClass: string, badgeHTML: string, isExpanded: boolean) {
             const c = getColors(cardId);
+            const activeHeaderClass = isExpanded 
+                ? "bg-gradient-to-r from-[#1a3a6b] to-[#0b1c36] text-white border-b-2 border-slate-900 dark:border-slate-800" 
+                : "bg-white dark:bg-slate-900 text-slate-900 dark:text-white";
+            const iconBg = isExpanded
+                ? "bg-white/10 ring-1 ring-white/20 text-white"
+                : `${c.bg} ring-2 ${c.ring} ${c.icon}`;
+            const textClass = isExpanded ? "text-white font-bold" : "text-slate-900 dark:text-white font-bold";
+            const subtextClass = isExpanded ? "text-white/60 font-semibold" : "text-slate-400 dark:text-slate-500 font-semibold";
+            const chevronClass = isExpanded ? "rotate-180 text-white" : "text-slate-400 dark:text-slate-500";
+            
+            const logoSrc = LOGO_MAPPING[cardId] || '';
+            const logoHTML = logoSrc 
+                ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 transition-all duration-300">
+                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=\\\"${iconClass} text-base md:text-lg text-slate-600\\\"></i>'"/>
+                   </div>`
+                : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${iconBg}">
+                       <i class="${iconClass} text-base md:text-lg"></i>
+                   </div>`;
+
             return `
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full">
-                    <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 md:w-12 md:h-12 rounded-2xl ${c.bg} ring-2 ${c.ring} flex items-center justify-center shrink-0 shadow-sm">
-                            <i class="${iconClass} ${c.icon} text-base md:text-lg"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-extrabold text-slate-900 text-xs md:text-base leading-tight uppercase tracking-wide font-archivo">${title}</h3>
-                            <p class="text-[9px] md:text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${sourceName}</p>
+                <div onclick="window.toggleAccordion('${cardId}-card-container')" 
+                     class="accordion-header flex items-center justify-between gap-4 p-3 md:p-4 cursor-pointer select-none transition-all duration-300 ${activeHeaderClass}">
+                    <div class="flex items-center gap-3 md:gap-4">
+                        ${logoHTML}
+                        <div class="text-left font-poppins">
+                            <h3 class="text-xs md:text-sm tracking-wide uppercase leading-tight transition-colors ${textClass}">${title}</h3>
+                            <p class="text-[9px] md:text-[10px] tracking-wider uppercase mt-0.5 transition-colors ${subtextClass}">${sourceName}</p>
                         </div>
                     </div>
-                    <div class="self-start sm:self-auto shrink-0">${badgeHTML}</div>
-                </div>
-                <div class="border-t-2 border-slate-100 w-full my-1"></div>`;
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="status-badge-container">${badgeHTML}</div>
+                        <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs md:text-sm ${chevronClass}"></i>
+                    </div>
+                </div>`;
         }
+
+        // ====================================================
+        // COLLAPSE/EXPAND ACCORDION FUNCTION (attached to window)
+        // ====================================================
+        (window as any).toggleAccordion = function(containerId: string) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const body = container.querySelector('.accordion-body');
+            const chevron = container.querySelector('.accordion-chevron');
+            const header = container.querySelector('.accordion-header');
+            if (!body || !chevron || !header) return;
+
+            const isHidden = body.classList.contains('hidden');
+            if (isHidden) {
+                // Expand
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                
+                header.classList.remove('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
+                header.classList.add('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900');
+                
+                const texts = header.querySelectorAll('.text-slate-900, .dark:text-white, .text-slate-400, .dark:text-slate-500');
+                texts.forEach(el => {
+                    if (el.classList.contains('text-slate-900') || el.classList.contains('dark:text-white')) {
+                        el.classList.remove('text-slate-900', 'dark:text-white');
+                        el.classList.add('text-white', 'temp-white-title');
+                    } else {
+                        el.classList.remove('text-slate-400', 'dark:text-slate-500');
+                        el.classList.add('text-white/60', 'temp-white-sub');
+                    }
+                });
+                
+                const iconWrapper = header.querySelector('.w-10, .w-12');
+                if (iconWrapper && !iconWrapper.hasAttribute('data-is-logo')) {
+                    iconWrapper.setAttribute('data-orig-class', iconWrapper.className);
+                    const cleanClasses = iconWrapper.className.split(' ').filter(c => !c.startsWith('bg-') && !c.startsWith('ring-') && !c.startsWith('text-')).join(' ');
+                    iconWrapper.className = cleanClasses + ' bg-white/10 ring-1 ring-white/20 text-white';
+                }
+                const icon = iconWrapper?.querySelector('i');
+                if (icon) {
+                    icon.setAttribute('data-orig-class', icon.className);
+                    const cleanIcon = icon.className.split(' ').filter(c => !c.startsWith('text-')).join(' ');
+                    icon.className = cleanIcon + ' text-white';
+                }
+                
+                chevron.classList.remove('text-slate-400', 'dark:text-slate-500');
+                chevron.classList.add('text-white');
+            } else {
+                // Collapse
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                
+                header.classList.remove('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900');
+                header.classList.add('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
+                
+                const textsTitle = header.querySelectorAll('.temp-white-title');
+                textsTitle.forEach(el => {
+                    el.classList.remove('text-white', 'temp-white-title');
+                    el.classList.add('text-slate-900', 'dark:text-white');
+                });
+                const textsSub = header.querySelectorAll('.temp-white-sub');
+                textsSub.forEach(el => {
+                    el.classList.remove('text-white/60', 'temp-white-sub');
+                    el.classList.add('text-slate-400', 'dark:text-slate-500');
+                });
+                
+                const iconWrapper = header.querySelector('.w-10, .w-12');
+                const origClass = iconWrapper?.getAttribute('data-orig-class');
+                if (iconWrapper && origClass && !iconWrapper.hasAttribute('data-is-logo')) {
+                    iconWrapper.className = origClass;
+                }
+                const icon = iconWrapper?.querySelector('i');
+                const origIconClass = icon?.getAttribute('data-orig-class');
+                if (icon && origIconClass) {
+                    icon.className = origIconClass;
+                }
+                
+                chevron.classList.remove('text-white');
+                chevron.classList.add('text-slate-400', 'dark:text-slate-500');
+            }
+        };
 
         // ====================================================
         // SET CARD LOADING — Skeleton premium
@@ -343,18 +784,36 @@
             const container = document.getElementById(`${cardId}-card-container`);
             if (!container) return;
             container.setAttribute('data-status', 'loading');
-            container.className = "results-card card-animate bg-white border-2 border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col gap-4 text-slate-900";
-            const loadingBadge = `<span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                <span class="inline-block w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent spin-icon"></span> Consultando...
+            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins";
+            const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm uppercase tracking-wider">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-slate-400 dark:border-slate-600 border-t-transparent spin-icon"></span> Buscando
             </span>`;
+            
+            const logoSrc = LOGO_MAPPING[cardId] || '';
+            const logoHTML = logoSrc 
+                ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1">
+                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=\\\"${iconClass} text-slate-400 text-base md:text-lg\\\"></i>'"/>
+                   </div>`
+                : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                       <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>
+                   </div>`;
+
             container.innerHTML = `
-                ${cardHeader(cardId, title, sourceName, iconClass, loadingBadge)}
-                <div class="space-y-3">
-                    ${skeletonBody()}
-                    <div class="flex items-center gap-2 pt-2">
-                        <div class="skeleton h-3 w-1/4"></div>
-                        <div class="skeleton h-3 w-1/3"></div>
+                <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                    <div class="flex items-center gap-3 md:gap-4">
+                        ${logoHTML}
+                        <div class="text-left font-poppins">
+                            <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
+                            <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-600">${sourceName}</p>
+                        </div>
                     </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        ${loadingBadge}
+                        <i class="fas fa-chevron-down text-slate-300 dark:text-slate-600 text-xs"></i>
+                    </div>
+                </div>
+                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-955/20">
+                    ${skeletonBody()}
                 </div>`;
             reorderCards();
         }
@@ -366,27 +825,62 @@
             const container = document.getElementById(`${cardId}-card-container`);
             if (!container) return;
             let badgeHTML = '';
+
             if (isSuccess) {
                 container.setAttribute('data-status', 'funciona');
                 if (hasData) {
-                    badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
-                        <i class="fas fa-circle-check text-emerald-500"></i> Con Registros
+                    let text = 'CON REGISTROS';
+                    if (cardId === 'soat') text = 'ACTIVO';
+                    if (cardId === 'citv') text = 'VIGENTE';
+                    if (cardId === 'atu') text = 'HABILITADO';
+                    badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                        <i class="fas fa-circle-check"></i> ${text}
                     </span>`;
                 } else {
-                    badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-50 text-slate-600 border border-slate-300 shadow-sm">
-                        <i class="fas fa-circle-info text-slate-400"></i> Sin Registros
-                    </span>`;
+                    let text = 'SIN REGISTROS';
+                    if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima') text = 'SIN PAPELETAS';
+                    if (cardId === 'atu') text = 'NO REGISTRADO';
+                    if (cardId === 'lunas') text = 'SIN PERMISO';
+                    
+                    if (text === 'SIN PAPELETAS') {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                            <i class="fas fa-circle-check"></i> ${text}
+                        </span>`;
+                    } else {
+                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider">
+                            <i class="fas fa-circle-info"></i> ${text}
+                        </span>`;
+                    }
                 }
             } else {
                 container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm animate-pulse">
-                    <i class="fas fa-triangle-exclamation text-amber-500"></i> Mantenimiento
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm animate-pulse uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation"></i> MANTENIMIENTO
                 </span>`;
             }
-            container.className = "results-card card-animate bg-white border-2 border-slate-900 rounded-2xl p-5 md:p-6 shadow-md flex flex-col gap-4 text-slate-900";
+
+            const isExpanded = isSuccess && hasData;
+
+            // Append timestamp/source footer inside the accordion-body
+            const sourceUrl = SOURCE_URLS[cardId] || '';
+            const verifyLink = sourceUrl 
+                ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+                : '';
+            const finalContent = `
+                <div class="flex flex-col h-full justify-between">
+                    <div class="flex-1">${htmlContent}</div>
+                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+                        <span>Fuente: ${sourceName}${verifyLink}</span>
+                        <span>Consultado: ${getFormattedTimestamp()}</span>
+                    </div>
+                </div>`;
+
+            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
             container.innerHTML = `
-                ${cardHeader(cardId, title, sourceName, iconClass, badgeHTML)}
-                <div class="w-full">${htmlContent}</div>`;
+                ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
+                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
+                    ${finalContent}
+                </div>`;
             reorderCards();
         }
 
@@ -399,49 +893,68 @@
             const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento");
             let badgeHTML = '';
             let rightContent = '';
+
             if (isMantenimiento) {
                 container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm">
-                    <i class="fas fa-wrench text-amber-500"></i> Mantenimiento
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-wrench"></i> MANTENIMIENTO
                 </span>`;
                 rightContent = `
-                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6">
-                        <div class="w-14 h-14 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center mb-1">
+                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
+                        <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-955/10 border-2 border-amber-200 dark:border-amber-900 flex items-center justify-center mb-1">
                             <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
                         </div>
                         <div>
-                            <p class="text-sm font-extrabold text-slate-800 leading-tight">Servicio en Mantenimiento</p>
-                            <p class="text-xs text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Mantenimiento</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
                         </div>
                         <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
                             <i class="fas fa-rotate-right"></i> Reintentar Consulta
                         </button>
                     </div>`;
             } else {
                 container.setAttribute('data-status', 'no-funciona');
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
-                    <i class="fas fa-circle-xmark text-red-500"></i> Sin Acceso
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-xmark"></i> ERROR
                 </span>`;
                 rightContent = `
-                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6">
-                        <div class="w-14 h-14 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center mb-1">
-                            <i class="fas fa-circle-xmark text-2xl text-red-500"></i>
+                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
+                        <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-rose-955/10 border-2 border-red-200 dark:border-rose-900 flex items-center justify-center mb-1">
+                            <i class="fas fa-circle-xmark text-2xl text-red-500 font-bold"></i>
                         </div>
                         <div>
-                            <p class="text-sm font-extrabold text-red-700 leading-tight">Error al conectar con la fuente</p>
-                            <p class="text-xs text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                            <p class="text-sm font-bold text-red-700 dark:text-red-400 leading-tight">Error al conectar con la fuente</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
                         </div>
                         <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
                             <i class="fas fa-rotate-right"></i> Reintentar Consulta
                         </button>
                     </div>`;
             }
-            container.className = "results-card card-animate bg-white border-2 border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col gap-4 text-slate-900";
+
+            const isExpanded = true;
+
+            const sourceUrl = SOURCE_URLS[cardId] || '';
+            const verifyLink = sourceUrl 
+                ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+                : '';
+            const finalContent = `
+                <div class="flex flex-col h-full justify-between">
+                    <div class="flex-1">${rightContent}</div>
+                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+                        <span>Fuente: ${sourceName}${verifyLink}</span>
+                        <span>Consultado: ${getFormattedTimestamp()}</span>
+                    </div>
+                </div>`;
+
+            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
             container.innerHTML = `
-                ${cardHeader(cardId, title, sourceName, iconClass, badgeHTML)}
-                <div class="w-full">${rightContent}</div>`;
+                ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
+                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
+                    ${finalContent}
+                </div>`;
             reorderCards();
         }
 
@@ -450,41 +963,43 @@
         // ====================================================
         function renderSOAT(data: any[], plate: string) {
             if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
-                        <i class="fas fa-file-slash text-slate-300 text-xl"></i>
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                        <i class="fas fa-file-slash text-slate-300 dark:text-slate-650 text-xl"></i>
                     </div>
-                    <p class="font-extrabold text-slate-600 text-sm">Sin SOAT registrado</p>
-                    <p class="text-xs text-slate-400">No se encontraron certificados SOAT para <strong class="text-slate-600">${plate}</strong></p>
+                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin SOAT registrado</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron certificados SOAT para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
                 </div>`;
             }
-            const cert = data[0];
-            const esVigente = (cert.Estado || '').toUpperCase() === 'VIGENTE';
-            return `
-                <div class="flex items-start justify-between mb-4 gap-3">
-                    <div>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Aseguradora</p>
-                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.NombreCompania || 'N/A'}</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Placa: <strong class="text-slate-700">${cert.Placa || plate}</strong></p>
+            return data.map((cert, index) => {
+                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+                return `
+                <div class="${borderClass}">
+                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Aseguradora ${data.length > 1 ? `#${index + 1}` : ''}</p>
+                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.NombreCompania || 'N/A'}</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.Placa || plate}</strong></p>
+                        </div>
+                        <div class="shrink-0">${estadoBadge(cert.Estado)}</div>
                     </div>
-                    <div class="shrink-0">${estadoBadge(cert.Estado)}</div>
-                </div>
-                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
-                    <table class="w-full text-left border-collapse bg-white">
-                        <tbody>
-                            ${fila('Certificado N°', cert.NumeroPoliza)}
-                            ${fila('Tipo', cert.TipoCertificado)}
-                            ${fila('Vigencia Inicio', cert.FechaInicio)}
-                            ${fila('Vigencia Fin', cert.FechaFin)}
-                            ${fila('Uso', cert.NombreUsoVehiculo)}
-                            ${fila('Clase', cert.NombreClaseVehiculo)}
-                            ${fila('Marca', cert.Marca)}
-                            ${fila('Modelo', cert.ModeloVehiculo)}
-                            ${fila('Asientos', cert.NumeroAsientos)}
-                        </tbody>
-                    </table>
-                </div>
-                ${data.length > 1 ? `<p class="text-[11px] text-slate-400 mt-3 text-right font-semibold"><i class="fas fa-layer-group mr-1"></i>+ ${data.length - 1} certificado(s) anterior(es)</p>` : ''}`;
+                    <div class="rounded-xl overflow-hidden">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                            <tbody>
+                                ${fila('Certificado N°', cert.NumeroPoliza)}
+                                ${fila('Tipo', cert.TipoCertificado)}
+                                ${fila('Vigencia Inicio', cert.FechaInicio)}
+                                ${fila('Vigencia Fin', cert.FechaFin)}
+                                ${fila('Uso', cert.NombreUsoVehiculo)}
+                                ${fila('Clase', cert.NombreClaseVehiculo)}
+                                ${fila('Marca', cert.Marca)}
+                                ${fila('Modelo', cert.ModeloVehiculo)}
+                                ${fila('Asientos', cert.NumeroAsientos)}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         // ====================================================
@@ -492,37 +1007,41 @@
         // ====================================================
         function renderCITV(data: any[], plate: string) {
             if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
-                        <i class="fas fa-clipboard-list text-slate-300 text-xl"></i>
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                        <i class="fas fa-clipboard-list text-slate-300 dark:text-slate-650 text-xl"></i>
                     </div>
-                    <p class="font-extrabold text-slate-600 text-sm">Sin CITV registrado</p>
-                    <p class="text-xs text-slate-400">No se encontraron inspecciones técnicas para <strong class="text-slate-600">${plate}</strong></p>
+                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin CITV registrado</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron inspecciones técnicas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
                 </div>`;
             }
-            const cert = data[0];
-            const estadoDisplay = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
-            return `
-                <div class="flex items-start justify-between mb-4 gap-3">
-                    <div>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Centro de Inspección</p>
-                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.centroInspeccion || 'Centro MTC'}</p>
+            return data.map((cert, index) => {
+                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+                const estadoDisplay = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
+                return `
+                <div class="${borderClass}">
+                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Centro de Inspección ${data.length > 1 ? `#${index + 1}` : ''}</p>
+                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.centroInspeccion || 'Centro MTC'}</p>
+                        </div>
+                        <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
                     </div>
-                    <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
-                </div>
-                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
-                    <table class="w-full text-left border-collapse bg-white">
-                        <tbody>
-                            ${fila('N° Informe', cert.numeroInforme)}
-                            ${fila('Fecha Inspección', cert.fechaInspeccion)}
-                            ${fila('Fecha Vencimiento', cert.fechaVencimiento)}
-                            ${fila('Clase Vehículo', cert.clase)}
-                            ${fila('Marca', cert.marca)}
-                            ${fila('Modelo', cert.modelo)}
-                            ${fila('Año Fabricación', cert.anio)}
-                        </tbody>
-                    </table>
+                    <div class="rounded-xl overflow-hidden">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                            <tbody>
+                                ${fila('N° Informe', cert.numeroInforme)}
+                                ${fila('Fecha Inspección', cert.fechaInspeccion)}
+                                ${fila('Fecha Vencimiento', cert.fechaVencimiento)}
+                                ${fila('Clase Vehículo', cert.clase)}
+                                ${fila('Marca', cert.marca)}
+                                ${fila('Modelo', cert.modelo)}
+                                ${fila('Año Fabricación', cert.anio)}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>`;
+            }).join('');
         }
 
         // ====================================================
@@ -530,38 +1049,42 @@
         // ====================================================
         function renderLunas(data: any[], plate: string) {
             if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
-                        <i class="fas fa-eye text-slate-300 text-xl"></i>
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                        <i class="fas fa-eye text-slate-300 dark:text-slate-650 text-xl"></i>
                     </div>
-                    <p class="font-extrabold text-slate-600 text-sm">Sin Permiso de Lunas</p>
-                    <p class="text-xs text-slate-400">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600">${plate}</strong></p>
+                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin Permiso de Lunas</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
                 </div>`;
             }
-            const cert = data[0];
-            return `
-                <div class="flex items-start justify-between mb-4 gap-3">
-                    <div>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">N° Certificado</p>
-                        <p class="text-base font-extrabold text-slate-900 leading-tight">${cert.nroCertificado || 'N/A'}</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Placa: <strong class="text-slate-700">${cert.placa || plate}</strong></p>
+            return data.map((cert, index) => {
+                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+                return `
+                <div class="${borderClass}">
+                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">N° Certificado ${data.length > 1 ? `#${index + 1}` : ''}</p>
+                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.nroCertificado || 'N/A'}</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.placa || plate}</strong></p>
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm shrink-0 font-poppins">
+                            <i class="fas fa-certificate"></i> AUTORIZADO
+                        </span>
                     </div>
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm shrink-0">
-                        <i class="fas fa-certificate"></i> AUTORIZADO
-                    </span>
-                </div>
-                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
-                    <table class="w-full text-left border-collapse bg-white">
-                        <tbody>
-                            ${fila('Categoría', cert.categoria)}
-                            ${fila('Marca', cert.marca)}
-                            ${fila('Modelo', cert.modelo)}
-                            ${fila('Color', cert.color)}
-                            ${fila('Año', cert.anio)}
-                            ${fila('Fecha Emisión', cert.fechaEmision)}
-                        </tbody>
-                    </table>
+                    <div class="rounded-xl overflow-hidden">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                            <tbody>
+                                ${fila('Categoría', cert.categoria)}
+                                ${fila('Marca', cert.marca)}
+                                ${fila('Modelo', cert.modelo)}
+                                ${fila('Color', cert.color)}
+                                ${fila('Año', cert.anio)}
+                                ${fila('Fecha Emisión', cert.fechaEmision)}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>`;
+            }).join('');
         }
 
         // ====================================================
@@ -569,52 +1092,52 @@
         // ====================================================
         function renderCallao(data: any[], plate: string, total: string) {
             if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                    <div class="w-12 h-12 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mb-1">
+                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                    <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
                         <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
                     </div>
-                    <p class="font-extrabold text-emerald-700 text-sm">¡Sin Papeletas!</p>
-                    <p class="text-xs text-slate-400">No se registraron infracciones para <strong class="text-slate-600">${plate}</strong> en el Callao</p>
+                    <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas!</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">No se registraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong> en el Callao</p>
                 </div>`;
             }
             const rows = data.map((p: any) => `
-                <tr class="border-b border-slate-200 last:border-0 hover:bg-red-50/50 transition-colors duration-150">
-                    <td class="py-2.5 px-3 text-xs font-extrabold text-slate-800 border-r-2 border-slate-200">${p.nroPapeleta || '-'}</td>
-                    <td class="py-2.5 px-3 text-xs font-bold text-slate-600 border-r-2 border-slate-200">${p.codigo || '-'}</td>
-                    <td class="py-2.5 px-3 text-xs text-slate-500 border-r-2 border-slate-200">${p.fechaInfraccion || '-'}</td>
-                    <td class="py-2.5 px-3 text-xs font-extrabold text-red-600 border-r-2 border-slate-200">S/ ${p.total || '0'}</td>
-                    <td class="py-2.5 px-3 text-center">
+                <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-red-50/50 dark:hover:bg-rose-950/10 transition-colors duration-150 font-poppins">
+                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-slate-850 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.nroPapeleta || '-'}</td>
+                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-semibold text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigo || '-'}</td>
+                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-550 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.fechaInfraccion || '-'}</td>
+                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-red-650 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${p.total || '0'}</td>
+                    <td class="py-1.5 px-1.5 text-center">
                         ${p.detalleUrl ? `
                             <button onclick="window.abrirModalPapeleta('${p.detalleUrl}')"
-                                class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-all active:scale-95 shadow-sm"
-                                title="Ver imagen de papeleta">
-                                <i class="fas fa-file-image text-xs"></i>
+                                class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900 transition-all active:scale-95 shadow-sm"
+                                title="Ver papeleta">
+                                <i class="fas fa-file-image text-[10px]"></i>
                             </button>
-                        ` : '<span class="text-slate-300 text-xs">—</span>'}
+                        ` : '<span class="text-slate-300 dark:text-slate-700 text-[10px]">—</span>'}
                     </td>
                 </tr>`).join('');
             return `
-                <div class="flex items-start justify-between mb-4 gap-3">
+                <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
                     <div>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Infracciones encontradas</p>
-                        <p class="text-2xl font-extrabold text-red-600 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones encontradas</p>
+                        <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Total adeudado</p>
-                        <p class="text-2xl font-extrabold text-red-700 leading-tight">S/ ${total || '0.00'}</p>
-                        <p class="text-[10px] text-red-500 mt-0.5 font-bold">⚠ PAGA O EVITA EMBARGO</p>
+                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total adeudado</p>
+                        <p class="text-xl font-bold text-red-750 dark:text-red-400 leading-tight">S/ ${total || '0.00'}</p>
+                        <p class="text-[8px] text-red-500 mt-0.5 font-bold uppercase tracking-wider">⚠ PAGA O EVITA EMBARGO</p>
                     </div>
                 </div>
-                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse bg-white">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
                             <thead>
-                                <tr class="bg-slate-900 text-white">
-                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">N° Papeleta</th>
-                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Código</th>
-                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Fecha</th>
-                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20">Total</th>
-                                    <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest text-center">Doc.</th>
+                                <tr class="bg-slate-900 dark:bg-slate-950 text-white">
+                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[28%]">Papeleta</th>
+                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[18%]">Código</th>
+                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[24%]">Fecha</th>
+                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[20%]">Total</th>
+                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-center w-[10%]">Doc.</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -628,21 +1151,21 @@
         // ====================================================
         function renderLima(plate: string, message: string, directUrl: string) {
             return `
-                <div class="flex flex-col gap-5 text-slate-900">
-                    <div class="flex items-center gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                        <div class="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0">
-                            <i class="fas fa-gavel text-amber-600"></i>
+                <div class="flex flex-col gap-5 text-slate-900 dark:text-white font-poppins">
+                    <div class="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-800 flex items-center justify-center shrink-0">
+                            <i class="fas fa-gavel text-amber-600 dark:text-amber-400"></i>
                         </div>
                         <div>
-                            <p class="font-extrabold text-slate-800 text-sm">Consulta directa requerida</p>
-                            <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">${message}</p>
+                            <p class="font-bold text-slate-850 dark:text-slate-200 text-sm">Consulta directa requerida</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-450 mt-0.5 leading-relaxed">${message}</p>
                         </div>
                     </div>
                     <div class="flex flex-col items-center gap-3">
-                        <p class="text-[11px] text-slate-400">Placa a consultar: <strong class="font-extrabold text-slate-800 font-archivo text-sm">${plate}</strong></p>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-550">Placa a consultar: <strong class="font-bold text-slate-800 dark:text-slate-250 font-poppins text-sm">${plate}</strong></p>
                         <a href="${directUrl}" target="_blank" rel="noopener"
-                           class="w-full max-w-xs flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm font-extrabold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                            <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
+                           class="w-full max-w-xs flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                           <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
                         </a>
                     </div>
                 </div>`;
@@ -654,37 +1177,37 @@
         function renderSutran(data: any[], plate: string, infoReporte: string) {
             let bodyHTML = '';
             if (!data || data.length === 0) {
-                bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                    <div class="w-12 h-12 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mb-1">
+                bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                    <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
                         <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
                     </div>
-                    <p class="font-extrabold text-emerald-700 text-sm">¡Sin Papeletas SUTRAN!</p>
-                    <p class="text-xs text-slate-400">No se encontraron infracciones para <strong class="text-slate-600">${plate}</strong></p>
+                    <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas SUTRAN!</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
                 </div>`;
             } else {
                 const rows = data.map((p: any) => `
-                    <tr class="border-b border-slate-200 last:border-0 hover:bg-orange-50/50 transition-colors duration-150">
-                        <td class="py-2.5 px-3 text-[11px] font-extrabold text-slate-800 border-r-2 border-slate-200">${p.nroDocumento || '-'}</td>
-                        <td class="py-2.5 px-3 text-[11px] font-bold text-slate-600 border-r-2 border-slate-200">${p.codigoInfraccion || '-'}</td>
-                        <td class="py-2.5 px-3 text-[11px] text-slate-500 border-r-2 border-slate-200">${p.fechaDocumento || '-'}</td>
-                        <td class="py-2.5 px-3 text-[11px] font-bold text-orange-700">${p.clasificacion || '-'}</td>
+                    <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">
+                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-slate-850 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.nroDocumento || '-'}</td>
+                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-semibold text-slate-655 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigoInfraccion || '-'}</td>
+                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-550 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.fechaDocumento || '-'}</td>
+                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-orange-700 dark:text-orange-455 leading-tight">${p.clasificacion || '-'}</td>
                     </tr>`).join('');
                 bodyHTML = `
-                    <div class="flex items-start justify-between mb-4 gap-3">
+                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
                         <div>
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Infracciones SUTRAN</p>
-                            <p class="text-2xl font-extrabold text-red-600 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                            <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones SUTRAN</p>
+                            <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
                         </div>
                     </div>
-                    <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
                         <div class="overflow-x-auto max-h-[240px]">
-                            <table class="w-full text-left border-collapse bg-white">
+                            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
                                 <thead>
-                                    <tr class="bg-slate-900 text-white">
-                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">N° Documento</th>
-                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Código</th>
-                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Fecha</th>
-                                        <th class="py-2.5 px-3 text-[10px] font-extrabold uppercase tracking-widest sticky top-0">Clasificación</th>
+                                    <tr class="bg-slate-900 dark:bg-slate-950 text-white">
+                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[32%]">Documento</th>
+                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[18%]">Código</th>
+                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[24%]">Fecha</th>
+                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider sticky top-0 bg-slate-900 dark:bg-slate-950 w-[26%]">Clasif.</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rows}</tbody>
@@ -694,9 +1217,9 @@
             }
             if (infoReporte) {
                 bodyHTML += `
-                    <div class="mt-4 pt-3 border-t-2 border-slate-100 flex items-start gap-2">
-                        <i class="fas fa-circle-info text-slate-400 mt-0.5 shrink-0"></i>
-                        <p class="text-[10px] text-slate-400 italic leading-relaxed">${infoReporte}</p>
+                    <div class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-start gap-1.5 font-poppins px-1">
+                        <i class="fas fa-circle-info text-slate-400 dark:text-slate-655 mt-0.5 shrink-0 text-[10px]"></i>
+                        <p class="text-[9px] text-slate-400 dark:text-slate-500 italic leading-relaxed">${infoReporte}</p>
                     </div>`;
             }
             return bodyHTML;
@@ -711,17 +1234,17 @@
                 const modelo = data?.modeloSunarp || 'N/A';
                 const color = data?.color || 'N/A';
                 return `
-                    <div class="flex flex-col items-center justify-center py-6 gap-2 text-center">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center mb-1">
-                            <i class="fas fa-ban text-slate-400 text-xl"></i>
+                    <div class="flex flex-col items-center justify-center py-6 gap-2 text-center font-poppins">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center mb-1">
+                            <i class="fas fa-ban text-slate-400 dark:text-slate-655 text-xl"></i>
                         </div>
-                        <p class="font-extrabold text-slate-700 text-sm">No registrado como taxi</p>
-                        <p class="text-xs text-slate-400 max-w-[260px] leading-relaxed">Este vehículo no cuenta con habilitación vigente para prestar servicio de taxi ante la ATU.</p>
+                        <p class="font-bold text-slate-700 dark:text-slate-300 text-sm">No registrado como taxi</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[260px] leading-relaxed">Este vehículo no cuenta con habilitación vigente para prestar servicio de taxi ante la ATU.</p>
                     </div>
-                    <div class="mt-2 pt-3 border-t-2 border-slate-100">
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2"><i class="fas fa-database mr-1"></i>Datos SUNARP del vehículo</p>
-                        <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
-                            <table class="w-full text-left border-collapse bg-white">
+                    <div class="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 font-poppins">
+                        <p class="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5"><i class="fas fa-database mr-1"></i>Datos SUNARP del vehículo</p>
+                        <div class="rounded-xl overflow-hidden">
+                            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                                 <tbody>
                                     ${fila('Marca', marca)}
                                     ${fila('Modelo', modelo)}
@@ -737,37 +1260,37 @@
             const estadoNum = data.estadoCertificado;
             const estadoTexto = estadoNum === 1 ? 'HABILITADO' : estadoNum === 2 ? 'SUSPENDIDO' : estadoNum === 3 ? 'BAJA' : 'NO HABILITADO';
             if (estadoNum === 1) {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
-                    <i class="fas fa-circle-check text-emerald-500"></i> HABILITADO
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-sm font-poppins">
+                    <i class="fas fa-circle-check"></i> HABILITADO
                 </span>`;
             } else if (estadoNum === 2) {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-sm">
-                    <i class="fas fa-triangle-exclamation text-amber-500"></i> SUSPENDIDO
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm font-poppins">
+                    <i class="fas fa-triangle-exclamation"></i> SUSPENDIDO
                 </span>`;
             } else {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-300 shadow-sm">
-                    <i class="fas fa-circle-xmark text-red-500"></i> ${estadoTexto}
+                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-500 text-white shadow-sm font-poppins">
+                    <i class="fas fa-circle-xmark"></i> ${estadoTexto}
                 </span>`;
             }
             let conductoresHTML = '';
             if (data.conductores && data.conductores.length > 0) {
                 const rows = data.conductores.map((c: any) => `
-                    <tr class="border-b border-slate-200 last:border-0 hover:bg-teal-50/50 transition-colors duration-150">
-                        <td class="py-2 px-3 text-[10px] font-bold text-slate-800 border-r-2 border-slate-200 leading-tight">${c.nombreOperador || '-'}</td>
-                        <td class="py-2 px-3 text-[10px] text-slate-600 border-r-2 border-slate-200">${c.numeroDocumento || '-'}</td>
-                        <td class="py-2 px-3 text-[10px] text-slate-600">${c.nroLicenciaConducir || '-'}</td>
+                    <tr class="border-b border-slate-200 dark:border-slate-800 last:border-0 hover:bg-teal-50/50 dark:hover:bg-teal-950/10 transition-colors duration-150 font-poppins">
+                        <td class="py-2 px-3 text-[10px] font-bold text-slate-850 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 leading-tight">${c.nombreOperador || '-'}</td>
+                        <td class="py-2 px-3 text-[10px] text-slate-600 dark:text-slate-450 border-r border-slate-200 dark:border-slate-800">${c.numeroDocumento || '-'}</td>
+                        <td class="py-2 px-3 text-[10px] text-slate-600 dark:text-slate-450">${c.nroLicenciaConducir || '-'}</td>
                     </tr>`).join('');
                 conductoresHTML = `
-                    <div class="mt-4 pt-3 border-t-2 border-slate-100">
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2"><i class="fas fa-users mr-1"></i>Conductores Vinculados</p>
-                        <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
+                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800 font-poppins px-1">
+                        <p class="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5"><i class="fas fa-users mr-1"></i>Conductores Vinculados</p>
+                        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
                             <div class="overflow-x-auto max-h-[130px]">
-                                <table class="w-full text-left border-collapse bg-white">
+                                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
                                     <thead>
-                                        <tr class="bg-slate-900 text-white">
-                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Nombre</th>
-                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest border-r-2 border-white/20 sticky top-0">Documento</th>
-                                            <th class="py-2 px-3 text-[9px] font-extrabold uppercase tracking-widest sticky top-0">Licencia</th>
+                                        <tr class="bg-slate-900 dark:bg-slate-950 text-white">
+                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[40%]">Nombre</th>
+                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[30%]">Documento</th>
+                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider sticky top-0 bg-slate-900 dark:bg-slate-950 w-[30%]">Licencia</th>
                                         </tr>
                                     </thead>
                                     <tbody>${rows}</tbody>
@@ -777,15 +1300,15 @@
                     </div>`;
             }
             return `
-                <div class="flex items-start justify-between mb-4 gap-3">
+                <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
                     <div>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Modalidad</p>
-                        <p class="text-base font-extrabold text-slate-900 leading-tight">${data.modalidad || 'Taxi'}</p>
+                        <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Modalidad</p>
+                        <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${data.modalidad || 'Taxi'}</p>
                     </div>
                     <div class="shrink-0">${badgeHTML}</div>
                 </div>
-                <div class="rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm">
-                    <table class="w-full text-left border-collapse bg-white">
+                <div class="rounded-xl overflow-hidden">
+                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 font-poppins">
                         <tbody>
                             ${fila('N° TUC', data.certificadoTuc)}
                             ${fila('Propietario', data.propietario)}
@@ -812,6 +1335,7 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.success) {
+                    processVehicleInfo('soat', data.data);
                     const content = renderSOAT(data.data, plate);
                     setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0);
                 } else {
@@ -834,6 +1358,7 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.success) {
+                    processVehicleInfo('citv', data.data);
                     const content = renderCITV(data.data, plate);
                     setCardData('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0);
                 } else {
@@ -933,6 +1458,7 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.success) {
+                    processVehicleInfo('atu', data.data);
                     const content = renderAtu(data.data, plate);
                     const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
                     setCardData('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
@@ -969,6 +1495,20 @@
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
 
+                // Validar Captcha
+                const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
+                if (captchaInput) {
+                    const enteredVal = captchaInput.value.trim().toUpperCase();
+                    if (enteredVal !== currentCaptchaCode) {
+                        queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>Código Captcha incorrecto</span>';
+                        queryStatus.classList.remove('opacity-0');
+                        captchaInput.value = '';
+                        drawCaptcha();
+                        captchaInput.focus();
+                        return;
+                    }
+                }
+
                 if (submitBtn) {
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
@@ -976,20 +1516,27 @@
                 queryStatus.textContent = 'Iniciando consulta multiorigen...';
                 queryStatus.classList.remove('opacity-0');
 
+                // Reset vehicle info
+                vehicleData = {};
+
+                if (captchaInput) captchaInput.value = '';
+                drawCaptcha();
+
                 const rc = document.getElementById('results-container')!;
-                rc.className = 'w-full bg-white rounded-2xl border-2 border-slate-100 p-6 md:p-8 shadow-lg text-left text-slate-900';
+                rc.className = 'w-full bg-transparent p-0 shadow-none border-0 text-left text-slate-900 dark:text-white';
                 rc.innerHTML = `
-                    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-6 pb-4 border-b-2 border-slate-100">
+                    <div class="flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 font-poppins">
                         <div>
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Placa consultada</p>
-                            <p class="text-2xl font-extrabold text-slate-900 font-archivo tracking-wide">${plate}</p>
+                            <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Placa consultada</p>
+                            <p class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-poppins tracking-wide">${plate}</p>
                         </div>
                         <div class="text-left sm:text-right">
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                            <p class="text-xs md:text-sm font-bold text-slate-600">APESEG · MTC · Callao · SUTRAN · ATU</p>
+                            <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
+                            <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Callao · SUTRAN · ATU</p>
                         </div>
                     </div>
-                    <div id="results-cards-wrapper" class="flex flex-col gap-5 w-full">
+                    <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
+                        <div id="vehiculo-card-container" data-status="loading"></div>
                         <div id="soat-card-container" data-status="loading"></div>
                         <div id="citv-card-container" data-status="loading"></div>
                         <div id="lunas-card-container" data-status="loading"></div>
@@ -998,10 +1545,13 @@
                         <div id="sutran-card-container" data-status="loading"></div>
                         <div id="atu-card-container" data-status="loading"></div>
                     </div>
-                    <div class="mt-6 pt-4 border-t-2 border-slate-100 flex items-center justify-center gap-2">
-                        <i class="fas fa-circle-info text-slate-300 text-xs"></i>
-                        <p class="text-[11px] text-slate-400">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 font-archivo">${plate}</strong> · <span id="last-query-time"></span></p>
+                    <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
+                        <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
                     </div>`;
+
+                // Render initial empty vehicle card
+                renderVehicleInfoCard();
 
                 document.getElementById('last-query-time')!.textContent = new Date().toLocaleString('es-PE');
 

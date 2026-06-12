@@ -31,6 +31,7 @@ export default {
         dancing: ['"Dancing Script"', 'cursive'],
         archivo: ['"Archivo Black"', 'sans-serif'],
         rubik: ['Rubik', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
       },
       fontSize: {
         '2xs': ['10px', { lineHeight: '14px' }],
