@@ -3,7 +3,7 @@
 ---
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -189,7 +189,7 @@
                                 id="captcha-input"
                                 placeholder="Poner código captcha"
                                 maxlength="4"
-                                class="flex-1 text-center rounded-lg border border-white/20 bg-white/5 text-white text-xs font-bold uppercase py-1.5 px-2 focus:ring-1 focus:ring-brand-yellow focus:outline-none placeholder-white/30 placeholder:normal-case"
+                                class="w-[130px] flex-1 min-w-0 text-center rounded-lg border border-white/20 bg-white/5 text-white text-xs font-bold uppercase py-1.5 px-2 focus:ring-1 focus:ring-brand-yellow focus:outline-none placeholder-white/30 placeholder:normal-case"
                                 required
                                 autocomplete="off"
                             />
@@ -417,7 +417,7 @@
             }
         }
 
-        const savedTheme = localStorage.getItem('theme') || 'light';
+        const savedTheme = localStorage.getItem('theme') || 'dark';
         applyTheme(savedTheme);
         if (themeToggleBtn) {
             themeToggleBtn.addEventListener('click', () => {
@@ -721,7 +721,7 @@
             const logoSrc = LOGO_MAPPING[cardId] || '';
             const logoHTML = logoSrc 
                 ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 transition-all duration-300">
-                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=\\\"${iconClass} text-base md:text-lg text-slate-600\\\"></i>'"/>
+                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-base md:text-lg text-slate-600&quot;></i>'"/>
                    </div>`
                 : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${iconBg}">
                        <i class="${iconClass} text-base md:text-lg"></i>
@@ -840,7 +840,7 @@
             const logoSrc = LOGO_MAPPING[cardId] || '';
             const logoHTML = logoSrc 
                 ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1">
-                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=\\\"${iconClass} text-slate-400 text-base md:text-lg\\\"></i>'"/>
+                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-slate-400 text-base md:text-lg&quot;></i>'"/>
                    </div>`
                 : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
                        <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>

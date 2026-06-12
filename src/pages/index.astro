@@ -4,7 +4,7 @@ import { SERVICES_DATA } from '../data/services';
 ---
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -530,7 +530,7 @@ import { SERVICES_DATA } from '../data/services';
         }
 
         // Tema inicial
-        const savedTheme = localStorage.getItem('theme') || 'light';
+        const savedTheme = localStorage.getItem('theme') || 'dark';
         applyTheme(savedTheme);
 
         if (themeToggleBtn) {
