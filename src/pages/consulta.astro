@@ -1524,7 +1524,14 @@
                 }
             } catch (err: any) {
                 clearTimeout(timeoutId);
-                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (35s).' : (err.message || 'Error de conexión');
+                let msg = 'Error de conexión';
+                if (err.name === 'AbortError') {
+                    msg = 'Tiempo de espera agotado en el navegador (130s).';
+                } else if (err.message) {
+                    msg = `${err.message} (${err.name || 'Error'})`;
+                } else {
+                    msg = err.toString();
+                }
                 setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
             }
         }
@@ -1625,7 +1632,14 @@
                 }
             } catch (err: any) {
                 clearTimeout(timeoutId);
-                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+                let msg = 'Error de conexión';
+                if (err.name === 'AbortError') {
+                    msg = 'Tiempo de espera agotado en el navegador (120s).';
+                } else if (err.message) {
+                    msg = `${err.message} (${err.name || 'Error'})`;
+                } else {
+                    msg = err.toString();
+                }
                 setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
             }
         }
