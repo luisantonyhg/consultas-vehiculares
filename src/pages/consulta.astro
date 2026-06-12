@@ -186,7 +186,7 @@
                         </div>
                         <div id="captcha-row" class="flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
                             <div class="flex items-center gap-2 shrink-0">
-                                <canvas id="captcha-canvas" class="rounded bg-white/10 cursor-pointer border border-white/10 select-none shadow-sm" width="105" height="34" title="Clic para recargar captcha"></canvas>
+                                <canvas id="captcha-canvas" class="rounded bg-white/10 cursor-pointer border border-white/10 select-none shadow-sm" width="150" height="45" title="Clic para recargar captcha"></canvas>
                                 <button
                                     type="button"
                                     id="refresh-captcha-btn"
@@ -373,13 +373,13 @@
             ctx.fillStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
             for (let i = 0; i < 15; i++) {
                 ctx.beginPath();
-                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 3, 0, Math.PI * 2);
+                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 4, 0, Math.PI * 2);
                 ctx.fill();
             }
 
             // Caracteres distorsionados y de colores premium
             const colors = ['#f59e0b', '#fbbf24', '#f59e0b', '#fbbf24', '#e2e8f0', '#38bdf8', '#f43f5e', '#34d399'];
-            ctx.font = 'bold 18px "Archivo Black", sans-serif';
+            ctx.font = 'bold 22px "Archivo Black", sans-serif';
             ctx.textBaseline = 'middle';
 
             for (let i = 0; i < currentCaptchaCode.length; i++) {
@@ -387,8 +387,8 @@
                 ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
                 
                 ctx.save();
-                const x = 12 + i * 22 + Math.random() * 5;
-                const y = canvas.height / 2 + (Math.random() * 6 - 3);
+                const x = 16 + i * 32 + Math.random() * 6;
+                const y = canvas.height / 2 + (Math.random() * 8 - 4);
                 const angle = (Math.random() * 30 - 15) * Math.PI / 180;
                 
                 ctx.translate(x, y);
@@ -1575,20 +1575,26 @@
         }
 
         async function fetchLima(plate: string) {
-            setCardLoading('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/lima/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                const content = renderLima(plate, data.message || 'Para consultar papeletas en Lima, ingresa directamente al portal SAT.', data.url || `https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx`);
-                setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, true, false);
-            } catch {
-                const content = renderLima(plate, 'Para consultar papeletas en Lima, ingresa directamente al portal SAT.', `https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx`);
-                setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, true, false);
-            }
+            const content = `
+                <div class="flex flex-col items-center justify-center gap-4 py-6 text-center font-poppins">
+                    <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-955/10 border-2 border-amber-250 dark:border-amber-900 flex items-center justify-center">
+                        <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
+                    </div>
+                    <div>
+                        <p class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">En Mantenimiento Temporal</p>
+                        <p class="text-xs text-slate-450 dark:text-slate-400 mt-1.5 max-w-[320px] mx-auto leading-relaxed">
+                            La consulta automática de papeletas de Lima SAT se encuentra temporalmente en mantenimiento por mejoras. Puedes realizar la consulta directamente en su portal oficial.
+                        </p>
+                    </div>
+                    <div class="flex flex-col items-center gap-2 mt-2 w-full">
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500">Placa a consultar: <strong class="font-bold text-slate-600 dark:text-slate-400">${plate}</strong></p>
+                        <a href="https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx" target="_blank" rel="noopener"
+                           class="w-full max-w-xs flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                           <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
+                        </a>
+                    </div>
+                </div>`;
+            setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, false, false);
         }
 
         async function fetchSutran(plate: string) {
