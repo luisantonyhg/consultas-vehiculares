@@ -63,12 +63,24 @@ import { SERVICES_DATA } from '../data/services';
     {/* Fuentes Google y FontAwesome */}
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    {/* Inline script to prevent theme flash */}
+    <script is:inline>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 </head>
 
 <body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-inter flex flex-col pb-10">
 
     {/* Header / Selector de Temas */}
-    <header class="w-full max-w-[1100px] flex justify-end px-5 py-4 mx-auto md:px-[15px] z-20">
+    <header class="w-full max-w-[1100px] flex justify-end px-5 py-1.5 md:py-2 mx-auto md:px-[15px] z-20">
         <button
             id="theme-toggle"
             class="p-2.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
@@ -133,8 +145,26 @@ import { SERVICES_DATA } from '../data/services';
             </div>
         </section>
 
-        {/* Panel de Controles (Buscador + Pestañas de Filtro) */}
-        <div class="w-full max-w-[1100px] px-5 md:px-[15px] mt-8 z-10">
+        {/* Botón para Mostrar/Ocultar Panel de Controles */}
+        <div class="w-full max-w-[1100px] px-5 md:px-[15px] mt-8 flex justify-center z-10">
+            <button
+                id="toggle-controls-btn"
+                class="flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all duration-300 shadow-md text-xs font-semibold select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95"
+                aria-expanded="false"
+                aria-controls="controls-panel"
+            >
+                <div class="relative flex items-center justify-center">
+                    <i class="fas fa-filter text-slate-400 dark:text-brand-yellow"></i>
+                    {/* Indicador de filtro activo */}
+                    <span id="filter-active-dot" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-red dark:bg-brand-yellow hidden animate-pulse"></span>
+                </div>
+                <span>Buscar y Filtrar Consultas</span>
+                <i id="toggle-icon" class="fas fa-chevron-down text-slate-400 dark:text-slate-500 transition-transform duration-300"></i>
+            </button>
+        </div>
+
+        {/* Panel de Controles (Buscador + Pestañas de Filtro) - Colapsable */}
+        <div id="controls-panel" class="hidden w-full max-w-[1100px] px-5 md:px-[15px] mt-4 z-10">
             <div class="bg-white/80 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl p-4 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col gap-4">
                 
                 {/* Caja de Búsqueda */}
@@ -458,6 +488,18 @@ import { SERVICES_DATA } from '../data/services';
                 }
             });
 
+            // Actualizar punto indicador de filtros activos
+            const filterDot = document.getElementById('filter-active-dot');
+            if (filterDot) {
+                const hasSearch = query.length > 0;
+                const hasCategory = activeCat !== 'all';
+                if (hasSearch || hasCategory) {
+                    filterDot.classList.remove('hidden');
+                } else {
+                    filterDot.classList.add('hidden');
+                }
+            }
+
             updateFavoritesBadge();
         }
 
@@ -481,6 +523,28 @@ import { SERVICES_DATA } from '../data/services';
                     if (id) toggleFavorite(id);
                 });
             });
+
+            // Lógica para colapsar/expandir el panel de controles
+            const toggleBtn = document.getElementById('toggle-controls-btn');
+            const controlsPanel = document.getElementById('controls-panel');
+            const toggleIcon = document.getElementById('toggle-icon');
+
+            if (toggleBtn && controlsPanel) {
+                toggleBtn.addEventListener('click', () => {
+                    const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+                    toggleBtn.setAttribute('aria-expanded', (!isExpanded).toString());
+                    
+                    if (isExpanded) {
+                        controlsPanel.classList.add('hidden');
+                        toggleIcon?.classList.remove('rotate-180');
+                        toggleBtn.classList.remove('bg-slate-100', 'dark:bg-white/10');
+                    } else {
+                        controlsPanel.classList.remove('hidden');
+                        toggleIcon?.classList.add('rotate-180');
+                        toggleBtn.classList.add('bg-slate-100', 'dark:bg-white/10');
+                    }
+                });
+            }
 
             // Buscador
             const searchInput = document.getElementById('search-input');

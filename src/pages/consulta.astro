@@ -103,32 +103,44 @@
         }
     </style>
 
+    {/* Inline script to prevent theme flash */}
+    <script is:inline>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 </head>
 
 <body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
 
-    {/* Header / Barra de Navegación */}
-    <header class="w-full max-w-[1100px] flex justify-between items-center px-5 py-4 mx-auto md:px-[15px] z-20">
-        <a
-            href="/"
-            class="px-4 py-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95"
-        >
-            <i class="fas fa-arrow-left"></i> Volver al Dashboard
-        </a>
-        
-        <button
-            id="theme-toggle"
-            class="p-2.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
-            aria-label="Cambiar tema"
-        >
-            <i id="theme-toggle-icon" class="fas fa-moon text-lg transition-transform duration-300 hover:rotate-12"></i>
-        </button>
-    </header>
-
     <main class="w-full flex-1 flex flex-col items-center">
         {/* Banner Section */}
-        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-y border-white/5 px-5 py-8 md:py-4 md:px-2 flex justify-center items-center overflow-hidden relative">
-            <div class="max-w-[1100px] w-full flex flex-row flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-5 px-0 md:px-2.5">
+        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-b border-white/5 px-5 py-4 md:py-4 md:px-2 flex flex-col items-center overflow-hidden relative">
+            
+            {/* Header / Barra de Navegación */}
+            <header class="w-full max-w-[1100px] flex justify-between items-center py-1 mx-auto px-0 md:px-2.5 z-20">
+                <a
+                    href="/"
+                    class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95"
+                >
+                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                </a>
+                
+                <button
+                    id="theme-toggle"
+                    class="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
+                    aria-label="Cambiar tema"
+                >
+                    <i id="theme-toggle-icon" class="fas fa-moon text-lg transition-transform duration-300 hover:rotate-12"></i>
+                </button>
+            </header>
+
+            <div class="max-w-[1100px] w-full flex flex-row flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-5 px-0 md:px-2.5 mt-2">
                 
                 <img
                     src="/assets/fortuner.png"
@@ -531,7 +543,7 @@
             callao: 'https://pagos.municallao.gob.pe/infracciones-transito',
             lima: 'https://www.sat.gob.pe/',
             sutran: 'http://webinterno.sutran.gob.pe/BusquedaPapeletas/',
-            atu: 'https://sistemas.atu.gob.pe/Consultas/Vehiculo',
+            atu: 'https://sistemas.atu.gob.pe/consultavehiculo',
             vehiculo: 'https://www.sunarp.gob.pe/'
         };
 
@@ -711,21 +723,24 @@
             const activeHeaderClass = isExpanded 
                 ? "bg-gradient-to-r from-[#1a3a6b] to-[#0b1c36] text-white border-b-2 border-slate-900 dark:border-slate-800" 
                 : "bg-white dark:bg-slate-900 text-slate-900 dark:text-white";
-            const iconBg = isExpanded
-                ? "bg-white/10 ring-1 ring-white/20 text-white"
-                : `${c.bg} ring-2 ${c.ring} ${c.icon}`;
-            const textClass = isExpanded ? "text-white font-bold" : "text-slate-900 dark:text-white font-bold";
-            const subtextClass = isExpanded ? "text-white/60 font-semibold" : "text-slate-400 dark:text-slate-500 font-semibold";
+            const textClass = isExpanded ? "text-white font-bold temp-white-title" : "text-slate-900 dark:text-white font-bold";
+            const subtextClass = isExpanded ? "text-white/60 font-semibold temp-white-sub" : "text-slate-400 dark:text-slate-500 font-semibold";
             const chevronClass = isExpanded ? "rotate-180 text-white" : "text-slate-400 dark:text-slate-500";
             
             const logoSrc = LOGO_MAPPING[cardId] || '';
+            const origWrapperClass = `w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${c.bg} ring-2 ${c.ring} ${c.icon}`;
+            const origIconClass = `${iconClass} text-base md:text-lg`;
             const logoHTML = logoSrc 
                 ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 transition-all duration-300">
                        <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-base md:text-lg text-slate-600&quot;></i>'"/>
                    </div>`
-                : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${iconBg}">
-                       <i class="${iconClass} text-base md:text-lg"></i>
-                   </div>`;
+                : (isExpanded 
+                    ? `<div data-orig-class="${origWrapperClass}" class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 bg-white/10 ring-1 ring-white/20 text-white">
+                           <i data-orig-class="${origIconClass}" class="${iconClass} text-base md:text-lg text-white"></i>
+                       </div>`
+                    : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${origWrapperClass}">
+                           <i class="${origIconClass}"></i>
+                       </div>`);
 
             return `
                 <div onclick="window.toggleAccordion('${cardId}-card-container')" 
@@ -869,14 +884,16 @@
         // ====================================================
         // SET CARD DATA
         // ====================================================
-        function setCardData(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, htmlContent: string, isSuccess: boolean, hasData: boolean) {
+        function setCardData(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, htmlContent: string, isSuccess: boolean, hasData: boolean, customBadge?: string) {
             const container = document.getElementById(`${cardId}-card-container`);
             if (!container) return;
             let badgeHTML = '';
 
             if (isSuccess) {
                 container.setAttribute('data-status', 'funciona');
-                if (hasData) {
+                if (customBadge) {
+                    badgeHTML = customBadge;
+                } else if (hasData) {
                     let text = 'CON REGISTROS';
                     if (cardId === 'soat') text = 'ACTIVO';
                     if (cardId === 'citv') text = 'VIGENTE';
@@ -1005,6 +1022,7 @@
                 </div>`;
             reorderCards();
         }
+
 
         // ====================================================
         // RENDER SOAT
@@ -1373,6 +1391,20 @@
         // ====================================================
         // PETICIONES INDEPENDIENTES
         // ====================================================
+        // Helper to parse date DD/MM/YYYY into JS Date object
+        function parseDateDDMMYYYY(dateStr: string) {
+            if (!dateStr) return new Date(0);
+            const parts = dateStr.trim().split('/');
+            if (parts.length !== 3) return new Date(0);
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+        }
+
+        // ====================================================
+        // PETICIONES INDEPENDIENTES
+        // ====================================================
         async function fetchSOAT(plate: string) {
             setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG');
             const controller = new AbortController();
@@ -1384,8 +1416,44 @@
                 const data = await res.json();
                 if (data.success) {
                     processVehicleInfo('soat', data.data);
+
+                    // Sort certificates by FechaFin descending (most recent first)
+                    if (Array.isArray(data.data)) {
+                        data.data.sort((a: any, b: any) => {
+                            const dateA = parseDateDDMMYYYY(a.FechaFin || a.FechaFinS);
+                            const dateB = parseDateDDMMYYYY(b.FechaFin || b.FechaFinS);
+                            return dateB.getTime() - dateA.getTime();
+                        });
+                    }
+
+                    // Compute overall status badge dynamically based on the latest certificate
+                    let customBadge = '';
+                    if (data.data && data.data.length > 0) {
+                        const latestSOAT = data.data[0];
+                        const estado = (latestSOAT.Estado || '').toUpperCase().trim();
+                        
+                        // Check if it is expired by date as well
+                        const now = new Date();
+                        now.setHours(0,0,0,0);
+                        const endDate = parseDateDDMMYYYY(latestSOAT.FechaFin);
+                        const isExpiredByDate = endDate < now;
+                        
+                        const isVigente = (estado === 'VIGENTE' || estado === 'ACTIVO') && !isExpiredByDate;
+                        
+                        if (isVigente) {
+                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                                <i class="fas fa-circle-check"></i> ACTIVO
+                            </span>`;
+                        } else {
+                            const label = estado === 'ANULADO' ? 'ANULADO' : 'VENCIDO';
+                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
+                                <i class="fas fa-circle-xmark"></i> ${label}
+                            </span>`;
+                        }
+                    }
+
                     const content = renderSOAT(data.data, plate);
-                    setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0);
+                    setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0, customBadge);
                 } else {
                     setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', data.error || 'Error desconocido', plate);
                 }
@@ -1397,7 +1465,7 @@
         }
 
         async function fetchCITV(plate: string) {
-            setCardLoading('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC');
+            setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 130000);
             try {
@@ -1407,15 +1475,50 @@
                 const data = await res.json();
                 if (data.success) {
                     processVehicleInfo('citv', data.data);
+
+                    // Sort certificates by expiration date descending (most recent first)
+                    if (Array.isArray(data.data)) {
+                        data.data.sort((a: any, b: any) => {
+                            const dateA = parseDateDDMMYYYY(a.fechaVencimiento || a.fechaInspeccion);
+                            const dateB = parseDateDDMMYYYY(b.fechaVencimiento || b.fechaInspeccion);
+                            return dateB.getTime() - dateA.getTime();
+                        });
+                    }
+
+                    // Compute overall status badge dynamically based on the latest certificate
+                    let customBadge = '';
+                    if (data.data && data.data.length > 0) {
+                        const latestCITV = data.data[0];
+                        const estado = (latestCITV.estado || latestCITV.resultado || '').toUpperCase().trim();
+                        
+                        // Check expiration by date
+                        const now = new Date();
+                        now.setHours(0,0,0,0);
+                        const vencimientoDate = parseDateDDMMYYYY(latestCITV.fechaVencimiento);
+                        const isExpiredByDate = vencimientoDate < now;
+                        
+                        const isVigente = (estado === 'VIGENTE' || estado === 'APROBADO' || estado === 'APROBADA') && !isExpiredByDate;
+                        
+                        if (isVigente) {
+                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                                <i class="fas fa-circle-check"></i> VIGENTE
+                            </span>`;
+                        } else {
+                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
+                                <i class="fas fa-circle-xmark"></i> VENCIDO
+                            </span>`;
+                        }
+                    }
+
                     const content = renderCITV(data.data, plate);
-                    setCardData('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0);
+                    setCardData('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0, customBadge);
                 } else {
-                    setCardError('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
+                    setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
                 }
             } catch (err: any) {
                 clearTimeout(timeoutId);
                 const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (35s).' : (err.message || 'Error de conexión');
-                setCardError('citv', 'CITV', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
+                setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
             }
         }
 
@@ -1497,9 +1600,9 @@
         }
 
         async function fetchATU(plate: string) {
-            setCardLoading('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU');
+            setCardLoading('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU');
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
             try {
                 const res = await fetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
                 clearTimeout(timeoutId);
@@ -1509,14 +1612,14 @@
                     processVehicleInfo('atu', data.data);
                     const content = renderAtu(data.data, plate);
                     const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
-                    setCardData('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
+                    setCardData('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
                 } else {
-                    setCardError('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
+                    setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
                 }
             } catch (err: any) {
                 clearTimeout(timeoutId);
                 const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-                setCardError('atu', 'Habilitación ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
+                setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
             }
         }
 
