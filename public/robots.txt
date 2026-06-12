@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap URL (replace with your custom domain if applicable)
+Sitemap: https://consultas-vehiculares.pages.dev/sitemap.xml
