@@ -797,7 +797,7 @@
                 header.classList.remove('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
                 header.classList.add('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900');
                 
-                const texts = header.querySelectorAll('.text-slate-900, .dark:text-white, .text-slate-400, .dark:text-slate-500');
+                const texts = header.querySelectorAll('.text-slate-900, .dark\\:text-white, .text-slate-400, .dark\\:text-slate-500');
                 texts.forEach(el => {
                     if (el.classList.contains('text-slate-900') || el.classList.contains('dark:text-white')) {
                         el.classList.remove('text-slate-900', 'dark:text-white');
