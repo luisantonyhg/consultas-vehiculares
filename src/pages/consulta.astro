@@ -224,7 +224,8 @@
 
                     <p class="text-white font-archivo text-[10px] md:text-xs italic tracking-widest uppercase mt-4">Realizado por:</p>
                     <p class="text-brand-yellow font-dancing text-[24px] md:text-[32px] -mt-1 drop-shadow-[1px_1px_0px_rgba(0,0,0,0.5)]">Huamani Gonzales Luis Antony</p>
-                    <p class="text-white font-bold text-[10px] md:text-xs mt-3.5 max-w-[500px] mx-auto leading-relaxed border-t border-white/10 pt-3 opacity-95">
+                    <p class="text-white/95 font-archivo text-[10px] md:text-xs tracking-wider uppercase -mt-1.5 mb-1.5 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
+                    <p class="text-white font-bold text-[10px] md:text-xs mt-3 max-w-[500px] mx-auto leading-relaxed border-t border-white/10 pt-3 opacity-95">
                         Esta plataforma unifica y consulta en tiempo real información vehicular oficial de múltiples entidades públicas (MTC, ATU, APESEG, SUTRAN y Municipalidades y otras implementaciones que se haran progresivamente) de manera descentralizada y segura.
                     </p>
                 </div>
@@ -246,7 +247,7 @@
         </div>
 
         {/* Sección de Resultados */}
-        <div class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
+        <div id="results-section" class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
             <div class="flex items-center gap-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2 mb-6">
                 <i class="fas fa-chart-line text-brand-red dark:text-brand-yellow text-xl"></i>
                 <h2 class="text-xl font-bold tracking-wide font-poppins">Resultados del Análisis</h2>
@@ -271,7 +272,8 @@
     <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
             <p class="text-xs text-slate-400 dark:text-text-muted mb-1.5 uppercase tracking-widest">Realizado por:</p>
-            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-2">Luis Antony Huamani Gonzales</p>
+            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-1">Luis Antony Huamani Gonzales</p>
+            <p class="text-xs text-slate-500 dark:text-brand-yellow/80 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
 
             {/* Aviso Legal y Uso Ético */}
             <div class="mt-8 pt-8 border-t border-slate-200 dark:border-white/10 text-left max-w-3xl mx-auto">
@@ -925,7 +927,7 @@
                     if (cardId === 'atu') text = 'NO REGISTRADO';
                     if (cardId === 'lunas') text = 'SIN PERMISO';
                     
-                    if (text === 'SIN PAPELETAS') {
+                    if (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO') {
                         badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
                             <i class="fas fa-circle-check"></i> ${text}
                         </span>`;
@@ -937,8 +939,8 @@
                 }
             } else {
                 container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm animate-pulse uppercase tracking-wider">
-                    <i class="fas fa-triangle-exclamation"></i> MANTENIMIENTO
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-orange-500 text-white shadow-sm animate-pulse uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation"></i> EN DESARROLLO
                 </span>`;
             }
 
@@ -974,22 +976,22 @@
         function setCardError(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) {
             const container = document.getElementById(`${cardId}-card-container`);
             if (!container) return;
-            const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento");
+            const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento") || (errorMessage || "").toLowerCase().includes("desarrollo");
             let badgeHTML = '';
             let rightContent = '';
 
             if (isMantenimiento) {
                 container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-wrench"></i> MANTENIMIENTO
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-orange-500 text-white shadow-sm uppercase tracking-wider animate-pulse">
+                    <i class="fas fa-wrench"></i> EN DESARROLLO
                 </span>`;
                 rightContent = `
                     <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
-                        <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-955/10 border-2 border-amber-200 dark:border-amber-900 flex items-center justify-center mb-1">
-                            <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
+                        <div class="w-14 h-14 rounded-full bg-orange-50 dark:bg-orange-955/10 border-2 border-orange-200 dark:border-orange-900 flex items-center justify-center mb-1">
+                            <i class="fas fa-wrench text-2xl text-orange-500 animate-pulse"></i>
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Mantenimiento</p>
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Desarrollo</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
                         </div>
                         <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
@@ -1550,19 +1552,32 @@
         }
 
         async function fetchLunas(plate: string) {
-            const content = `
-                <div class="flex flex-col items-center justify-center gap-4 py-6 text-center">
-                    <div class="w-14 h-14 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center">
-                        <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
-                    </div>
-                    <div>
-                        <p class="font-extrabold text-slate-800 text-sm">En Mantenimiento Temporal</p>
-                        <p class="text-xs text-slate-400 mt-1 max-w-[280px] mx-auto leading-relaxed">
-                            La consulta de lunas oscurecidas está temporalmente en mantenimiento para mejoras del sistema.
-                        </p>
-                    </div>
-                </div>`;
-            setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, false, false);
+            setCardLoading('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 165000);
+            try {
+                const res = await fetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    const content = renderLunas(data.data, plate);
+                    setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, true, data.data && data.data.length > 0);
+                } else {
+                    setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', data.error || 'Error en consulta de lunas PNP', plate);
+                }
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                let msg = 'Error de conexión';
+                if (err.name === 'AbortError') {
+                    msg = 'Tiempo de espera agotado (165s).';
+                } else if (err.message) {
+                    msg = `${err.message} (${err.name || 'Error'})`;
+                } else {
+                    msg = err.toString();
+                }
+                setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', msg, plate);
+            }
         }
 
         async function fetchCallao(plate: string) {
@@ -1590,19 +1605,19 @@
         async function fetchLima(plate: string) {
             const content = `
                 <div class="flex flex-col items-center justify-center gap-4 py-6 text-center font-poppins">
-                    <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-955/10 border-2 border-amber-250 dark:border-amber-900 flex items-center justify-center">
-                        <i class="fas fa-wrench text-2xl text-amber-500 animate-pulse"></i>
+                    <div class="w-14 h-14 rounded-full bg-orange-50 dark:bg-orange-955/10 border-2 border-orange-200 dark:border-orange-900 flex items-center justify-center">
+                        <i class="fas fa-wrench text-2xl text-orange-500 animate-pulse"></i>
                     </div>
                     <div>
-                        <p class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">En Mantenimiento Temporal</p>
-                        <p class="text-xs text-slate-450 dark:text-slate-400 mt-1.5 max-w-[320px] mx-auto leading-relaxed">
-                            La consulta automática de papeletas de Lima SAT se encuentra temporalmente en mantenimiento por mejoras. Puedes realizar la consulta directamente en su portal oficial.
+                        <p class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">En Desarrollo</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[320px] mx-auto leading-relaxed">
+                            La consulta automática de papeletas de Lima SAT se encuentra temporalmente en desarrollo por mejoras. Puedes realizar la consulta directamente en su portal oficial.
                         </p>
                     </div>
                     <div class="flex flex-col items-center gap-2 mt-2 w-full">
                         <p class="text-[10px] text-slate-400 dark:text-slate-500">Placa a consultar: <strong class="font-bold text-slate-600 dark:text-slate-400">${plate}</strong></p>
                         <a href="https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx" target="_blank" rel="noopener"
-                           class="w-full max-w-xs flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                           class="w-full max-w-xs flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-650 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
                            <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
                         </a>
                     </div>
@@ -1745,6 +1760,16 @@
                 renderVehicleInfoCard();
 
                 document.getElementById('last-query-time')!.textContent = new Date().toLocaleString('es-PE');
+
+                // Auto scroll to results section on mobile devices
+                if (window.innerWidth < 768) {
+                    const resultsSection = document.getElementById('results-section');
+                    if (resultsSection) {
+                        setTimeout(() => {
+                            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 150);
+                    }
+                }
 
                 Promise.all([
                     fetchSOAT(plate),
