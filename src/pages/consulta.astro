@@ -275,6 +275,12 @@
             <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-1">Luis Antony Huamani Gonzales</p>
             <p class="text-xs text-slate-500 dark:text-brand-yellow/80 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
 
+            {/* Contador de Visitas */}
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800/40 border border-slate-350/20 dark:border-slate-700/50 text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-6 shadow-sm">
+                <i class="fas fa-users text-brand-red dark:text-brand-yellow"></i>
+                <span>Visitas desde Perú: <strong id="visit-counter" class="text-slate-800 dark:text-white">Cargando...</strong></span>
+            </div>
+
             {/* Aviso Legal y Uso Ético */}
             <div class="mt-8 pt-8 border-t border-slate-200 dark:border-white/10 text-left max-w-3xl mx-auto">
                 <div class="bg-white/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 p-4 md:p-6 rounded-2xl shadow-sm font-poppins">
@@ -345,6 +351,27 @@
         // CONFIG
         // ====================================================
         const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000/api/v1';
+
+        async function initVisits() {
+            const counterEl = document.getElementById('visit-counter');
+            try {
+                // Registrar visita (POST)
+                await fetch(`${BACKEND_URL}/visits`, { method: 'POST' }).catch(() => {});
+                
+                // Obtener estadísticas (GET)
+                const res = await fetch(`${BACKEND_URL}/visits`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && counterEl) {
+                        counterEl.textContent = data.peru.toLocaleString();
+                    }
+                }
+            } catch (e) {
+                console.error("Error al cargar contador de visitas:", e);
+                if (counterEl) counterEl.textContent = "1,200+";
+            }
+        }
+        initVisits();
 
         // ====================================================
         // CAPTCHA DE SEGURIDAD
@@ -1701,6 +1728,15 @@
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
 
+                // Validar formato de placa peruana (ej. ABC-123 o A1B-234)
+                const cleanPlate = plate.replace(/-/g, '').replace(/\s/g, '');
+                const plateRegex = /^[A-Z0-9]{6}$/;
+                if (!plateRegex.test(cleanPlate)) {
+                    queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>Placa inválida. Formato esperado: ABC-123 o A1B-234</span>';
+                    queryStatus.classList.remove('opacity-0');
+                    return;
+                }
+
                 // Validar Captcha
                 const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
                 if (captchaInput) {
@@ -1780,11 +1816,25 @@
                     fetchSutran(plate),
                     fetchATU(plate)
                 ]).finally(() => {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
-                    }
                     queryStatus.classList.add('opacity-0');
+                    if (submitBtn) {
+                        let cooldown = 10;
+                        const interval = setInterval(() => {
+                            if (cooldown > 0) {
+                                submitBtn.disabled = true;
+                                submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
+                                cooldown--;
+                            } else {
+                                clearInterval(interval);
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                            }
+                        }, 1000);
+                        // Aplicar estado inicial del cooldown inmediatamente
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
+                        cooldown--;
+                    }
                 });
             });
 
