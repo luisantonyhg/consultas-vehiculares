@@ -278,7 +278,7 @@
             {/* Contador de Visitas */}
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800/40 border border-slate-350/20 dark:border-slate-700/50 text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-6 shadow-sm">
                 <i class="fas fa-users text-brand-red dark:text-brand-yellow"></i>
-                <span>Visitas desde Perú: <strong id="visit-counter" class="text-slate-800 dark:text-white">Cargando...</strong></span>
+                <span>Visitas a la página: <strong id="visit-counter" class="text-slate-800 dark:text-white">Cargando...</strong></span>
             </div>
 
             {/* Aviso Legal y Uso Ético */}
@@ -363,12 +363,12 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && counterEl) {
-                        counterEl.textContent = data.peru.toLocaleString();
+                        counterEl.textContent = data.total.toLocaleString();
                     }
                 }
             } catch (e) {
                 console.error("Error al cargar contador de visitas:", e);
-                if (counterEl) counterEl.textContent = "1,200+";
+                if (counterEl) counterEl.textContent = "0";
             }
         }
         initVisits();
