@@ -369,6 +369,7 @@
             renderSutran,
             renderAtu,
             renderGNV,
+            renderSBS,
             renderVehicleInfoCard
         } from '../utils/renderers.js';
 
@@ -379,7 +380,8 @@
             runFetchCallao,
             runFetchSutran,
             runFetchATU,
-            runFetchGNV
+            runFetchGNV,
+            runFetchSBS
         } from '../services/api.js';
 
         // ====================================================
@@ -608,12 +610,20 @@
         }
 
         async function fetchLunas(plate: string) {
-            return runFetchLunas(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            const msg = "La consulta automática de Lunas Oscurecidas (PNP) se encuentra temporalmente en desarrollo por mantenimiento. Puedes realizar la consulta directamente ante la PNP.";
+            const content = `
+                <div class="flex flex-col gap-5 text-slate-900 dark:text-white font-poppins">
+                    <div class="flex items-center gap-4 p-4 bg-orange-50 dark:bg-orange-955/20 border border-orange-200 dark:border-orange-900 rounded-xl">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 border border-orange-300 dark:border-orange-800 flex items-center justify-center shrink-0">
+                            <i class="fas fa-eye text-orange-655 dark:text-orange-455"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-850 dark:text-slate-200 text-sm">Servicio en desarrollo</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-450 mt-0.5 leading-relaxed">${msg}</p>
+                        </div>
+                    </div>
+                </div>`;
+            setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, false, false);
         }
 
         async function fetchCallao(plate: string) {
@@ -659,6 +669,15 @@
             });
         }
 
+        async function fetchSBS(plate: string) {
+            return runFetchSBS(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
+        }
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
             if (cardId === 'soat')   await fetchSOAT(plate);
             else if (cardId === 'citv')   await fetchCITV(plate);
@@ -668,6 +687,7 @@
             else if (cardId === 'sutran') await fetchSutran(plate);
             else if (cardId === 'atu')    await fetchATU(plate);
             else if (cardId === 'gnv')    await fetchGNV(plate);
+            else if (cardId === 'sbs')    await fetchSBS(plate);
         };
 
         // ====================================================
@@ -753,7 +773,7 @@
         // CACHING LOGIC (localStorage, TTL 5 min)
         // ====================================================
         function saveToCache(plate: string) {
-            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'lima', 'sutran', 'atu', 'vehiculo'];
+            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'sbs', 'lima', 'sutran', 'atu', 'vehiculo'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -845,7 +865,7 @@
                     </div>
                     <div class="text-left sm:text-right">
                         <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Infogas · Callao · SUTRAN · ATU</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Infogas · Callao · SBS · SUTRAN · ATU</p>
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
@@ -855,6 +875,7 @@
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -950,6 +971,7 @@
                     fetchGNV(plate),
                     fetchLunas(plate),
                     fetchCallao(plate),
+                    fetchSBS(plate),
                     fetchLima(plate),
                     fetchSutran(plate),
                     fetchATU(plate)

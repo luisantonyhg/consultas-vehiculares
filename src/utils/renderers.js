@@ -8,6 +8,7 @@ export const LOGO_MAPPING = {
     sutran: '/assets/sutran.png',
     atu: '/assets/atu.png',
     gnv: '/assets/infogas.png',
+    sbs: '/assets/sbs.png',
     vehiculo: '/assets/sunarp.jpeg'
 };
 
@@ -20,6 +21,7 @@ export const SOURCE_URLS = {
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
     atu: 'https://sistemas.atu.gob.pe/consultavehiculo',
     gnv: 'https://vh.infogas.com.pe/',
+    sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
     vehiculo: 'https://www.sunarp.gob.pe/'
 };
 
@@ -32,6 +34,7 @@ export const SERVICE_COLORS = {
     sutran:   { bg: 'bg-orange-50 dark:bg-orange-950/20',   icon: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-900' },
     atu:      { bg: 'bg-teal-50 dark:bg-teal-950/20',       icon: 'text-teal-600 dark:text-teal-400',    ring: 'ring-teal-200 dark:ring-teal-900' },
     gnv:      { bg: 'bg-green-50 dark:bg-green-950/20',     icon: 'text-green-600 dark:text-green-400',   ring: 'ring-green-200 dark:ring-green-900' },
+    sbs:      { bg: 'bg-violet-50 dark:bg-violet-950/20',  icon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200 dark:ring-violet-900' },
     vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
 };
 
@@ -165,6 +168,7 @@ export function reorderCards() {
             'gnv-card-container',
             'lunas-card-container',
             'callao-card-container',
+            'sbs-card-container',
             'sutran-card-container',
             'atu-card-container',
             'lima-card-container'
@@ -737,6 +741,78 @@ export function renderGNV(data, plate) {
             </div>
         </div>`;
     }).join('');
+}
+
+export function renderSBS(data, plate) {
+    // data = { soat: SBSTipo, vehicular: SBSTipo, cat: SBSTipo }
+    if (!data) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <i class="fas fa-circle-exclamation text-slate-300 dark:text-slate-600 text-2xl mb-1"></i>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Sin datos disponibles para <strong>${plate}</strong></p>
+        </div>`;
+    }
+
+    const tiposConfig = [
+        { key: 'soat',      label: 'SOAT',             icon: 'fas fa-shield-halved', color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-950/20',   border: 'border-blue-200 dark:border-blue-900' },
+        { key: 'vehicular', label: 'Vehícular',         icon: 'fas fa-car',           color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/20', border: 'border-violet-200 dark:border-violet-900' },
+        { key: 'cat',       label: 'CAT',               icon: 'fas fa-house-chimney-crack', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/20',  border: 'border-amber-200 dark:border-amber-900' },
+    ];
+
+    let html = '';
+    let totalSiniestros = 0;
+
+    tiposConfig.forEach((cfg, idx) => {
+        const tipo = data[cfg.key];
+        const borderTop = idx > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+        if (!tipo) return;
+
+        const count = (tipo.data || []).length;
+        totalSiniestros += count;
+
+        html += `<div class="${borderTop} font-poppins">`;
+        html += `<div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center ${cfg.bg} border ${cfg.border} shrink-0">
+                <i class="${cfg.icon} text-xs ${cfg.color}"></i>
+            </div>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest ${cfg.color}">${cfg.label}</span>
+            ${count > 0
+                ? `<span class="ml-auto text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-full">${count} siniestro${count > 1 ? 's' : ''}</span>`
+                : ''
+            }
+        </div>`;
+
+        if (tipo.error) {
+            html += `<p class="text-[10px] text-red-500 italic pl-9">${tipo.error}</p>`;
+        } else if (tipo.sin_registros || count === 0) {
+            html += `<div class="flex items-center gap-2 pl-9 py-1">
+                <i class="fas fa-circle-check text-emerald-500 text-xs"></i>
+                <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Sin siniestros registrados</p>
+            </div>`;
+        } else {
+            // Mostrar tabla con las columnas que devolvió el parser genérico
+            const headers = Object.keys(tipo.data[0] || {});
+            html += `<div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                <div class="overflow-x-auto max-h-[200px]">
+                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
+                        <thead>
+                            <tr class="bg-slate-900 dark:bg-slate-955 text-white">
+                                ${headers.map(h => `<th class="py-1.5 px-2 text-[8px] font-bold uppercase tracking-wider border-r border-white/10 last:border-0 sticky top-0 bg-slate-900">${h}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tipo.data.map(row => `
+                                <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-violet-50/50 dark:hover:bg-violet-955/10 transition-colors duration-150">
+                                    ${headers.map(h => `<td class="py-1.5 px-2 text-[9px] font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 leading-tight">${row[h] || '—'}</td>`).join('')}
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    });
+
+    return html || `<p class="text-xs text-slate-400 dark:text-slate-500 text-center py-4">Sin datos de siniestralidad para ${plate}</p>`;
 }
 
 export function renderVehicleInfoCard(vehicleData, isExpanded = false) {

@@ -6,7 +6,8 @@ import {
     renderCallao,
     renderSutran,
     renderAtu,
-    renderGNV
+    renderGNV,
+    renderSBS
 } from '../utils/renderers.js';
 
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
@@ -218,6 +219,45 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (120s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    try {
+        const res = await fetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const sbsData = { soat: data.soat, vehicular: data.vehicular, cat: data.cat };
+            const totalSiniestros = [data.soat, data.vehicular, data.cat]
+                .filter(Boolean)
+                .reduce((acc, t) => acc + ((t.data || []).length), 0);
+            let customBadge = '';
+            if (totalSiniestros > 0) {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation"></i> ${totalSiniestros} SINIESTRO${totalSiniestros > 1 ? 'S' : ''}
+                </span>`;
+            } else {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> SIN SINIESTROS
+                </span>`;
+            }
+            const content = renderSBS(sbsData, plate);
+            callbacks.setCardData('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', content, true, totalSiniestros > 0, customBadge);
+            return data;
+        } else {
+            callbacks.setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', data.error || 'Error al consultar SBS', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (120s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', msg, plate);
         return { success: false, error: msg };
     }
 }
