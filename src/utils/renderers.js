@@ -240,7 +240,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             if (cardId === 'atu') text = 'NO REGISTRADO';
             if (cardId === 'lunas') text = 'SIN PERMISO';
             
-            if (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO' || cardId === 'gnv') {
+            if (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO' || cardId === 'gnv' || cardId === 'citv') {
                 badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-circle-check"></i> ${text}
                 </span>`;
@@ -399,10 +399,10 @@ export function renderSOAT(data, plate) {
 export function renderCITV(data, plate) {
     if (!data || data.length === 0) {
         return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                <i class="fas fa-clipboard-list text-slate-300 dark:text-slate-655 text-xl"></i>
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
+                <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
             </div>
-            <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin CITV registrado</p>
+            <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Sin CITV registrado</p>
             <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron inspecciones técnicas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
         </div>`;
     }
