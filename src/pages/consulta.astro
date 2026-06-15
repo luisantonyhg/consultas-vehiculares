@@ -346,7 +346,42 @@
         </div>
     </footer>
 
-                    <script>
+    <script>
+        import {
+            LOGO_MAPPING,
+            SOURCE_URLS,
+            SERVICE_COLORS,
+            getFormattedTimestamp,
+            parseDateDDMMYYYY,
+            fila,
+            estadoBadge,
+            cardHeaderAccordion,
+            skeletonBody,
+            reorderCards,
+            setCardLoading,
+            setCardData,
+            setCardError,
+            renderSOAT,
+            renderCITV,
+            renderLunas,
+            renderCallao,
+            renderLima,
+            renderSutran,
+            renderAtu,
+            renderGNV,
+            renderVehicleInfoCard
+        } from '../utils/renderers.js';
+
+        import {
+            runFetchSOAT,
+            runFetchCITV,
+            runFetchLunas,
+            runFetchCallao,
+            runFetchSutran,
+            runFetchATU,
+            runFetchGNV
+        } from '../services/api.js';
+
         // ====================================================
         // CONFIG
         // ====================================================
@@ -355,10 +390,8 @@
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
             try {
-                // Registrar visita (POST)
                 await fetch(`${BACKEND_URL}/visits`, { method: 'POST' }).catch(() => {});
                 
-                // Obtener estadísticas (GET)
                 const res = await fetch(`${BACKEND_URL}/visits`);
                 if (res.ok) {
                     const data = await res.json();
@@ -379,7 +412,7 @@
         let currentCaptchaCode = '';
 
         function generateCaptchaCode() {
-            const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Evitamos caracteres confusos como 0, 1, O, I
+            const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
             let code = '';
             for (let i = 0; i < 4; i++) {
                 code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -395,11 +428,9 @@
 
             currentCaptchaCode = generateCaptchaCode();
 
-            // Fondo adaptado al tema actual
             ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#1e293b' : '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Líneas de ruido de fondo
             ctx.strokeStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
             for (let i = 0; i < 4; i++) {
                 ctx.beginPath();
@@ -408,7 +439,6 @@
                 ctx.stroke();
             }
 
-            // Puntos de ruido
             ctx.fillStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
             for (let i = 0; i < 15; i++) {
                 ctx.beginPath();
@@ -416,7 +446,6 @@
                 ctx.fill();
             }
 
-            // Caracteres distorsionados y de colores premium
             const colors = ['#f59e0b', '#fbbf24', '#f59e0b', '#fbbf24', '#e2e8f0', '#38bdf8', '#f43f5e', '#34d399'];
             ctx.font = 'bold 22px "Archivo Black", sans-serif';
             ctx.textBaseline = 'middle';
@@ -437,7 +466,6 @@
             }
         }
 
-        // Registrar inicialización de captcha al cargar DOM
         window.addEventListener('DOMContentLoaded', () => {
             drawCaptcha();
 
@@ -456,7 +484,7 @@
         const themeToggleBtn = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-toggle-icon');
 
-        function applyTheme(theme) {
+        function applyTheme(theme: string) {
             if (theme === 'dark') {
                 document.documentElement.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
@@ -554,1155 +582,81 @@
             }
 
             if (updated) {
-                renderVehicleInfoCard();
+                renderVehicleInfoCard(vehicleData);
             }
-        }
-
-        // ====================================================
-        // LOGO MAPPING FOR EACH SOURCE
-        // ====================================================
-        const LOGO_MAPPING: Record<string, string> = {
-            soat: '/assets/apeseg.png',
-            citv: '/assets/mtc.png',
-            lunas: '/assets/pnp.png',
-            callao: '/assets/callao.png',
-            lima: '/assets/sat.png',
-            sutran: '/assets/sutran.png',
-            atu: '/assets/atu.png',
-            vehiculo: '/assets/sunarp.jpeg'
-        };
-
-        // ====================================================
-        // OFFICIAL PORTAL URLS FOR EACH SOURCE
-        // ====================================================
-        const SOURCE_URLS: Record<string, string> = {
-            soat: 'https://www.apeseg.org.pe/consultas-soat/',
-            citv: 'https://citv.mtc.gob.pe/citv-portal/',
-            lunas: 'https://www.policia.gob.pe/',
-            callao: 'https://pagos.municallao.gob.pe/infracciones-transito',
-            lima: 'https://www.sat.gob.pe/',
-            sutran: 'http://webinterno.sutran.gob.pe/BusquedaPapeletas/',
-            atu: 'https://sistemas.atu.gob.pe/consultavehiculo',
-            vehiculo: 'https://www.sunarp.gob.pe/'
-        };
-
-        // ====================================================
-        // HELPER: GET CURRENT FORMATTED TIMESTAMP
-        // ====================================================
-        function getFormattedTimestamp() {
-            const now = new Date();
-            const pad = (n: number) => n.toString().padStart(2, '0');
-            const date = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
-            const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-            return `${date} ${time}`;
-        }
-
-        function renderVehicleInfoCard() {
-            const container = document.getElementById('vehiculo-card-container');
-            if (!container) return;
-
-            const hasData = Object.keys(vehicleData).length > 0;
-            let badgeHTML = '';
-
-            if (hasData) {
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-check"></i> DISPONIBLE
-                </span>`;
-            } else {
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider animate-pulse">
-                    <i class="fas fa-circle-notch fa-spin"></i> BUSCANDO
-                </span>`;
-            }
-
-            const existingBody = container?.querySelector('.accordion-body');
-            const isExpanded = existingBody ? !existingBody.classList.contains('hidden') : false;
-
-            let tableRows = '';
-            if (hasData) {
-                tableRows = `
-                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 font-poppins">
-                        <tbody>
-                            ${fila('Marca', vehicleData.marca || '—')}
-                            ${fila('Modelo', vehicleData.modelo || '—')}
-                            ${fila('Año Fabricación', vehicleData.anio || '—')}
-                            ${fila('Color', vehicleData.color || '—')}
-                            ${fila('Categoría / Clase', vehicleData.categoria || '—')}
-                            ${fila('Uso registrado', vehicleData.uso || '—')}
-                            ${fila('Número Serie / Chasis', vehicleData.serie || '—')}
-                            ${fila('Número Motor', vehicleData.motor || '—')}
-                            ${fila('Propietario SUNARP', vehicleData.propietario || '—')}
-                        </tbody>
-                    </table>`;
-            } else {
-                tableRows = `
-                    <div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                            <i class="fas fa-car-side text-slate-300 dark:bg-slate-600 text-xl animate-pulse"></i>
-                        </div>
-                        <p class="font-extrabold text-slate-600 dark:text-slate-400 text-sm">Esperando información técnica</p>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[280px] leading-relaxed">Los datos se completarán conforme se obtengan de las consultas en tiempo real.</p>
-                    </div>`;
-            }
-
-            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
-            container.innerHTML = `
-                ${cardHeaderAccordion('vehiculo', 'Información Vehículo', 'REGISTRO MULTIFUENTE', 'fas fa-car-side', badgeHTML, isExpanded)}
-                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
-                    <div class="rounded-xl overflow-hidden">
-                        ${tableRows}
-                    </div>
-                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
-                        <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a></span>
-                        <span>Consultado: ${getFormattedTimestamp()}</span>
-                    </div>
-                </div>`;
-            reorderCards();
-        }
-
-        // ====================================================
-        // ORDENAMIENTO DINÁMICO DE TARJETAS
-        // ====================================================
-        function reorderCards() {
-            const wrapper = document.getElementById('results-cards-wrapper');
-            if (!wrapper) return;
-            const cards = Array.from(wrapper.children);
-            const statusOrder: Record<string, number> = {
-                'funciona': 1,
-                'loading': 2,
-                'no-funciona': 3,
-                'mantenimiento': 3
-            };
-            cards.sort((a: any, b: any) => {
-                if (a.id === 'vehiculo-card-container') return -1;
-                if (b.id === 'vehiculo-card-container') return 1;
-
-                const statusA = a.getAttribute('data-status') || 'loading';
-                const statusB = b.getAttribute('data-status') || 'loading';
-                const orderA = statusOrder[statusA] ?? 2;
-                const orderB = statusOrder[statusB] ?? 2;
-                if (orderA !== orderB) return orderA - orderB;
-
-                const defaultOrder = [
-                    'vehiculo-card-container',
-                    'soat-card-container',
-                    'citv-card-container',
-                    'lunas-card-container',
-                    'callao-card-container',
-                    'sutran-card-container',
-                    'atu-card-container',
-                    'lima-card-container'
-                ];
-                return defaultOrder.indexOf(a.id) - defaultOrder.indexOf(b.id);
-            });
-            cards.forEach(card => wrapper.appendChild(card));
-        }
-
-        // ====================================================
-        // SKELETON LOADER  (shimmer blocks)
-        // ====================================================
-        function skeletonBody() {
-            return `
-                <div class="flex flex-col items-center justify-center py-6 gap-3 text-center font-poppins">
-                    <div class="relative flex items-center justify-center">
-                        <span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-500 spin-icon"></span>
-                        <i class="fas fa-search text-[10px] text-blue-600 dark:text-blue-400 absolute animate-pulse"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Consultando, espere...</p>
-                        <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Obteniendo datos en tiempo real de la fuente oficial</p>
-                    </div>
-                    <div class="w-full flex flex-col gap-2 pt-1.5 max-w-[220px]">
-                        <div class="skeleton h-1.5 w-full mx-auto opacity-45"></div>
-                        <div class="skeleton h-1.5 w-5/6 mx-auto opacity-25"></div>
-                    </div>
-                </div>`;
-        }
-
-        // ====================================================
-        // COLOR PALETTE POR SERVICIO
-        // ====================================================
-        const SERVICE_COLORS: Record<string, { bg: string; icon: string; ring: string }> = {
-            soat:     { bg: 'bg-blue-50 dark:bg-blue-950/20',     icon: 'text-blue-600 dark:text-blue-400',    ring: 'ring-blue-200 dark:ring-blue-900' },
-            citv:     { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
-            lunas:    { bg: 'bg-purple-50 dark:bg-purple-950/20',   icon: 'text-purple-600 dark:text-purple-400',  ring: 'ring-purple-200 dark:ring-purple-900' },
-            callao:   { bg: 'bg-red-50 dark:bg-red-950/20',       icon: 'text-red-600 dark:text-red-400',      ring: 'ring-red-200 dark:ring-red-900' },
-            lima:     { bg: 'bg-amber-50 dark:bg-amber-950/20',     icon: 'text-amber-600 dark:text-amber-400',    ring: 'ring-amber-200 dark:ring-amber-900' },
-            sutran:   { bg: 'bg-orange-50 dark:bg-orange-950/20',   icon: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-900' },
-            atu:      { bg: 'bg-teal-50 dark:bg-teal-950/20',       icon: 'text-teal-600 dark:text-teal-400',    ring: 'ring-teal-200 dark:ring-teal-900' },
-            vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
-        };
-
-        function getColors(cardId: string) {
-            return SERVICE_COLORS[cardId] || { bg: 'bg-slate-50 dark:bg-slate-900', icon: 'text-slate-600 dark:text-slate-400', ring: 'ring-slate-200 dark:ring-slate-800' };
-        }
-
-        // ====================================================
-        // BADGE DE ESTADO
-        // ====================================================
-        function estadoBadge(estado: string) {
-            const s = (estado || '').toUpperCase();
-            if (s === 'VIGENTE' || s === 'APROBADO' || s === 'APROBADA') {
-                return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900 shadow-sm font-poppins">
-                    <i class="fas fa-circle-check"></i> ${estado}
-                </span>`;
-            }
-            return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900 shadow-sm font-poppins">
-                <i class="fas fa-circle-xmark"></i> ${estado || 'VENCIDO'}
-            </span>`;
-        }
-
-        // ====================================================
-        // FILA DE TABLA (label + value)
-        // ====================================================
-        function fila(label: string, value: string) {
-            if (!value || value === 'null' || value === 'undefined' || value.trim() === '') return '';
-            return `<tr class="border-b border-slate-100 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 group font-poppins">
-                <td class="py-1.5 px-2 md:py-2 md:px-4 text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/30 dark:bg-slate-900/10 border-r border-slate-150 dark:border-slate-800/40 w-[38%] align-middle font-poppins">${label}</td>
-                <td class="py-1.5 px-2 md:py-2 md:px-4 text-[11px] md:text-xs font-bold text-slate-850 dark:text-slate-200 leading-tight w-auto align-middle font-poppins">${value}</td>
-            </tr>`;
-        }
-
-        // ====================================================
-        // HEADER DE TARJETA ACCORDION
-        // ====================================================
-        function cardHeaderAccordion(cardId: string, title: string, sourceName: string, iconClass: string, badgeHTML: string, isExpanded: boolean) {
-            const c = getColors(cardId);
-            const activeHeaderClass = isExpanded 
-                ? "bg-gradient-to-r from-[#1a3a6b] to-[#0b1c36] text-white border-b-2 border-slate-900 dark:border-slate-800" 
-                : "bg-white dark:bg-slate-900 text-slate-900 dark:text-white";
-            const textClass = isExpanded ? "text-white font-bold temp-white-title" : "text-slate-900 dark:text-white font-bold";
-            const subtextClass = isExpanded ? "text-white/60 font-semibold temp-white-sub" : "text-slate-400 dark:text-slate-500 font-semibold";
-            const chevronClass = isExpanded ? "rotate-180 text-white" : "text-slate-400 dark:text-slate-500";
-            
-            const logoSrc = LOGO_MAPPING[cardId] || '';
-            const origWrapperClass = `w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${c.bg} ring-2 ${c.ring} ${c.icon}`;
-            const origIconClass = `${iconClass} text-base md:text-lg`;
-            const logoHTML = logoSrc 
-                ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 transition-all duration-300">
-                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-base md:text-lg text-slate-600&quot;></i>'"/>
-                   </div>`
-                : (isExpanded 
-                    ? `<div data-orig-class="${origWrapperClass}" class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 bg-white/10 ring-1 ring-white/20 text-white">
-                           <i data-orig-class="${origIconClass}" class="${iconClass} text-base md:text-lg text-white"></i>
-                       </div>`
-                    : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${origWrapperClass}">
-                           <i class="${origIconClass}"></i>
-                       </div>`);
-
-            return `
-                <div onclick="window.toggleAccordion('${cardId}-card-container')" 
-                     class="accordion-header flex items-center justify-between gap-4 p-3 md:p-4 cursor-pointer select-none transition-all duration-300 ${activeHeaderClass}">
-                    <div class="flex items-center gap-3 md:gap-4">
-                        ${logoHTML}
-                        <div class="text-left font-poppins">
-                            <h3 class="text-xs md:text-sm tracking-wide uppercase leading-tight transition-colors ${textClass}">${title}</h3>
-                            <p class="text-[9px] md:text-[10px] tracking-wider uppercase mt-0.5 transition-colors ${subtextClass}">${sourceName}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div class="status-badge-container">${badgeHTML}</div>
-                        <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs md:text-sm ${chevronClass}"></i>
-                    </div>
-                </div>`;
-        }
-
-        // ====================================================
-        // COLLAPSE/EXPAND ACCORDION FUNCTION (attached to window)
-        // ====================================================
-        (window as any).toggleAccordion = function(containerId: string) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            const body = container.querySelector('.accordion-body');
-            const chevron = container.querySelector('.accordion-chevron');
-            const header = container.querySelector('.accordion-header');
-            if (!body || !chevron || !header) return;
-
-            const isHidden = body.classList.contains('hidden');
-            if (isHidden) {
-                // Expand
-                body.classList.remove('hidden');
-                chevron.classList.add('rotate-180');
-                
-                header.classList.remove('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
-                header.classList.add('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900');
-                
-                const texts = header.querySelectorAll('.text-slate-900, .dark\\:text-white, .text-slate-400, .dark\\:text-slate-500');
-                texts.forEach(el => {
-                    if (el.classList.contains('text-slate-900') || el.classList.contains('dark:text-white')) {
-                        el.classList.remove('text-slate-900', 'dark:text-white');
-                        el.classList.add('text-white', 'temp-white-title');
-                    } else {
-                        el.classList.remove('text-slate-400', 'dark:text-slate-500');
-                        el.classList.add('text-white/60', 'temp-white-sub');
-                    }
-                });
-                
-                const iconWrapper = header.querySelector('.w-10, .w-12');
-                if (iconWrapper && !iconWrapper.hasAttribute('data-is-logo')) {
-                    iconWrapper.setAttribute('data-orig-class', iconWrapper.className);
-                    const cleanClasses = iconWrapper.className.split(' ').filter(c => !c.startsWith('bg-') && !c.startsWith('ring-') && !c.startsWith('text-')).join(' ');
-                    iconWrapper.className = cleanClasses + ' bg-white/10 ring-1 ring-white/20 text-white';
-                }
-                const icon = iconWrapper?.querySelector('i');
-                if (icon) {
-                    icon.setAttribute('data-orig-class', icon.className);
-                    const cleanIcon = icon.className.split(' ').filter(c => !c.startsWith('text-')).join(' ');
-                    icon.className = cleanIcon + ' text-white';
-                }
-                
-                chevron.classList.remove('text-slate-400', 'dark:text-slate-500');
-                chevron.classList.add('text-white');
-            } else {
-                // Collapse
-                body.classList.add('hidden');
-                chevron.classList.remove('rotate-180');
-                
-                header.classList.remove('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900');
-                header.classList.add('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
-                
-                const textsTitle = header.querySelectorAll('.temp-white-title');
-                textsTitle.forEach(el => {
-                    el.classList.remove('text-white', 'temp-white-title');
-                    el.classList.add('text-slate-900', 'dark:text-white');
-                });
-                const textsSub = header.querySelectorAll('.temp-white-sub');
-                textsSub.forEach(el => {
-                    el.classList.remove('text-white/60', 'temp-white-sub');
-                    el.classList.add('text-slate-400', 'dark:text-slate-500');
-                });
-                
-                const iconWrapper = header.querySelector('.w-10, .w-12');
-                const origClass = iconWrapper?.getAttribute('data-orig-class');
-                if (iconWrapper && origClass && !iconWrapper.hasAttribute('data-is-logo')) {
-                    iconWrapper.className = origClass;
-                }
-                const icon = iconWrapper?.querySelector('i');
-                const origIconClass = icon?.getAttribute('data-orig-class');
-                if (icon && origIconClass) {
-                    icon.className = origIconClass;
-                }
-                
-                chevron.classList.remove('text-white');
-                chevron.classList.add('text-slate-400', 'dark:text-slate-500');
-            }
-        };
-
-        // ====================================================
-        // SET CARD LOADING — Skeleton premium
-        // ====================================================
-        function setCardLoading(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string) {
-            const container = document.getElementById(`${cardId}-card-container`);
-            if (!container) return;
-            container.setAttribute('data-status', 'loading');
-            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins";
-            const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm uppercase tracking-wider">
-                <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-slate-400 dark:border-slate-600 border-t-transparent spin-icon"></span> Buscando
-            </span>`;
-            
-            const logoSrc = LOGO_MAPPING[cardId] || '';
-            const logoHTML = logoSrc 
-                ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1">
-                       <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-slate-400 text-base md:text-lg&quot;></i>'"/>
-                   </div>`
-                : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                       <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>
-                   </div>`;
-
-            container.innerHTML = `
-                <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                    <div class="flex items-center gap-3 md:gap-4">
-                        ${logoHTML}
-                        <div class="text-left font-poppins">
-                            <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
-                            <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-600">${sourceName}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        ${loadingBadge}
-                        <i class="fas fa-chevron-down text-slate-300 dark:text-slate-600 text-xs"></i>
-                    </div>
-                </div>
-                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-955/20 hidden">
-                    ${skeletonBody()}
-                </div>`;
-            reorderCards();
-        }
-
-        // ====================================================
-        // SET CARD DATA
-        // ====================================================
-        function setCardData(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, htmlContent: string, isSuccess: boolean, hasData: boolean, customBadge?: string) {
-            const container = document.getElementById(`${cardId}-card-container`);
-            if (!container) return;
-            let badgeHTML = '';
-
-            if (isSuccess) {
-                container.setAttribute('data-status', 'funciona');
-                if (customBadge) {
-                    badgeHTML = customBadge;
-                } else if (hasData) {
-                    let text = 'CON REGISTROS';
-                    if (cardId === 'soat') text = 'ACTIVO';
-                    if (cardId === 'citv') text = 'VIGENTE';
-                    if (cardId === 'atu') text = 'HABILITADO';
-                    badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-check"></i> ${text}
-                    </span>`;
-                } else {
-                    let text = 'SIN REGISTROS';
-                    if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima') text = 'SIN PAPELETAS';
-                    if (cardId === 'atu') text = 'NO REGISTRADO';
-                    if (cardId === 'lunas') text = 'SIN PERMISO';
-                    
-                    if (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO') {
-                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                            <i class="fas fa-circle-check"></i> ${text}
-                        </span>`;
-                    } else {
-                        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider">
-                            <i class="fas fa-circle-info"></i> ${text}
-                        </span>`;
-                    }
-                }
-            } else {
-                container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-orange-500 text-white shadow-sm animate-pulse uppercase tracking-wider">
-                    <i class="fas fa-triangle-exclamation"></i> EN DESARROLLO
-                </span>`;
-            }
-
-            const existingBody = container?.querySelector('.accordion-body');
-            const isExpanded = existingBody ? !existingBody.classList.contains('hidden') : false;
-
-            // Append timestamp/source footer inside the accordion-body
-            const sourceUrl = SOURCE_URLS[cardId] || '';
-            const verifyLink = sourceUrl 
-                ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
-                : '';
-            const finalContent = `
-                <div class="flex flex-col h-full justify-between">
-                    <div class="flex-1">${htmlContent}</div>
-                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
-                        <span>Fuente: ${sourceName}${verifyLink}</span>
-                        <span>Consultado: ${getFormattedTimestamp()}</span>
-                    </div>
-                </div>`;
-
-            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
-            container.innerHTML = `
-                ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
-                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
-                    ${finalContent}
-                </div>`;
-            reorderCards();
-        }
-
-        // ====================================================
-        // SET CARD ERROR
-        // ====================================================
-        function setCardError(cardId: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) {
-            const container = document.getElementById(`${cardId}-card-container`);
-            if (!container) return;
-            const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento") || (errorMessage || "").toLowerCase().includes("desarrollo");
-            let badgeHTML = '';
-            let rightContent = '';
-
-            if (isMantenimiento) {
-                container.setAttribute('data-status', 'mantenimiento');
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-orange-500 text-white shadow-sm uppercase tracking-wider animate-pulse">
-                    <i class="fas fa-wrench"></i> EN DESARROLLO
-                </span>`;
-                rightContent = `
-                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
-                        <div class="w-14 h-14 rounded-full bg-orange-50 dark:bg-orange-955/10 border-2 border-orange-200 dark:border-orange-900 flex items-center justify-center mb-1">
-                            <i class="fas fa-wrench text-2xl text-orange-500 animate-pulse"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Desarrollo</p>
-                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
-                        </div>
-                        <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                            <i class="fas fa-rotate-right"></i> Reintentar Consulta
-                        </button>
-                    </div>`;
-            } else {
-                container.setAttribute('data-status', 'no-funciona');
-                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-xmark"></i> ERROR
-                </span>`;
-                rightContent = `
-                    <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
-                        <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-rose-955/10 border-2 border-red-200 dark:border-rose-900 flex items-center justify-center mb-1">
-                            <i class="fas fa-circle-xmark text-2xl text-red-500 font-bold"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-red-700 dark:text-red-400 leading-tight">Error al conectar con la fuente</p>
-                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
-                        </div>
-                        <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                            class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                            <i class="fas fa-rotate-right"></i> Reintentar Consulta
-                        </button>
-                    </div>`;
-            }
-
-            const existingBody = container?.querySelector('.accordion-body');
-            const isExpanded = existingBody ? !existingBody.classList.contains('hidden') : false;
-
-            const sourceUrl = SOURCE_URLS[cardId] || '';
-            const verifyLink = sourceUrl 
-                ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
-                : '';
-            const finalContent = `
-                <div class="flex flex-col h-full justify-between">
-                    <div class="flex-1">${rightContent}</div>
-                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
-                        <span>Fuente: ${sourceName}${verifyLink}</span>
-                        <span>Consultado: ${getFormattedTimestamp()}</span>
-                    </div>
-                </div>`;
-
-            container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
-            container.innerHTML = `
-                ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
-                <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
-                    ${finalContent}
-                </div>`;
-            reorderCards();
-        }
-
-
-        // ====================================================
-        // RENDER SOAT
-        // ====================================================
-        function renderSOAT(data: any[], plate: string) {
-            if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                        <i class="fas fa-file-slash text-slate-300 dark:text-slate-650 text-xl"></i>
-                    </div>
-                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin SOAT registrado</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron certificados SOAT para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
-                </div>`;
-            }
-            return data.map((cert, index) => {
-                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
-                return `
-                <div class="${borderClass}">
-                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Aseguradora ${data.length > 1 ? `#${index + 1}` : ''}</p>
-                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.NombreCompania || 'N/A'}</p>
-                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.Placa || plate}</strong></p>
-                        </div>
-                        <div class="shrink-0">${estadoBadge(cert.Estado)}</div>
-                    </div>
-                    <div class="rounded-xl overflow-hidden">
-                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                            <tbody>
-                                ${fila('Certificado N°', cert.NumeroPoliza)}
-                                ${fila('Tipo', cert.TipoCertificado)}
-                                ${fila('Vigencia Inicio', cert.FechaInicio)}
-                                ${fila('Vigencia Fin', cert.FechaFin)}
-                                ${fila('Uso', cert.NombreUsoVehiculo)}
-                                ${fila('Clase', cert.NombreClaseVehiculo)}
-                                ${fila('Marca', cert.Marca)}
-                                ${fila('Modelo', cert.ModeloVehiculo)}
-                                ${fila('Asientos', cert.NumeroAsientos)}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // ====================================================
-        // RENDER CITV
-        // ====================================================
-        function renderCITV(data: any[], plate: string) {
-            if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                        <i class="fas fa-clipboard-list text-slate-300 dark:text-slate-650 text-xl"></i>
-                    </div>
-                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin CITV registrado</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron inspecciones técnicas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
-                </div>`;
-            }
-            return data.map((cert, index) => {
-                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
-                const estadoDisplay = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
-                return `
-                <div class="${borderClass}">
-                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Centro de Inspección ${data.length > 1 ? `#${index + 1}` : ''}</p>
-                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.centroInspeccion || 'Centro MTC'}</p>
-                        </div>
-                        <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
-                    </div>
-                    <div class="rounded-xl overflow-hidden">
-                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                            <tbody>
-                                ${fila('N° Informe', cert.numeroInforme)}
-                                ${fila('Fecha Inspección', cert.fechaInspeccion)}
-                                ${fila('Fecha Vencimiento', cert.fechaVencimiento)}
-                                ${fila('Clase Vehículo', cert.clase)}
-                                ${fila('Marca', cert.marca)}
-                                ${fila('Modelo', cert.modelo)}
-                                ${fila('Año Fabricación', cert.anio)}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // ====================================================
-        // RENDER LUNAS
-        // ====================================================
-        function renderLunas(data: any[], plate: string) {
-            if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                        <i class="fas fa-eye text-slate-300 dark:text-slate-650 text-xl"></i>
-                    </div>
-                    <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin Permiso de Lunas</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
-                </div>`;
-            }
-            return data.map((cert, index) => {
-                const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
-                return `
-                <div class="${borderClass}">
-                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">N° Certificado ${data.length > 1 ? `#${index + 1}` : ''}</p>
-                            <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.nroCertificado || 'N/A'}</p>
-                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.placa || plate}</strong></p>
-                        </div>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm shrink-0 font-poppins">
-                            <i class="fas fa-certificate"></i> AUTORIZADO
-                        </span>
-                    </div>
-                    <div class="rounded-xl overflow-hidden">
-                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                            <tbody>
-                                ${fila('Categoría', cert.categoria)}
-                                ${fila('Marca', cert.marca)}
-                                ${fila('Modelo', cert.modelo)}
-                                ${fila('Color', cert.color)}
-                                ${fila('Año', cert.anio)}
-                                ${fila('Fecha Emisión', cert.fechaEmision)}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // ====================================================
-        // RENDER CALLAO
-        // ====================================================
-        function renderCallao(data: any[], plate: string, total: string) {
-            if (!data || data.length === 0) {
-                return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                    <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
-                        <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
-                    </div>
-                    <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas!</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">No se registraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong> en el Callao</p>
-                </div>`;
-            }
-            const rows = data.map((p: any) => `
-                <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-red-50/50 dark:hover:bg-rose-950/10 transition-colors duration-150 font-poppins">
-                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-slate-850 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.nroPapeleta || '-'}</td>
-                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-semibold text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigo || '-'}</td>
-                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-550 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.fechaInfraccion || '-'}</td>
-                    <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-red-650 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${p.total || '0'}</td>
-                    <td class="py-1.5 px-1.5 text-center">
-                        ${p.detalleUrl ? `
-                            <button onclick="window.abrirModalPapeleta('${p.detalleUrl}')"
-                                class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900 transition-all active:scale-95 shadow-sm"
-                                title="Ver papeleta">
-                                <i class="fas fa-file-image text-[10px]"></i>
-                            </button>
-                        ` : '<span class="text-slate-300 dark:text-slate-700 text-[10px]">—</span>'}
-                    </td>
-                </tr>`).join('');
-            return `
-                <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
-                    <div>
-                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones encontradas</p>
-                        <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total adeudado</p>
-                        <p class="text-xl font-bold text-red-750 dark:text-red-400 leading-tight">S/ ${total || '0.00'}</p>
-                        <p class="text-[8px] text-red-500 mt-0.5 font-bold uppercase tracking-wider">⚠ PAGA O EVITA EMBARGO</p>
-                    </div>
-                </div>
-                <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
-                            <thead>
-                                <tr class="bg-slate-900 dark:bg-slate-950 text-white">
-                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[28%]">Papeleta</th>
-                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[18%]">Código</th>
-                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[24%]">Fecha</th>
-                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[20%]">Total</th>
-                                    <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-center w-[10%]">Doc.</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                </div>`;
-        }
-
-        // ====================================================
-        // RENDER LIMA
-        // ====================================================
-        function renderLima(plate: string, message: string, directUrl: string) {
-            return `
-                <div class="flex flex-col gap-5 text-slate-900 dark:text-white font-poppins">
-                    <div class="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl">
-                        <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-800 flex items-center justify-center shrink-0">
-                            <i class="fas fa-gavel text-amber-600 dark:text-amber-400"></i>
-                        </div>
-                        <div>
-                            <p class="font-bold text-slate-850 dark:text-slate-200 text-sm">Consulta directa requerida</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-450 mt-0.5 leading-relaxed">${message}</p>
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-center gap-3">
-                        <p class="text-[11px] text-slate-400 dark:text-slate-550">Placa a consultar: <strong class="font-bold text-slate-800 dark:text-slate-250 font-poppins text-sm">${plate}</strong></p>
-                        <a href="${directUrl}" target="_blank" rel="noopener"
-                           class="w-full max-w-xs flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                           <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
-                        </a>
-                    </div>
-                </div>`;
-        }
-
-        // ====================================================
-        // RENDER SUTRAN
-        // ====================================================
-        function renderSutran(data: any[], plate: string, infoReporte: string) {
-            let bodyHTML = '';
-            if (!data || data.length === 0) {
-                bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-                    <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
-                        <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
-                    </div>
-                    <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas SUTRAN!</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
-                </div>`;
-            } else {
-                const rows = data.map((p: any) => `
-                    <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">
-                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-slate-850 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.nroDocumento || '-'}</td>
-                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-semibold text-slate-655 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigoInfraccion || '-'}</td>
-                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-550 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.fechaDocumento || '-'}</td>
-                        <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-orange-700 dark:text-orange-455 leading-tight">${p.clasificacion || '-'}</td>
-                    </tr>`).join('');
-                bodyHTML = `
-                    <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
-                        <div>
-                            <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones SUTRAN</p>
-                            <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
-                        </div>
-                    </div>
-                    <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                        <div class="overflow-x-auto max-h-[240px]">
-                            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
-                                <thead>
-                                    <tr class="bg-slate-900 dark:bg-slate-950 text-white">
-                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[32%]">Documento</th>
-                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[18%]">Código</th>
-                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[24%]">Fecha</th>
-                                        <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider sticky top-0 bg-slate-900 dark:bg-slate-950 w-[26%]">Clasif.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${rows}</tbody>
-                            </table>
-                        </div>
-                    </div>`;
-            }
-            if (infoReporte) {
-                bodyHTML += `
-                    <div class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-start gap-1.5 font-poppins px-1">
-                        <i class="fas fa-circle-info text-slate-400 dark:text-slate-655 mt-0.5 shrink-0 text-[10px]"></i>
-                        <p class="text-[9px] text-slate-400 dark:text-slate-500 italic leading-relaxed">${infoReporte}</p>
-                    </div>`;
-            }
-            return bodyHTML;
-        }
-
-        // ====================================================
-        // RENDER ATU
-        // ====================================================
-        function renderAtu(data: any, plate: string) {
-            if (!data || data.fuenteDato === 'NOREGISTRADO') {
-                const marca = data?.marcaSunarp || 'N/A';
-                const modelo = data?.modeloSunarp || 'N/A';
-                const color = data?.color || 'N/A';
-                return `
-                    <div class="flex flex-col items-center justify-center py-6 gap-2 text-center font-poppins">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center mb-1">
-                            <i class="fas fa-ban text-slate-400 dark:text-slate-655 text-xl"></i>
-                        </div>
-                        <p class="font-bold text-slate-700 dark:text-slate-300 text-sm">No registrado como taxi</p>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[260px] leading-relaxed">Este vehículo no cuenta con habilitación vigente para prestar servicio de taxi ante la ATU.</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 font-poppins">
-                        <p class="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5"><i class="fas fa-database mr-1"></i>Datos SUNARP del vehículo</p>
-                        <div class="rounded-xl overflow-hidden">
-                            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                                <tbody>
-                                    ${fila('Marca', marca)}
-                                    ${fila('Modelo', modelo)}
-                                    ${fila('Color', color)}
-                                    ${fila('N° Serie', data?.serie)}
-                                    ${fila('N° Motor', data?.motor)}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>`;
-            }
-            let badgeHTML = '';
-            const estadoNum = data.estadoCertificado;
-            const estadoTexto = estadoNum === 1 ? 'HABILITADO' : estadoNum === 2 ? 'SUSPENDIDO' : estadoNum === 3 ? 'BAJA' : 'NO HABILITADO';
-            if (estadoNum === 1) {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-sm font-poppins">
-                    <i class="fas fa-circle-check"></i> HABILITADO
-                </span>`;
-            } else if (estadoNum === 2) {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm font-poppins">
-                    <i class="fas fa-triangle-exclamation"></i> SUSPENDIDO
-                </span>`;
-            } else {
-                badgeHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-500 text-white shadow-sm font-poppins">
-                    <i class="fas fa-circle-xmark"></i> ${estadoTexto}
-                </span>`;
-            }
-            let conductoresHTML = '';
-            if (data.conductores && data.conductores.length > 0) {
-                const rows = data.conductores.map((c: any) => `
-                    <tr class="border-b border-slate-200 dark:border-slate-800 last:border-0 hover:bg-teal-50/50 dark:hover:bg-teal-950/10 transition-colors duration-150 font-poppins">
-                        <td class="py-2 px-3 text-[10px] font-bold text-slate-850 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 leading-tight">${c.nombreOperador || '-'}</td>
-                        <td class="py-2 px-3 text-[10px] text-slate-600 dark:text-slate-450 border-r border-slate-200 dark:border-slate-800">${c.numeroDocumento || '-'}</td>
-                        <td class="py-2 px-3 text-[10px] text-slate-600 dark:text-slate-450">${c.nroLicenciaConducir || '-'}</td>
-                    </tr>`).join('');
-                conductoresHTML = `
-                    <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800 font-poppins px-1">
-                        <p class="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5"><i class="fas fa-users mr-1"></i>Conductores Vinculados</p>
-                        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                            <div class="overflow-x-auto max-h-[130px]">
-                                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
-                                    <thead>
-                                        <tr class="bg-slate-900 dark:bg-slate-950 text-white">
-                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[40%]">Nombre</th>
-                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 w-[30%]">Documento</th>
-                                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider sticky top-0 bg-slate-900 dark:bg-slate-950 w-[30%]">Licencia</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${rows}</tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>`;
-            }
-            return `
-                <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Modalidad</p>
-                        <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${data.modalidad || 'Taxi'}</p>
-                    </div>
-                    <div class="shrink-0">${badgeHTML}</div>
-                </div>
-                <div class="rounded-xl overflow-hidden">
-                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 font-poppins">
-                        <tbody>
-                            ${fila('N° TUC', data.certificadoTuc)}
-                            ${fila('Propietario', data.propietario)}
-                            ${fila('Documento', data.rucDNI)}
-                            ${fila('Fecha Emisión', data.fechaEmision)}
-                            ${fila('Fecha Vencimiento', data.fechaVencimiento)}
-                            ${fila('Vehículo', [data.marcaSunarp, data.modeloSunarp, data.color].filter(Boolean).join(' · '))}
-                        </tbody>
-                    </table>
-                </div>
-                ${conductoresHTML}`;
-        }
-
-        // ====================================================
-        // PETICIONES INDEPENDIENTES
-        // ====================================================
-        // Helper to parse date DD/MM/YYYY into JS Date object
-        function parseDateDDMMYYYY(dateStr: string) {
-            if (!dateStr) return new Date(0);
-            const parts = dateStr.trim().split('/');
-            if (parts.length !== 3) return new Date(0);
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const year = parseInt(parts[2], 10);
-            return new Date(year, month, day);
         }
 
         // ====================================================
         // PETICIONES INDEPENDIENTES
         // ====================================================
         async function fetchSOAT(plate: string) {
-            setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    processVehicleInfo('soat', data.data);
-
-                    // Sort certificates by FechaFin descending (most recent first)
-                    if (Array.isArray(data.data)) {
-                        data.data.sort((a: any, b: any) => {
-                            const dateA = parseDateDDMMYYYY(a.FechaFin || a.FechaFinS);
-                            const dateB = parseDateDDMMYYYY(b.FechaFin || b.FechaFinS);
-                            return dateB.getTime() - dateA.getTime();
-                        });
-                    }
-
-                    // Compute overall status badge dynamically based on the latest certificate
-                    let customBadge = '';
-                    if (data.data && data.data.length > 0) {
-                        const latestSOAT = data.data[0];
-                        const estado = (latestSOAT.Estado || '').toUpperCase().trim();
-                        
-                        // Check if it is expired by date as well
-                        const now = new Date();
-                        now.setHours(0,0,0,0);
-                        const endDate = parseDateDDMMYYYY(latestSOAT.FechaFin);
-                        const isExpiredByDate = endDate < now;
-                        
-                        const isVigente = (estado === 'VIGENTE' || estado === 'ACTIVO') && !isExpiredByDate;
-                        
-                        if (isVigente) {
-                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                                <i class="fas fa-circle-check"></i> ACTIVO
-                            </span>`;
-                        } else {
-                            const label = estado === 'ANULADO' ? 'ANULADO' : 'VENCIDO';
-                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                                <i class="fas fa-circle-xmark"></i> ${label}
-                            </span>`;
-                        }
-                    }
-
-                    const content = renderSOAT(data.data, plate);
-                    setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0, customBadge);
-                } else {
-                    setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', data.error || 'Error desconocido', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
-                setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', msg, plate);
-            }
+            return runFetchSOAT(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         async function fetchCITV(plate: string) {
-            setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 130000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/citv/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    processVehicleInfo('citv', data.data);
-
-                    // Sort certificates by expiration date descending (most recent first)
-                    if (Array.isArray(data.data)) {
-                        data.data.sort((a: any, b: any) => {
-                            const dateA = parseDateDDMMYYYY(a.fechaVencimiento || a.fechaInspeccion);
-                            const dateB = parseDateDDMMYYYY(b.fechaVencimiento || b.fechaInspeccion);
-                            return dateB.getTime() - dateA.getTime();
-                        });
-                    }
-
-                    // Compute overall status badge dynamically based on the latest certificate
-                    let customBadge = '';
-                    if (data.data && data.data.length > 0) {
-                        const latestCITV = data.data[0];
-                        const estado = (latestCITV.estado || latestCITV.resultado || '').toUpperCase().trim();
-                        
-                        // Check expiration by date
-                        const now = new Date();
-                        now.setHours(0,0,0,0);
-                        const vencimientoDate = parseDateDDMMYYYY(latestCITV.fechaVencimiento);
-                        const isExpiredByDate = vencimientoDate < now;
-                        
-                        const isVigente = (estado === 'VIGENTE' || estado === 'APROBADO' || estado === 'APROBADA') && !isExpiredByDate;
-                        
-                        if (isVigente) {
-                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                                <i class="fas fa-circle-check"></i> VIGENTE
-                            </span>`;
-                        } else {
-                            customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                                <i class="fas fa-circle-xmark"></i> VENCIDO
-                            </span>`;
-                        }
-                    }
-
-                    const content = renderCITV(data.data, plate);
-                    setCardData('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0, customBadge);
-                } else {
-                    setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                let msg = 'Error de conexión';
-                if (err.name === 'AbortError') {
-                    msg = 'Tiempo de espera agotado en el navegador (130s).';
-                } else if (err.message) {
-                    msg = `${err.message} (${err.name || 'Error'})`;
-                } else {
-                    msg = err.toString();
-                }
-                setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
-            }
+            return runFetchCITV(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         async function fetchLunas(plate: string) {
-            setCardLoading('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 165000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    const content = renderLunas(data.data, plate);
-                    setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, true, data.data && data.data.length > 0);
-                } else {
-                    setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', data.error || 'Error en consulta de lunas PNP', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                let msg = 'Error de conexión';
-                if (err.name === 'AbortError') {
-                    msg = 'Tiempo de espera agotado (165s).';
-                } else if (err.message) {
-                    msg = `${err.message} (${err.name || 'Error'})`;
-                } else {
-                    msg = err.toString();
-                }
-                setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', msg, plate);
-            }
+            return runFetchLunas(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         async function fetchCallao(plate: string) {
-            setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 165000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    const content = renderCallao(data.data, plate, data.total);
-                    setCardData('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', content, true, data.data?.length > 0);
-                } else {
-                    setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || 'Error al consultar papeletas', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-                setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', msg, plate);
-            }
+            return runFetchCallao(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         async function fetchLima(plate: string) {
-            const content = `
-                <div class="flex flex-col items-center justify-center gap-4 py-6 text-center font-poppins">
-                    <div class="w-14 h-14 rounded-full bg-orange-50 dark:bg-orange-955/10 border-2 border-orange-200 dark:border-orange-900 flex items-center justify-center">
-                        <i class="fas fa-wrench text-2xl text-orange-500 animate-pulse"></i>
-                    </div>
-                    <div>
-                        <p class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">En Desarrollo</p>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[320px] mx-auto leading-relaxed">
-                            La consulta automática de papeletas de Lima SAT se encuentra temporalmente en desarrollo por mejoras. Puedes realizar la consulta directamente en su portal oficial.
-                        </p>
-                    </div>
-                    <div class="flex flex-col items-center gap-2 mt-2 w-full">
-                        <p class="text-[10px] text-slate-400 dark:text-slate-500">Placa a consultar: <strong class="font-bold text-slate-600 dark:text-slate-400">${plate}</strong></p>
-                        <a href="https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx" target="_blank" rel="noopener"
-                           class="w-full max-w-xs flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-650 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                           <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
-                        </a>
-                    </div>
-                </div>`;
+            const msg = "La consulta automática de papeletas de Lima SAT se encuentra temporalmente en desarrollo por mejoras. Puedes realizar la consulta directamente en su portal oficial.";
+            const url = "https://sat.gob.pe/WebSiteWeb/Forms/frm040101/frm040101.aspx";
+            const content = renderLima(plate, msg, url);
             setCardData('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima', content, false, false);
         }
 
         async function fetchSutran(plate: string) {
-            setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    const content = renderSutran(data.data, plate, data.infoReporte || '');
-                    setCardData('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', content, true, data.data?.length > 0);
-                } else {
-                    setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', data.error || 'Error al consultar SUTRAN', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-                setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', msg, plate);
-            }
+            return runFetchSutran(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         async function fetchATU(plate: string) {
-            setCardLoading('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
-            try {
-                const res = await fetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.success) {
-                    processVehicleInfo('atu', data.data);
-                    const content = renderAtu(data.data, plate);
-                    const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
-                    setCardData('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
-                } else {
-                    setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
-                }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                let msg = 'Error de conexión';
-                if (err.name === 'AbortError') {
-                    msg = 'Tiempo de espera agotado en el navegador (120s).';
-                } else if (err.message) {
-                    msg = `${err.message} (${err.name || 'Error'})`;
-                } else {
-                    msg = err.toString();
-                }
-                setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
-            }
+            return runFetchATU(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
+        }
+
+        async function fetchGNV(plate: string) {
+            return runFetchGNV(plate, BACKEND_URL, {
+                setCardLoading,
+                setCardData,
+                setCardError,
+                processVehicleInfo
+            });
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
@@ -1713,7 +667,212 @@
             else if (cardId === 'lima')   await fetchLima(plate);
             else if (cardId === 'sutran') await fetchSutran(plate);
             else if (cardId === 'atu')    await fetchATU(plate);
+            else if (cardId === 'gnv')    await fetchGNV(plate);
         };
+
+        // ====================================================
+        // ACCORDION TOGGLE
+        // ====================================================
+        (window as any).toggleAccordion = function(containerId: string) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const body = container.querySelector('.accordion-body');
+            const header = container.querySelector('.accordion-header');
+            const chevron = container.querySelector('.accordion-chevron');
+            if (!body || !header || !chevron) return;
+
+            const isHidden = body.classList.contains('hidden');
+            const cardId = containerId.replace('-card-container', '');
+            const c = LOGO_MAPPING[cardId] ? SERVICE_COLORS[cardId] : null;
+
+            if (isHidden) {
+                // Expand
+                body.classList.remove('hidden');
+                header.classList.remove('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
+                header.classList.add('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900', 'dark:border-slate-800');
+                chevron.classList.add('rotate-180', 'text-white');
+                chevron.classList.remove('text-slate-400', 'dark:text-slate-500');
+
+                // Adjust header text classes
+                const title = header.querySelector('h3');
+                if (title) {
+                    title.classList.add('text-white', 'font-bold', 'temp-white-title');
+                    title.classList.remove('text-slate-900', 'dark:text-white');
+                }
+                const sub = header.querySelector('p');
+                if (sub) {
+                    sub.classList.add('text-white/60', 'font-semibold', 'temp-white-sub');
+                    sub.classList.remove('text-slate-400', 'dark:text-slate-500');
+                }
+
+                // Adjust icon wrapper if it's not a logo
+                const logoWrapper = header.querySelector('div[data-is-logo="true"]');
+                if (!logoWrapper) {
+                    const iconWrapper = header.querySelector('div[data-orig-class]');
+                    if (iconWrapper) {
+                        iconWrapper.className = "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 bg-white/10 ring-1 ring-white/20 text-white";
+                        const icon = iconWrapper.querySelector('i');
+                        if (icon) {
+                            icon.className = icon.getAttribute('data-orig-class') || '';
+                            icon.classList.add('text-white');
+                        }
+                    }
+                }
+            } else {
+                // Collapse
+                body.classList.add('hidden');
+                header.classList.add('bg-white', 'dark:bg-slate-900', 'text-slate-900', 'dark:text-white');
+                header.classList.remove('bg-gradient-to-r', 'from-[#1a3a6b]', 'to-[#0b1c36]', 'text-white', 'border-b-2', 'border-slate-900', 'dark:border-slate-800');
+                chevron.classList.remove('rotate-180', 'text-white');
+                chevron.classList.add('text-slate-400', 'dark:text-slate-500');
+
+                // Restore header text classes
+                const title = header.querySelector('h3');
+                if (title) {
+                    title.classList.remove('text-white', 'temp-white-title');
+                    title.classList.add('text-slate-900', 'dark:text-white');
+                }
+                const sub = header.querySelector('p');
+                if (sub) {
+                    sub.classList.remove('text-white/60', 'temp-white-sub');
+                    sub.classList.add('text-slate-400', 'dark:text-slate-500');
+                }
+
+                // Restore icon wrapper if it's not a logo
+                const logoWrapper = header.querySelector('div[data-is-logo="true"]');
+                if (!logoWrapper) {
+                    const iconWrapper = header.querySelector('div[data-orig-class]');
+                    if (iconWrapper) {
+                        iconWrapper.className = iconWrapper.getAttribute('data-orig-class') || '';
+                    }
+                }
+            }
+        };
+
+        // ====================================================
+        // CACHING LOGIC (localStorage, TTL 5 min)
+        // ====================================================
+        function saveToCache(plate: string) {
+            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'lima', 'sutran', 'atu', 'vehiculo'];
+            const cacheData: any = {
+                timestamp: Date.now(),
+                vehicleData: vehicleData,
+                cards: {}
+            };
+            cards.forEach(cardId => {
+                const container = document.getElementById(`${cardId}-card-container`);
+                if (container) {
+                    cacheData.cards[cardId] = {
+                        status: container.getAttribute('data-status'),
+                        className: container.className,
+                        innerHTML: container.innerHTML
+                    };
+                }
+            });
+            localStorage.setItem(`vehiculo_cache_${plate}`, JSON.stringify(cacheData));
+        }
+
+        function loadFromCache(plate: string): boolean {
+            const cached = localStorage.getItem(`vehiculo_cache_${plate}`);
+            if (!cached) return false;
+            try {
+                const cacheData = JSON.parse(cached);
+                const age = Date.now() - cacheData.timestamp;
+                if (age > 5 * 60 * 1000) { // 5 minutes TTL
+                    localStorage.removeItem(`vehiculo_cache_${plate}`);
+                    return false;
+                }
+                
+                // Restore vehicleData
+                vehicleData = cacheData.vehicleData || {};
+                
+                // Build results container
+                renderResultsSkeleton(plate, true); // true = from cache
+                
+                // Restore cards
+                Object.keys(cacheData.cards).forEach(cardId => {
+                    const container = document.getElementById(`${cardId}-card-container`);
+                    if (container) {
+                        const cardCache = cacheData.cards[cardId];
+                        container.setAttribute('data-status', cardCache.status);
+                        container.className = cardCache.className;
+                        container.innerHTML = cardCache.innerHTML;
+                    }
+                });
+                
+                // Set the last query time with a note
+                const lastQueryTimeEl = document.getElementById('last-query-time');
+                if (lastQueryTimeEl) {
+                    const dateStr = new Date(cacheData.timestamp).toLocaleString('es-PE');
+                    lastQueryTimeEl.innerHTML = `${dateStr} <span class="text-emerald-500 font-bold ml-1">(Desde Caché ⚡)</span>`;
+                }
+                
+                return true;
+            } catch (e) {
+                console.error("Error loading cache", e);
+                return false;
+            }
+        }
+
+        (window as any).refreshPlateData = function(plate: string) {
+            localStorage.removeItem(`vehiculo_cache_${plate}`);
+            // Trigger form submit
+            const input = document.getElementById('plate-search-input') as HTMLInputElement;
+            if (input) {
+                input.value = plate;
+            }
+            const form = document.getElementById('query-form') as HTMLFormElement;
+            if (form) {
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        };
+
+        function renderResultsSkeleton(plate: string, fromCache: boolean = false) {
+            const rc = document.getElementById('results-container')!;
+            rc.className = 'w-full bg-transparent p-0 shadow-none border-0 text-left text-slate-900 dark:text-white';
+            rc.innerHTML = `
+                <div class="flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 font-poppins">
+                    <div>
+                        <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Placa consultada</p>
+                        <div class="flex items-center gap-2">
+                            <p class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-poppins tracking-wide">${plate}</p>
+                            <button onclick="window.refreshPlateData('${plate}')"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition-all duration-200 active:scale-95 shadow-sm ml-1.5 shrink-0"
+                                    title="Actualizar datos desde las fuentes oficiales">
+                                <i class="fas fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-left sm:text-right">
+                        <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Infogas · Callao · SUTRAN · ATU</p>
+                    </div>
+                </div>
+                <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
+                    <div id="vehiculo-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
+                    <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
+                </div>`;
+            
+            if (!fromCache) {
+                // Render initial empty vehicle card
+                renderVehicleInfoCard(vehicleData);
+                const lastQueryTimeEl = document.getElementById('last-query-time');
+                if (lastQueryTimeEl) {
+                    lastQueryTimeEl.textContent = new Date().toLocaleString('es-PE');
+                }
+            }
+        }
 
         // ====================================================
         // SUBMIT DEL FORMULARIO
@@ -1751,6 +910,15 @@
                     }
                 }
 
+                // Intentar cargar desde localStorage (Caché inteligente de 5 min)
+                const isLoadedFromCache = loadFromCache(plate);
+                if (isLoadedFromCache) {
+                    if (captchaInput) captchaInput.value = '';
+                    drawCaptcha();
+                    queryStatus.classList.add('opacity-0');
+                    return;
+                }
+
                 if (submitBtn) {
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
@@ -1764,38 +932,7 @@
                 if (captchaInput) captchaInput.value = '';
                 drawCaptcha();
 
-                const rc = document.getElementById('results-container')!;
-                rc.className = 'w-full bg-transparent p-0 shadow-none border-0 text-left text-slate-900 dark:text-white';
-                rc.innerHTML = `
-                    <div class="flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 font-poppins">
-                        <div>
-                            <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Placa consultada</p>
-                            <p class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-poppins tracking-wide">${plate}</p>
-                        </div>
-                        <div class="text-left sm:text-right">
-                            <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                            <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Callao · SUTRAN · ATU</p>
-                        </div>
-                    </div>
-                    <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
-                        <div id="vehiculo-card-container" data-status="loading"></div>
-                        <div id="soat-card-container" data-status="loading"></div>
-                        <div id="citv-card-container" data-status="loading"></div>
-                        <div id="lunas-card-container" data-status="loading"></div>
-                        <div id="callao-card-container" data-status="loading"></div>
-                        <div id="lima-card-container" data-status="loading"></div>
-                        <div id="sutran-card-container" data-status="loading"></div>
-                        <div id="atu-card-container" data-status="loading"></div>
-                    </div>
-                    <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
-                        <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
-                        <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
-                    </div>`;
-
-                // Render initial empty vehicle card
-                renderVehicleInfoCard();
-
-                document.getElementById('last-query-time')!.textContent = new Date().toLocaleString('es-PE');
+                renderResultsSkeleton(plate, false);
 
                 // Auto scroll to results section on mobile devices
                 if (window.innerWidth < 768) {
@@ -1810,12 +947,16 @@
                 Promise.all([
                     fetchSOAT(plate),
                     fetchCITV(plate),
+                    fetchGNV(plate),
                     fetchLunas(plate),
                     fetchCallao(plate),
                     fetchLima(plate),
                     fetchSutran(plate),
                     fetchATU(plate)
-                ]).finally(() => {
+                ]).then(() => {
+                    // Guardar snapshot de resultados en localStorage
+                    saveToCache(plate);
+                }).finally(() => {
                     queryStatus.classList.add('opacity-0');
                     if (submitBtn) {
                         let cooldown = 10;
@@ -1900,17 +1041,13 @@
         }
     </script>
 
-
-
-
-
     <!-- Modal para ver PDF/Imagen de Papeleta -->
     <div id="papeleta-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                 <h3 id="modal-papeleta-title" class="font-bold text-slate-800 dark:text-white text-base font-inter">Papeleta de Infracción</h3>
-                <button onclick="window.cerrarModalPapeleta()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-all text-xl p-1">
+                <button onclick="window.cerrarModalPapeleta()" class="text-slate-400 hover:text-slate-655 dark:hover:text-white transition-all text-xl p-1">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1927,6 +1064,12 @@
                 </div>
                 <iframe id="pdf-viewer" class="hidden w-full h-[65vh] border-0 rounded-lg shadow-sm" src=""></iframe>
                 <img id="image-viewer" class="hidden max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm" src="" alt="Papeleta" />
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>unded-lg shadow-sm" src="" alt="Papeleta" />
             </div>
         </div>
     </div>
