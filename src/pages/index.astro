@@ -4,7 +4,7 @@ import { SERVICES_DATA } from '../data/services';
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -64,31 +64,10 @@ import { SERVICES_DATA } from '../data/services';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    {/* Inline script to prevent theme flash */}
-    <script is:inline>
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-    </script>
 </head>
 
 <body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-inter flex flex-col pb-10">
 
-    {/* Header / Selector de Temas */}
-    <header class="w-full max-w-[1100px] flex justify-end px-5 py-1.5 md:py-2 mx-auto md:px-[15px] z-20">
-        <button
-            id="theme-toggle"
-            class="p-2.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
-            aria-label="Cambiar tema"
-        >
-            <i id="theme-toggle-icon" class="fas fa-moon text-lg transition-transform duration-300 hover:rotate-12"></i>
-        </button>
-    </header>
 
     <main class="w-full flex flex-col items-center">
         {/* Banner Section */}
@@ -609,36 +588,6 @@ import { SERVICES_DATA } from '../data/services';
             updateUI();
         });
 
-        // --- 3. Lógica del Selector de Temas ---
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-toggle-icon');
-
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                if (themeIcon) {
-                    themeIcon.className = 'fas fa-sun text-brand-yellow text-lg transition-transform duration-500 hover:rotate-45';
-                }
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                if (themeIcon) {
-                    themeIcon.className = 'fas fa-moon text-slate-700 dark:text-slate-400 text-lg transition-transform duration-500 hover:rotate-12';
-                }
-            }
-        }
-
-        // Tema inicial
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        applyTheme(savedTheme);
-
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.contains('dark');
-                applyTheme(isDark ? 'light' : 'dark');
-            });
-        }
 
 
     </script>

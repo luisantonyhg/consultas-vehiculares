@@ -3,7 +3,7 @@
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -98,25 +98,10 @@
         .accordion-card:hover {
             box-shadow: 0 8px 24px rgba(26, 58, 107, 0.12);
         }
-        .dark .accordion-card:hover {
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        }
     </style>
-
-    {/* Inline script to prevent theme flash */}
-    <script is:inline>
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-    </script>
 </head>
 
-<body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
+<body class="bg-slate-50 text-slate-800 transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
 
     <main class="w-full flex-1 flex flex-col items-center">
         {/* Banner Section */}
@@ -130,14 +115,6 @@
                 >
                     <i class="fas fa-arrow-left"></i> Volver al Dashboard
                 </a>
-                
-                <button
-                    id="theme-toggle"
-                    class="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
-                    aria-label="Cambiar tema"
-                >
-                    <i id="theme-toggle-icon" class="fas fa-moon text-lg transition-transform duration-300 hover:rotate-12"></i>
-                </button>
             </header>
 
             <div class="max-w-[1100px] w-full flex flex-row flex-nowrap justify-between items-center gap-1 md:gap-5 px-0 md:px-2.5 mt-2 relative">
@@ -165,7 +142,7 @@
                     </p>
 
                     {/* Módulo de Búsqueda */}
-                    <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 dark:bg-white/5 border border-white/20 p-4 rounded-2xl flex flex-col gap-4 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
+                    <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 border border-white/20 p-4 rounded-2xl flex flex-col gap-4 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
                         {/* Input de Placa - Fila Superior */}
                         <div class="w-full pb-3 border-b border-white/10">
                             <input
@@ -248,19 +225,19 @@
 
         {/* Sección de Resultados */}
         <div id="results-section" class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
-            <div class="flex items-center gap-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2 mb-6">
-                <i class="fas fa-chart-line text-brand-red dark:text-brand-yellow text-xl"></i>
+            <div class="flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-2 mb-6">
+                <i class="fas fa-chart-line text-brand-red text-xl"></i>
                 <h2 class="text-xl font-bold tracking-wide font-poppins">Resultados del Análisis</h2>
             </div>
             
             {/* Estado inicial */}
             <div
                 id="results-container"
-                class="w-full max-w-xl mx-auto text-center py-12 px-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md text-slate-900 dark:text-slate-100 font-poppins"
+                class="w-full max-w-xl mx-auto text-center py-12 px-6 rounded-2xl border border-dashed border-slate-200 bg-white shadow-md text-slate-900 font-poppins"
             >
-                <i class="fas fa-folder-open text-4xl text-slate-300 dark:text-slate-700 mb-3.5 block"></i>
-                <p class="font-extrabold text-slate-755 dark:text-slate-200 text-lg">Esperando Datos</p>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[300px] mx-auto leading-relaxed">
+                <i class="fas fa-folder-open text-4xl text-slate-300 mb-3.5 block"></i>
+                <p class="font-extrabold text-slate-755 text-lg">Esperando Datos</p>
+                <p class="text-xs text-slate-500 mt-1 max-w-[300px] mx-auto leading-relaxed">
                     Ingresa una placa arriba para realizar un análisis vehicular integral en tiempo real.
                 </p>
             </div>
@@ -269,74 +246,74 @@
     </main>
 
     {/* Footer */}
-    <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
+    <footer class="mt-16 py-10 px-5 bg-slate-100 backdrop-blur-md border-t border-slate-200 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
-            <p class="text-xs text-slate-400 dark:text-text-muted mb-1.5 uppercase tracking-widest">Realizado por:</p>
-            <p class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white mb-1">Luis Antony Huamani Gonzales</p>
-            <p class="text-xs text-slate-500 dark:text-brand-yellow/80 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
+            <p class="text-xs text-slate-400 mb-1.5 uppercase tracking-widest">Realizado por:</p>
+            <p class="text-lg md:text-xl font-extrabold text-slate-800 mb-1">Luis Antony Huamani Gonzales</p>
+            <p class="text-xs text-slate-500 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
 
             {/* Contador de Visitas */}
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800/40 border border-slate-350/20 dark:border-slate-700/50 text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-6 shadow-sm">
-                <i class="fas fa-users text-brand-red dark:text-brand-yellow"></i>
-                <span>Visitas a la página: <strong id="visit-counter" class="text-slate-800 dark:text-white">Cargando...</strong></span>
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 border border-slate-350/20 text-[10px] md:text-xs text-slate-600 font-semibold mb-6 shadow-sm">
+                <i class="fas fa-users text-brand-red"></i>
+                <span>Visitas a la página: <strong id="visit-counter" class="text-slate-800">Cargando...</strong></span>
             </div>
 
             {/* Aviso Legal y Uso Ético */}
-            <div class="mt-8 pt-8 border-t border-slate-200 dark:border-white/10 text-left max-w-3xl mx-auto">
-                <div class="bg-white/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 p-4 md:p-6 rounded-2xl shadow-sm font-poppins">
-                    <h4 class="text-xs font-extrabold text-slate-700 dark:text-brand-yellow uppercase tracking-widest flex items-center gap-2 mb-3 font-inter">
-                        <i class="fas fa-shield-halved text-brand-red dark:text-brand-yellow"></i>
+            <div class="mt-8 pt-8 border-t border-slate-200 text-left max-w-3xl mx-auto">
+                <div class="bg-white/50 border border-slate-200/60 p-4 md:p-6 rounded-2xl shadow-sm font-poppins">
+                    <h4 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest flex items-center gap-2 mb-3 font-inter">
+                        <i class="fas fa-shield-halved text-brand-red"></i>
                         Aviso Legal y Uso Ético de la Información
                     </h4>
-                    <p class="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+                    <p class="text-[11px] md:text-xs text-slate-500 mb-5 leading-relaxed">
                         Este portal web es una herramienta estrictamente académica y de divulgación sin fines de lucro. Facilita la centralización de enlaces y consultas públicas de libre acceso. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[10px] md:text-[11px] leading-relaxed">
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-database text-blue-500"></i> Cero Almacenamiento
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 Luis Antony Huamani Gonzales NO recopila, almacena ni comparte datos de placas o búsquedas. Las consultas operan en tiempo real como intermediario directo.
                             </p>
                         </div>
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-gavel text-amber-500"></i> Uso Legítimo
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 Prohibido el uso de este portal para actividades de acoso, extorsión o fraude. El portal implementa captchas para evitar abusos automatizados.
                             </p>
                         </div>
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-globe text-emerald-500"></i> Responsabilidad
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 El usuario final asume plena responsabilidad legal y moral por las consultas realizadas y la interpretación de la información mostrada.
                             </p>
                         </div>
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-arrow-up-right-from-square text-cyan-500"></i> Verificación Oficial
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 Se proveen enlaces directos en el pie de cada sección para que el investigador pueda corroborar los resultados directamente con el portal del estado respectivo.
                             </p>
                         </div>
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-graduation-cap text-indigo-500"></i> Fines Académicos
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 Este aplicativo ha sido creado para fines educativos e ilustrativos para la demostración práctica de consumo seguro de servicios públicos descentralizados.
                             </p>
                         </div>
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
-                            <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
+                            <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <i class="fas fa-circle-info text-rose-500"></i> Límites de Servicio
                             </p>
-                            <p class="text-slate-500 dark:text-slate-400">
+                            <p class="text-slate-500">
                                 La exactitud y disponibilidad temporal de los datos dependen enteramente del funcionamiento y estabilidad de los servidores externos de terceros.
                             </p>
                         </div>
@@ -430,10 +407,10 @@
 
             currentCaptchaCode = generateCaptchaCode();
 
-            ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#1e293b' : '#f8fafc';
+            ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
             for (let i = 0; i < 4; i++) {
                 ctx.beginPath();
                 ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
@@ -441,7 +418,7 @@
                 ctx.stroke();
             }
 
-            ctx.fillStyle = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             for (let i = 0; i < 15; i++) {
                 ctx.beginPath();
                 ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 4, 0, Math.PI * 2);
@@ -473,38 +450,10 @@
 
             const canvas = document.getElementById('captcha-canvas');
             const refreshBtn = document.getElementById('refresh-captcha-btn');
-            const themeBtn = document.getElementById('theme-toggle');
 
             if (canvas) canvas.addEventListener('click', drawCaptcha);
             if (refreshBtn) refreshBtn.addEventListener('click', drawCaptcha);
-            if (themeBtn) themeBtn.addEventListener('click', () => setTimeout(drawCaptcha, 120));
         });
-
-        // ====================================================
-        // TEMA
-        // ====================================================
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-toggle-icon');
-
-        function applyTheme(theme: string) {
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                if (themeIcon) themeIcon.className = 'fas fa-sun text-brand-yellow text-lg transition-transform duration-500 hover:rotate-45';
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                if (themeIcon) themeIcon.className = 'fas fa-moon text-slate-700 text-lg transition-transform duration-500 hover:rotate-12';
-            }
-        }
-
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        applyTheme(savedTheme);
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
-            });
-        }
 
         // ====================================================
         // FORMATO DE PLACA
