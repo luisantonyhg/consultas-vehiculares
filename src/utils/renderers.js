@@ -19,7 +19,7 @@ export const SOURCE_URLS = {
     callao: 'https://pagopapeletascallao.pe/',
     lima: 'https://www.sat.gob.pe/',
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
-    atu: 'https://sistemas.atu.gob.pe/consultavehiculo',
+    atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo',
     gnv: 'https://vh.infogas.com.pe/',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
     vehiculo: 'https://www.sunarp.gob.pe/'
@@ -313,6 +313,13 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
         badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-500 text-white shadow-sm uppercase tracking-wider">
             <i class="fas fa-circle-xmark"></i> ERROR
         </span>`;
+        const sourceUrl = SOURCE_URLS[cardId] || '';
+        const verifyBtn = sourceUrl 
+            ? `<a href="${sourceUrl}" target="_blank" rel="noopener"
+                  class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                  <i class="fas fa-arrow-up-right-from-square"></i> Consultar Portal Oficial
+               </a>`
+            : '';
         rightContent = `
             <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
                 <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-rose-955/10 border-2 border-red-200 dark:border-rose-900 flex items-center justify-center mb-1">
@@ -322,10 +329,13 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                     <p class="text-sm font-bold text-red-700 dark:text-red-400 leading-tight">Error al conectar con la fuente</p>
                     <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
                 </div>
-                <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                    class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                    <i class="fas fa-rotate-right"></i> Reintentar Consulta
-                </button>
+                <div class="flex flex-wrap items-center justify-center gap-2">
+                    <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
+                        class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                        <i class="fas fa-rotate-right"></i> Reintentar Consulta
+                    </button>
+                    ${verifyBtn}
+                </div>
             </div>`;
     }
 

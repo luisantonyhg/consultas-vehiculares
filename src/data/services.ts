@@ -115,7 +115,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "atu-taxis",
         title: "Taxis Autorizados (ATU)",
-        url: "https://sistemas.atu.gob.pe/consultavehiculo",
+        url: "https://soluciones.atu.gob.pe/ConsultaVehiculo",
         logo: "/assets/atu.png"
       },
       {
