@@ -145,24 +145,29 @@ export function reorderCards() {
     const wrapper = document.getElementById('results-cards-wrapper');
     if (!wrapper) return;
     const cards = Array.from(wrapper.children);
-    const statusOrder = {
-        'funciona': 1,
-        'loading': 2,
-        'no-funciona': 3,
-        'mantenimiento': 3
+    
+    const getCardScore = (card) => {
+        if (card.id === 'vehiculo-card-container') {
+            return 2.5; // Entre loading (2) y no-funciona/mantenimiento (3)
+        }
+        const status = card.getAttribute('data-status') || 'loading';
+        const statusOrder = {
+            'funciona': 1,
+            'loading': 2,
+            'no-funciona': 3,
+            'mantenimiento': 3
+        };
+        return statusOrder[status] ?? 2;
     };
-    cards.sort((a, b) => {
-        if (a.id === 'vehiculo-card-container') return -1;
-        if (b.id === 'vehiculo-card-container') return 1;
 
-        const statusA = a.getAttribute('data-status') || 'loading';
-        const statusB = b.getAttribute('data-status') || 'loading';
-        const orderA = statusOrder[statusA] ?? 2;
-        const orderB = statusOrder[statusB] ?? 2;
-        if (orderA !== orderB) return orderA - orderB;
+    cards.sort((a, b) => {
+        const scoreA = getCardScore(a);
+        const scoreB = getCardScore(b);
+        if (scoreA !== scoreB) {
+            return scoreA - scoreB;
+        }
 
         const defaultOrder = [
-            'vehiculo-card-container',
             'soat-card-container',
             'citv-card-container',
             'gnv-card-container',
@@ -171,7 +176,8 @@ export function reorderCards() {
             'sbs-card-container',
             'sutran-card-container',
             'atu-card-container',
-            'lima-card-container'
+            'lima-card-container',
+            'vehiculo-card-container'
         ];
         return defaultOrder.indexOf(a.id) - defaultOrder.indexOf(b.id);
     });
