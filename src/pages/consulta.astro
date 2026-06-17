@@ -215,14 +215,6 @@
             </div>
         </section>
 
-        {/* Backend Status Banner */}
-        <div id="backend-status-banner" class="hidden w-full bg-amber-500/10 border-b border-amber-500/30 px-5 py-2.5 text-center">
-            <p class="text-amber-400 text-xs font-semibold">
-                <i class="fas fa-exclamation-triangle mr-1"></i>
-                Backend no disponible en este momento. El servidor de consultas está iniciando, por favor espera unos segundos e intenta de nuevo.
-            </p>
-        </div>
-
         {/* Sección de Resultados */}
         <div id="results-section" class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
             <div class="flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-2 mb-6">
@@ -469,26 +461,6 @@
                 plateInput.value = val;
             });
         }
-
-        // ====================================================
-        // VERIFICAR BACKEND AL CARGAR
-        // ====================================================
-        async function checkBackend() {
-            const healthUrl = BACKEND_URL.replace('/api/v1', '') + '/health';
-            try {
-                const res = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
-                if (!res.ok) throw new Error();
-                document.getElementById('backend-status-banner')?.classList.add('hidden');
-            } catch {
-                const bannerText = document.querySelector('#backend-status-banner p');
-                if (bannerText) {
-                    const displayUrl = healthUrl.replace('/health', '');
-                    bannerText.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Backend no disponible en este momento. Asegúrate de que el servidor esté activo en <code class="bg-black/20 px-1 rounded">${displayUrl}</code>`;
-                }
-                document.getElementById('backend-status-banner')?.classList.remove('hidden');
-            }
-        }
-        checkBackend();
 
         // ====================================================
         // VEHICLE DATA ACCUMULATION
