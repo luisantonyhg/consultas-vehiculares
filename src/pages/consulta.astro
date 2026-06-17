@@ -466,41 +466,59 @@
         // VEHICLE DATA ACCUMULATION
         // ====================================================
         let vehicleData: Record<string, string> = {};
+        let queryAttempts: Record<string, number> = {};
 
         function processVehicleInfo(cardId: string, data: any) {
             if (!data) return;
             let updated = false;
 
+            const isValEmpty = (val: any) => {
+                if (val === undefined || val === null) return true;
+                const clean = String(val).trim().toUpperCase();
+                return clean === '' || clean === '—' || clean === 'N/A' || clean === 'NULL' || clean === 'UNDEFINED';
+            };
+
+            const setIfBetter = (key: string, val: any) => {
+                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                    const currentVal = vehicleData[key];
+                    if (isValEmpty(currentVal) && !isValEmpty(val)) {
+                        vehicleData[key] = String(val).trim();
+                        return true;
+                    }
+                }
+                return false;
+            };
+
             if (cardId === 'soat' && Array.isArray(data) && data.length > 0) {
                 const cert = data[0];
-                if (cert.Marca && !vehicleData.marca) { vehicleData.marca = cert.Marca; updated = true; }
-                if (cert.ModeloVehiculo && !vehicleData.modelo) { vehicleData.modelo = cert.ModeloVehiculo; updated = true; }
-                if (cert.NombreClaseVehiculo && !vehicleData.categoria) { vehicleData.categoria = cert.NombreClaseVehiculo; updated = true; }
-                if (cert.NombreUsoVehiculo && !vehicleData.uso) { vehicleData.uso = cert.NombreUsoVehiculo; updated = true; }
+                if (setIfBetter('marca', cert.Marca)) updated = true;
+                if (setIfBetter('modelo', cert.ModeloVehiculo)) updated = true;
+                if (setIfBetter('categoria', cert.NombreClaseVehiculo)) updated = true;
+                if (setIfBetter('uso', cert.NombreUsoVehiculo)) updated = true;
             }
 
             if (cardId === 'citv' && Array.isArray(data) && data.length > 0) {
                 const cert = data[0];
-                if (cert.marca && !vehicleData.marca) { vehicleData.marca = cert.marca; updated = true; }
-                if (cert.modelo && !vehicleData.modelo) { vehicleData.modelo = cert.modelo; updated = true; }
-                if (cert.clase && !vehicleData.categoria) { vehicleData.categoria = cert.clase; updated = true; }
-                if (cert.anio && !vehicleData.anio) { vehicleData.anio = cert.anio; updated = true; }
+                if (setIfBetter('marca', cert.marca)) updated = true;
+                if (setIfBetter('modelo', cert.modelo)) updated = true;
+                if (setIfBetter('categoria', cert.clase)) updated = true;
+                if (setIfBetter('anio', cert.anio)) updated = true;
             }
 
             if (cardId === 'atu' && data) {
                 if (data.fuenteDato !== 'NOREGISTRADO') {
-                    if (data.marcaSunarp && !vehicleData.marca) { vehicleData.marca = data.marcaSunarp; updated = true; }
-                    if (data.modeloSunarp && !vehicleData.modelo) { vehicleData.modelo = data.modeloSunarp; updated = true; }
-                    if (data.color && !vehicleData.color) { vehicleData.color = data.color; updated = true; }
-                    if (data.serie && !vehicleData.serie) { vehicleData.serie = data.serie; updated = true; }
-                    if (data.motor && !vehicleData.motor) { vehicleData.motor = data.motor; updated = true; }
-                    if (data.propietario && !vehicleData.propietario) { vehicleData.propietario = data.propietario; updated = true; }
+                    if (setIfBetter('marca', data.marcaSunarp)) updated = true;
+                    if (setIfBetter('modelo', data.modeloSunarp)) updated = true;
+                    if (setIfBetter('color', data.color)) updated = true;
+                    if (setIfBetter('serie', data.serie)) updated = true;
+                    if (setIfBetter('motor', data.motor)) updated = true;
+                    if (setIfBetter('propietario', data.propietario)) updated = true;
                 } else {
-                    if (data.marcaSunarp && !vehicleData.marca) { vehicleData.marca = data.marcaSunarp; updated = true; }
-                    if (data.modeloSunarp && !vehicleData.modelo) { vehicleData.modelo = data.modeloSunarp; updated = true; }
-                    if (data.color && !vehicleData.color) { vehicleData.color = data.color; updated = true; }
-                    if (data.serie && !vehicleData.serie) { vehicleData.serie = data.serie; updated = true; }
-                    if (data.motor && !vehicleData.motor) { vehicleData.motor = data.motor; updated = true; }
+                    if (setIfBetter('marca', data.marcaSunarp)) updated = true;
+                    if (setIfBetter('modelo', data.modeloSunarp)) updated = true;
+                    if (setIfBetter('color', data.color)) updated = true;
+                    if (setIfBetter('serie', data.serie)) updated = true;
+                    if (setIfBetter('motor', data.motor)) updated = true;
                 }
             }
 
@@ -510,24 +528,88 @@
         }
 
         // ====================================================
+        // WRAPPER DE REINTENTOS PARA QUERIES
+        // ====================================================
+        async function runFetchWithRetry(
+            cardId: string, 
+            fetchCall: (callbacks: any) => Promise<any>, 
+            plate: string, 
+            attempt: number = 1
+        ): Promise<any> {
+            if (attempt === 1) {
+                queryAttempts[cardId] = 1;
+            }
+
+            let resolveFn: any;
+            let rejectFn: any;
+            const promise = new Promise((resolve, reject) => {
+                resolveFn = resolve;
+                rejectFn = reject;
+            });
+
+            const customCallbacks = {
+                setCardLoading: (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string) => {
+                    if (attempt > 1) {
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando...)`);
+                    } else {
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, sourceName);
+                    }
+                },
+                setCardData: (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, htmlContent: string, isSuccess: boolean, hasData: boolean, customBadge?: string) => {
+                    setCardData(id, title, sub, iconClass, bgColorClass, sourceName, htmlContent, isSuccess, hasData, customBadge);
+                },
+                setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
+                    if (attempt < 2) {
+                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento 1): ${errorMessage}. Reintentando...`);
+                        await new Promise(r => setTimeout(r, 500));
+                        try {
+                            const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, 2);
+                            resolveFn(retryResult);
+                        } catch (e) {
+                            rejectFn(e);
+                        }
+                    } else {
+                        console.error(`[ERROR] Consulta ${cardId} falló definitivamente (Intento 2): ${errorMessage}`);
+                        setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
+                        resolveFn({ success: false, error: errorMessage });
+                    }
+                },
+                processVehicleInfo: (id: string, data: any) => {
+                    processVehicleInfo(id, data);
+                }
+            };
+
+            try {
+                const res = await fetchCall(customCallbacks);
+                if (res && res.success) {
+                    resolveFn(res);
+                }
+            } catch (err) {
+                console.error(`[CRASH] runFetchWithRetry catch error for ${cardId}:`, err);
+                await customCallbacks.setCardError(
+                    cardId, 
+                    cardId.toUpperCase(), 
+                    '', 
+                    'fas fa-circle-exclamation', 
+                    '', 
+                    'Error', 
+                    (err as any).message || 'Error inesperado', 
+                    plate
+                );
+            }
+
+            return promise;
+        }
+
+        // ====================================================
         // PETICIONES INDEPENDIENTES
         // ====================================================
         async function fetchSOAT(plate: string) {
-            return runFetchSOAT(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('soat', (callbacks) => runFetchSOAT(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchCITV(plate: string) {
-            return runFetchCITV(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchLunas(plate: string) {
@@ -548,12 +630,7 @@
         }
 
         async function fetchCallao(plate: string) {
-            return runFetchCallao(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('callao', (callbacks) => runFetchCallao(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchLima(plate: string) {
@@ -564,42 +641,24 @@
         }
 
         async function fetchSutran(plate: string) {
-            return runFetchSutran(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('sutran', (callbacks) => runFetchSutran(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchATU(plate: string) {
-            return runFetchATU(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchGNV(plate: string) {
-            return runFetchGNV(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('gnv', (callbacks) => runFetchGNV(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchSBS(plate: string) {
-            return runFetchSBS(plate, BACKEND_URL, {
-                setCardLoading,
-                setCardData,
-                setCardError,
-                processVehicleInfo
-            });
+            return runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate);
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
+            // Reiniciar contador de intentos para este cardId en caso de reintento manual
+            queryAttempts[cardId] = 0;
             if (cardId === 'soat')   await fetchSOAT(plate);
             else if (cardId === 'citv')   await fetchCITV(plate);
             else if (cardId === 'lunas')  await fetchLunas(plate);
