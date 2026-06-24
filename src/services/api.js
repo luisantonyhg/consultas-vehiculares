@@ -10,12 +10,20 @@ import {
     renderSBS
 } from '../utils/renderers.js';
 
+async function secureFetch(url, options = {}) {
+    const headers = {
+        ...options.headers,
+        "X-Client-Secret": "VehicularPESecretSecure2026"
+    };
+    return fetch(url, { ...options, headers });
+}
+
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
-        const res = await fetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -71,7 +79,7 @@ export async function runFetchCITV(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 130000);
     try {
-        const res = await fetch(`${BACKEND_URL}/citv/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/citv/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -126,7 +134,7 @@ export async function runFetchLunas(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 165000);
     try {
-        const res = await fetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -151,7 +159,7 @@ export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 165000);
     try {
-        const res = await fetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -176,7 +184,7 @@ export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
     try {
-        const res = await fetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -201,7 +209,7 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     try {
-        const res = await fetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -228,7 +236,7 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     try {
-        const res = await fetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -267,7 +275,7 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     try {
-        const res = await fetch(`${BACKEND_URL}/gnv/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/gnv/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

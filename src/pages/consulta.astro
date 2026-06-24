@@ -361,9 +361,14 @@
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
             try {
-                await fetch(`${BACKEND_URL}/visits`, { method: 'POST' }).catch(() => {});
+                await fetch(`${BACKEND_URL}/visits`, { 
+                    method: 'POST',
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                }).catch(() => {});
                 
-                const res = await fetch(`${BACKEND_URL}/visits`);
+                const res = await fetch(`${BACKEND_URL}/visits`, {
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && counterEl) {
@@ -1000,7 +1005,9 @@
                 imgViewer.src = "";
 
                 try {
-                    const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`);
+                    const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`, {
+                        headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    });
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const result = await res.json();
                     if (result.success && result.data) {

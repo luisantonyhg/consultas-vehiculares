@@ -321,10 +321,15 @@ import { SERVICES_DATA } from '../data/services';
             const counterEl = document.getElementById('visit-counter');
             try {
                 // Registrar visita (POST)
-                await fetch(`${BACKEND_URL}/visits`, { method: 'POST' }).catch(() => {});
+                await fetch(`${BACKEND_URL}/visits`, { 
+                    method: 'POST',
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                }).catch(() => {});
                 
                 // Obtener conteo (GET)
-                const res = await fetch(`${BACKEND_URL}/visits`);
+                const res = await fetch(`${BACKEND_URL}/visits`, {
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && counterEl) {
