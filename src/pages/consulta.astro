@@ -616,22 +616,8 @@
         async function fetchCITV(plate: string) {
             return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
         }
-
         async function fetchLunas(plate: string) {
-            const msg = "La consulta automática de Lunas Oscurecidas (PNP) se encuentra temporalmente en desarrollo por mantenimiento. Puedes realizar la consulta directamente ante la PNP.";
-            const content = `
-                <div class="flex flex-col gap-5 text-slate-900 dark:text-white font-poppins">
-                    <div class="flex items-center gap-4 p-4 bg-orange-50 dark:bg-orange-955/20 border border-orange-200 dark:border-orange-900 rounded-xl">
-                        <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 border border-orange-300 dark:border-orange-800 flex items-center justify-center shrink-0">
-                            <i class="fas fa-eye text-orange-655 dark:text-orange-455"></i>
-                        </div>
-                        <div>
-                            <p class="font-bold text-slate-850 dark:text-slate-200 text-sm">Servicio en desarrollo</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-450 mt-0.5 leading-relaxed">${msg}</p>
-                        </div>
-                    </div>
-                </div>`;
-            setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, false, false);
+            return runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchCallao(plate: string) {
