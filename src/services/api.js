@@ -5,6 +5,7 @@ import {
     renderLunas,
     renderCallao,
     renderSutran,
+    renderCinemometro,
     renderAtu,
     renderGNV,
     renderSBS
@@ -200,6 +201,31 @@ export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 65000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/cinemometro/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const content = renderCinemometro(data.data, plate, data.info_reporte || '');
+            callbacks.setCardData('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', content, true, data.data?.length > 0);
+            return data;
+        } else {
+            callbacks.setCardError('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', data.error || 'Error al consultar Cinemómetro', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+        callbacks.setCardError('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', msg, plate);
         return { success: false, error: msg };
     }
 }

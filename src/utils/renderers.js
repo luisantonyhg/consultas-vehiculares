@@ -6,6 +6,7 @@ export const LOGO_MAPPING = {
     callao: '/assets/callao.png',
     lima: '/assets/sat.png',
     sutran: '/assets/sutran.png',
+    cinemometro: '/assets/sutran.png',
     atu: '/assets/atu.png',
     gnv: '/assets/infogas.png',
     sbs: '/assets/sbs.png',
@@ -19,6 +20,7 @@ export const SOURCE_URLS = {
     callao: 'https://pagopapeletascallao.pe/',
     lima: 'https://www.sat.gob.pe/',
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
+    cinemometro: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmPapeletasCinemometro.aspx',
     atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo',
     gnv: 'https://vh.infogas.com.pe/',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
@@ -31,8 +33,9 @@ export const SERVICE_COLORS = {
     lunas:    { bg: 'bg-purple-50 dark:bg-purple-950/20',   icon: 'text-purple-600 dark:text-purple-400',  ring: 'ring-purple-200 dark:ring-purple-900' },
     callao:   { bg: 'bg-red-50 dark:bg-red-950/20',       icon: 'text-red-600 dark:text-red-400',      ring: 'ring-red-200 dark:ring-red-900' },
     lima:     { bg: 'bg-amber-50 dark:bg-amber-950/20',     icon: 'text-amber-600 dark:text-amber-400',    ring: 'ring-amber-200 dark:ring-amber-900' },
-    sutran:   { bg: 'bg-orange-50 dark:bg-orange-950/20',   icon: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-900' },
-    atu:      { bg: 'bg-teal-50 dark:bg-teal-950/20',       icon: 'text-teal-600 dark:text-teal-400',    ring: 'ring-teal-200 dark:ring-teal-900' },
+    sutran:      { bg: 'bg-orange-50 dark:bg-orange-950/20',   icon: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-900' },
+    cinemometro: { bg: 'bg-rose-50 dark:bg-rose-950/20',      icon: 'text-rose-600 dark:text-rose-400',      ring: 'ring-rose-200 dark:ring-rose-900' },
+    atu:         { bg: 'bg-teal-50 dark:bg-teal-950/20',      icon: 'text-teal-600 dark:text-teal-400',      ring: 'ring-teal-200 dark:ring-teal-900' },
     gnv:      { bg: 'bg-green-50 dark:bg-green-950/20',     icon: 'text-green-600 dark:text-green-400',   ring: 'ring-green-200 dark:ring-green-900' },
     sbs:      { bg: 'bg-violet-50 dark:bg-violet-950/20',  icon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200 dark:ring-violet-900' },
     vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
@@ -614,6 +617,56 @@ export function renderSutran(data, plate, infoReporte) {
         bodyHTML += `
             <div class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-start gap-1.5 font-poppins px-1">
                 <i class="fas fa-circle-info text-slate-400 dark:text-slate-655 mt-0.5 shrink-0 text-[10px]"></i>
+                <p class="text-[9px] text-slate-400 dark:text-slate-500 italic leading-relaxed">${infoReporte}</p>
+            </div>`;
+    }
+    return bodyHTML;
+}
+
+export function renderCinemometro(data, plate, infoReporte) {
+    let bodyHTML = '';
+    if (!data || data.length === 0) {
+        bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 flex items-center justify-center mb-1">
+                <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
+            </div>
+            <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas de Velocidad!</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron infracciones de cinemómetro para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
+        </div>`;
+    } else {
+        const allKeys = [...new Set(data.flatMap(r => Object.keys(r)))];
+        const headers = allKeys.length > 0 ? allKeys : ['N° Documento', 'Fecha', 'Código', 'Ubicación', 'Velocidad', 'Monto'];
+        const theadCells = headers.map(h =>
+            `<th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 whitespace-nowrap">${h}</th>`
+        ).join('');
+        const rows = data.map(r => {
+            const cells = headers.map(h =>
+                `<td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap">${r[h] || '-'}</td>`
+            ).join('');
+            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">${cells}</tr>`;
+        }).join('');
+        bodyHTML = `
+            <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones de velocidad</p>
+                    <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                <div class="overflow-x-auto max-h-[240px]">
+                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                        <thead>
+                            <tr class="bg-slate-900 dark:bg-slate-950 text-white">${theadCells}</tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+    if (infoReporte) {
+        bodyHTML += `
+            <div class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-start gap-1.5 font-poppins px-1">
+                <i class="fas fa-circle-info text-slate-400 dark:text-slate-600 mt-0.5 shrink-0 text-[10px]"></i>
                 <p class="text-[9px] text-slate-400 dark:text-slate-500 italic leading-relaxed">${infoReporte}</p>
             </div>`;
     }
