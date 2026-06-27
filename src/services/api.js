@@ -233,7 +233,9 @@ export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
 export async function runFetchATU(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    // 160s: ATU comparte el navegador con SBS (1 a la vez). Margen para que, sin importar
+    // cuál tome el navegador primero, el segundo en cola tenga tiempo de ejecutarse.
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -251,7 +253,7 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (120s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (160s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
         return { success: false, error: msg };
     }
@@ -260,7 +262,9 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
 export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    // 160s: SBS comparte el navegador con ATU (1 a la vez). Si ATU lo usa primero,
+    // SBS espera; este margen evita el timeout cuando se ejecutan en serie.
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -290,7 +294,7 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (120s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', msg, plate);
         return { success: false, error: msg };
     }
