@@ -343,7 +343,9 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
+    // 180s: SUNARP comparte el navegador con ATU y SBS (1 a la vez) y suele ir último
+    // en la cola. Necesita margen para esperar a que ambos liberen + su propia ejecución.
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -373,7 +375,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (180s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
         return { success: false, error: msg };
     }
