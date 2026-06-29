@@ -566,7 +566,7 @@
             const customCallbacks = {
                 setCardLoading: (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string) => {
                     if (attempt > 1) {
-                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando...)`);
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando${attempt > 2 ? ' auto' : ''}...)`);
                     } else {
                         setCardLoading(id, title, sub, iconClass, bgColorClass, sourceName);
                     }
@@ -576,6 +576,7 @@
                 },
                 setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
                     if (attempt < 2) {
+                        // Intento 1 falló → reintentar inmediatamente (intento 2)
                         console.warn(`[RETRY] Consulta ${cardId} falló (Intento 1): ${errorMessage}. Reintentando...`);
                         await new Promise(r => setTimeout(r, 500));
                         try {
@@ -584,8 +585,21 @@
                         } catch (e) {
                             rejectFn(e);
                         }
+                    } else if (attempt === 2) {
+                        // Intento 2 falló → programar auto-reintento silencioso en 8s (intento 3)
+                        console.warn(`[AUTO-RETRY] Consulta ${cardId} falló (Intento 2): ${errorMessage}. Auto-reintento en 8s...`);
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando auto...)`);
+                        setTimeout(async () => {
+                            try {
+                                const autoResult = await runFetchWithRetry(cardId, fetchCall, plate, 3);
+                                resolveFn(autoResult);
+                            } catch (e) {
+                                rejectFn(e);
+                            }
+                        }, 8000);
                     } else {
-                        console.error(`[ERROR] Consulta ${cardId} falló definitivamente (Intento 2): ${errorMessage}`);
+                        // Intento 3+ falló → mostrar tarjeta de reintentar definitiva
+                        console.error(`[FINAL] Consulta ${cardId} falló definitivamente (Intento ${attempt}): ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
                         resolveFn({ success: false, error: errorMessage });
                     }
@@ -959,42 +973,58 @@
                     }
                 }
 
-                Promise.all([
-                    fetchSUNARP(plate),
-                    fetchSOAT(plate),
-                    fetchCITV(plate),
-                    fetchGNV(plate),
-                    fetchLunas(plate),
-                    fetchCallao(plate),
-                    fetchSBS(plate),
-                    fetchLima(plate),
-                    fetchSutran(plate),
-                    fetchCinemometro(plate),
-                    fetchATU(plate)
-                ]).then(() => {
-                    // Guardar snapshot de resultados en localStorage
-                    saveToCache(plate);
-                }).finally(() => {
-                    queryStatus.classList.add('opacity-0');
-                    if (submitBtn) {
-                        let cooldown = 10;
-                        const interval = setInterval(() => {
-                            if (cooldown > 0) {
-                                submitBtn.disabled = true;
-                                submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
-                                cooldown--;
-                            } else {
-                                clearInterval(interval);
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
-                            }
-                        }, 1000);
-                        // Aplicar estado inicial del cooldown inmediatamente
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
-                        cooldown--;
+                // ====================================================
+                // EJECUCIÓN EN 2 FASES
+                // Fase 1: Servicios ligeros (HTTP directo) → en paralelo
+                // Fase 2: Servicios pesados (Chromium) → secuencial
+                // ====================================================
+                (async () => {
+                    try {
+                        // FASE 1: Servicios ligeros en paralelo (no usan navegador)
+                        queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
+                        await Promise.all([
+                            fetchSOAT(plate),
+                            fetchCITV(plate),
+                            fetchGNV(plate),
+                            fetchCallao(plate),
+                            fetchLima(plate),
+                            fetchSutran(plate),
+                            fetchCinemometro(plate),
+                        ]);
+
+                        // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
+                        queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
+                        await fetchATU(plate);
+                        await fetchSBS(plate);
+                        await fetchLunas(plate);
+                        await fetchSUNARP(plate);
+
+                        // Guardar snapshot de resultados en localStorage
+                        saveToCache(plate);
+                    } catch (err) {
+                        console.error('[FASES] Error general en ejecución por fases:', err);
+                    } finally {
+                        queryStatus.classList.add('opacity-0');
+                        if (submitBtn) {
+                            let cooldown = 10;
+                            const interval = setInterval(() => {
+                                if (cooldown > 0) {
+                                    submitBtn.disabled = true;
+                                    submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
+                                    cooldown--;
+                                } else {
+                                    clearInterval(interval);
+                                    submitBtn.disabled = false;
+                                    submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                                }
+                            }, 1000);
+                            // Aplicar estado inicial del cooldown inmediatamente
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
+                            cooldown--;
+                        }
                     }
-                });
+                })();
             });
 
             (window as any).abrirModalPapeleta = async function(nroPapeleta: string) {

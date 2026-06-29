@@ -322,28 +322,28 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
             </div>`;
     } else {
         container.setAttribute('data-status', 'no-funciona');
-        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-500 text-white shadow-sm uppercase tracking-wider">
-            <i class="fas fa-circle-xmark"></i> ERROR
+        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-700 text-slate-100 shadow-sm uppercase tracking-wider">
+            <i class="fas fa-rotate-right"></i> REINTENTAR
         </span>`;
         const sourceUrl = SOURCE_URLS[cardId] || '';
         const verifyBtn = sourceUrl 
             ? `<a href="${sourceUrl}" target="_blank" rel="noopener"
-                  class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                  <i class="fas fa-arrow-up-right-from-square"></i> Consultar Portal Oficial
+                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-500">
+                  <i class="fas fa-arrow-up-right-from-square"></i> Portal Oficial
                </a>`
             : '';
         rightContent = `
             <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
-                <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-rose-955/10 border-2 border-red-200 dark:border-rose-900 flex items-center justify-center mb-1">
-                    <i class="fas fa-circle-xmark text-2xl text-red-500 font-bold"></i>
+                <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center mb-1">
+                    <i class="fas fa-rotate-right text-2xl text-slate-500 dark:text-slate-400"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-red-700 dark:text-red-400 leading-tight">Error al conectar con la fuente</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300 leading-tight">No se pudo obtener respuesta</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">El servicio no respondió a tiempo. Puedes reintentar la consulta.</p>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-2">
                     <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                        class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
                         <i class="fas fa-rotate-right"></i> Reintentar Consulta
                     </button>
                     ${verifyBtn}
