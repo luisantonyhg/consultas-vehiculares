@@ -195,9 +195,9 @@ export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sour
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', 'loading');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins";
-    const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm uppercase tracking-wider">
-        <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-slate-400 dark:border-slate-600 border-t-transparent spin-icon"></span> Buscando
+    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
+        <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 border-t-transparent spin-icon"></span> Buscando
     </span>`;
     
     const logoSrc = LOGO_MAPPING[cardId] || '';
@@ -233,9 +233,9 @@ export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sour
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', 'waiting');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins opacity-90 transition-all duration-300";
-    const waitingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 shadow-sm uppercase tracking-wider">
-        <i class="fas fa-clock text-amber-500 animate-pulse"></i> ${queueText || 'En cola'}
+    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    const waitingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
+        <i class="fas fa-clock text-slate-300 dark:text-slate-600 animate-pulse"></i> ${queueText || 'En cola'}
     </span>`;
     
     const logoSrc = LOGO_MAPPING[cardId] || '';
