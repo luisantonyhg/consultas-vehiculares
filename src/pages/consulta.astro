@@ -328,6 +328,7 @@
             skeletonBody,
             reorderCards,
             setCardLoading,
+            setCardWaiting,
             setCardData,
             setCardError,
             renderSOAT,
@@ -994,10 +995,24 @@
 
                         // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
-                        await fetchATU(plate);
-                        await fetchSBS(plate);
-                        await fetchLunas(plate);
+                        
+                        // Estado visual bonito para la cola (todos visibles sin ocultar)
+                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En turno (Iniciando...)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 - Final)');
+
+                        // 1. SUNARP ES PRIORITARIO Y VA PRIMERO
                         await fetchSUNARP(plate);
+
+                        // 2. ATU en 2do lugar
+                        await fetchATU(plate);
+
+                        // 3. SBS en 3er lugar
+                        await fetchSBS(plate);
+
+                        // 4. LUNAS ES EL MÁS DÍFICIL Y VA AL FINAL DE TODOS
+                        await fetchLunas(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);

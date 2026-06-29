@@ -229,6 +229,44 @@ export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sour
     reorderCards();
 }
 
+export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sourceName, queueText) {
+    const container = document.getElementById(`${cardId}-card-container`);
+    if (!container) return;
+    container.setAttribute('data-status', 'waiting');
+    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins opacity-90 transition-all duration-300";
+    const waitingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 shadow-sm uppercase tracking-wider">
+        <i class="fas fa-clock text-amber-500 animate-pulse"></i> ${queueText || 'En cola'}
+    </span>`;
+    
+    const logoSrc = LOGO_MAPPING[cardId] || '';
+    const logoHTML = logoSrc 
+        ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 opacity-75">
+               <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-slate-400 text-base md:text-lg&quot;></i>'"/>
+           </div>`
+        : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 opacity-75">
+               <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>
+           </div>`;
+
+    container.innerHTML = `
+        <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+            <div class="flex items-center gap-3 md:gap-4">
+                ${logoHTML}
+                <div class="text-left font-poppins">
+                    <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
+                    <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-650">${sourceName}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                ${waitingBadge}
+                <i class="fas fa-chevron-down text-slate-300 dark:text-slate-600 text-xs"></i>
+            </div>
+        </div>
+        <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-955/20 hidden">
+            ${skeletonBody()}
+        </div>`;
+    reorderCards();
+}
+
 export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceName, htmlContent, isSuccess, hasData, customBadge) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
@@ -239,16 +277,23 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
         if (customBadge) {
             badgeHTML = customBadge;
         } else if (hasData) {
-            let text = 'CON REGISTROS';
-            if (cardId === 'soat') text = 'ACTIVO';
-            if (cardId === 'citv') text = 'VIGENTE';
-            if (cardId === 'atu') text = 'HABILITADO';
-            badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                <i class="fas fa-circle-check"></i> ${text}
-            </span>`;
+            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') {
+                const text = cardId === 'cinemometro' ? 'CON INFRACCIONES' : 'CON PAPELETAS';
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation"></i> ${text}
+                </span>`;
+            } else {
+                let text = 'CON REGISTROS';
+                if (cardId === 'soat') text = 'ACTIVO';
+                if (cardId === 'citv') text = 'VIGENTE';
+                if (cardId === 'atu') text = 'HABILITADO';
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> ${text}
+                </span>`;
+            }
         } else {
             let text = 'SIN REGISTROS';
-            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima') text = 'SIN PAPELETAS';
+            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') text = 'SIN PAPELETAS';
             if (cardId === 'atu') text = 'NO REGISTRADO';
             if (cardId === 'lunas') text = 'SIN PERMISO';
             
