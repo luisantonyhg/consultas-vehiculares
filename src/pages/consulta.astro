@@ -339,6 +339,7 @@
             renderAtu,
             renderGNV,
             renderSBS,
+            renderSunarp,
             renderVehicleInfoCard
         } from '../utils/renderers.js';
 
@@ -351,7 +352,8 @@
             runFetchCinemometro,
             runFetchATU,
             runFetchGNV,
-            runFetchSBS
+            runFetchSBS,
+            runFetchSUNARP
         } from '../services/api.js';
 
         // ====================================================
@@ -528,6 +530,14 @@
                 }
             }
 
+            if (cardId === 'sunarp' && data) {
+                if (setIfBetter('marca', data.Marca || data.marca)) updated = true;
+                if (setIfBetter('modelo', data.Modelo || data.modelo)) updated = true;
+                if (setIfBetter('color', data.Color || data.color)) updated = true;
+                if (setIfBetter('anio', data.Año || data['Año Fabricación'] || data.anio)) updated = true;
+                if (setIfBetter('propietario', data.Titular || data.Propietario || data.propietario)) updated = true;
+            }
+
             if (updated) {
                 renderVehicleInfoCard(vehicleData);
             }
@@ -652,6 +662,10 @@
             return runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchSUNARP(plate: string) {
+            return runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate);
+        }
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
             queryAttempts[cardId] = 0;
@@ -665,6 +679,7 @@
             else if (cardId === 'atu')    await fetchATU(plate);
             else if (cardId === 'gnv')    await fetchGNV(plate);
             else if (cardId === 'sbs')    await fetchSBS(plate);
+            else if (cardId === 'sunarp') await fetchSUNARP(plate);
         };
 
         // ====================================================
@@ -750,7 +765,7 @@
         // CACHING LOGIC (localStorage, TTL 5 min)
         // ====================================================
         function saveToCache(plate: string) {
-            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo'];
+            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'sbs', 'sunarp', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -842,11 +857,12 @@
                     </div>
                     <div class="text-left sm:text-right">
                         <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · Infogas · Callao · SBS · SUTRAN · ATU · Cinemómetro</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · SUNARP · Infogas · Callao · SBS · SUTRAN · ATU · Cinemómetro</p>
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
                     <div id="vehiculo-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sunarp-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -944,6 +960,7 @@
                 }
 
                 Promise.all([
+                    fetchSUNARP(plate),
                     fetchSOAT(plate),
                     fetchCITV(plate),
                     fetchGNV(plate),

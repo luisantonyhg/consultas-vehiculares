@@ -10,6 +10,7 @@ export const LOGO_MAPPING = {
     atu: '/assets/atu.png',
     gnv: '/assets/infogas.png',
     sbs: '/assets/sbs.png',
+    sunarp: '/assets/sunarp.jpeg',
     vehiculo: '/assets/sunarp.jpeg'
 };
 
@@ -24,6 +25,7 @@ export const SOURCE_URLS = {
     atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo',
     gnv: 'https://vh.infogas.com.pe/',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
+    sunarp: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/',
     vehiculo: 'https://www.sunarp.gob.pe/'
 };
 
@@ -38,6 +40,7 @@ export const SERVICE_COLORS = {
     atu:         { bg: 'bg-teal-50 dark:bg-teal-950/20',      icon: 'text-teal-600 dark:text-teal-400',      ring: 'ring-teal-200 dark:ring-teal-900' },
     gnv:      { bg: 'bg-green-50 dark:bg-green-950/20',     icon: 'text-green-600 dark:text-green-400',   ring: 'ring-green-200 dark:ring-green-900' },
     sbs:      { bg: 'bg-violet-50 dark:bg-violet-950/20',  icon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200 dark:ring-violet-900' },
+    sunarp:   { bg: 'bg-indigo-50 dark:bg-indigo-950/20',  icon: 'text-indigo-600 dark:text-indigo-400', ring: 'ring-indigo-200 dark:ring-indigo-900' },
     vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
 };
 
@@ -941,3 +944,28 @@ export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
             </div>
         </div>`;
 }
+
+export function renderSunarp(datos, plate) {
+    if (!datos || Object.keys(datos).length === 0) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <i class="fas fa-circle-exclamation text-slate-300 dark:text-slate-600 text-2xl mb-1"></i>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Sin registros de gravamen o datos para <strong>${plate}</strong> en SUNARP</p>
+        </div>`;
+    }
+
+    let rowsHtml = '';
+    for (const [key, val] of Object.entries(datos)) {
+        rowsHtml += fila(key, String(val));
+    }
+
+    return `<div class="font-poppins">
+        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+

@@ -8,7 +8,8 @@ import {
     renderCinemometro,
     renderAtu,
     renderGNV,
-    renderSBS
+    renderSBS,
+    renderSunarp
 } from '../utils/renderers.js';
 
 async function secureFetch(url, options = {}) {
@@ -338,3 +339,43 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
         return { success: false, error: msg };
     }
 }
+
+export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            if (data.datos && Object.keys(data.datos).length > 0) {
+                callbacks.processVehicleInfo('sunarp', data.datos);
+            }
+            const hasData = Boolean(data.datos && Object.keys(data.datos).length > 0);
+            let customBadge = '';
+            if (hasData) {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-indigo-600 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> REGISTRADO
+                </span>`;
+            } else {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-400 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-info-circle"></i> SIN GRAVAMEN
+                </span>`;
+            }
+            const content = renderSunarp(data.datos, plate);
+            callbacks.setCardData('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, hasData, customBadge);
+            return data;
+        } else {
+            callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', data.error || 'Error al consultar SUNARP', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
