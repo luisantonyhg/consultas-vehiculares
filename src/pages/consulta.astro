@@ -897,6 +897,21 @@
             if (!fromCache) {
                 // Render initial empty vehicle card
                 renderVehicleInfoCard(vehicleData);
+                
+                // Mostrar inmediatamente las 12 secciones (ninguna oculta, todas con bordes negros)
+                setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG');
+                setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
+                setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
+                setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
+                setCardLoading('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima');
+                setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
+                setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
+
+                setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 1)');
+                setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
+                setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
+                setCardWaiting('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 - Final)');
+
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
                     lastQueryTimeEl.textContent = new Date().toLocaleString('es-PE');

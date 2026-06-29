@@ -197,7 +197,7 @@ export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sour
     container.setAttribute('data-status', 'loading');
     container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
-        <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 border-t-transparent spin-icon"></span> Buscando
+        <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 border-t-transparent spin-icon"></span> Consultando
     </span>`;
     
     const logoSrc = LOGO_MAPPING[cardId] || '';
