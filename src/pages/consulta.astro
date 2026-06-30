@@ -329,6 +329,7 @@
             reorderCards,
             setCardLoading,
             setCardWaiting,
+            setCardDevelopment,
             setCardData,
             setCardError,
             renderSOAT,
@@ -401,12 +402,14 @@
         }
 
         function drawCaptcha() {
+            // SIEMPRE generar el código primero (aunque el canvas no esté listo) para que la
+            // validación nunca quede con un código vacío (eso permitía consultar sin captcha).
+            currentCaptchaCode = generateCaptchaCode();
+
             const canvas = document.getElementById('captcha-canvas') as HTMLCanvasElement;
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
-
-            currentCaptchaCode = generateCaptchaCode();
 
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -682,11 +685,19 @@
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
+            // SUNARP y LUNAS están EN DESARROLLO: no se reintentan, se muestran bloqueadas.
+            if (cardId === 'sunarp') {
+                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                return;
+            }
+            if (cardId === 'lunas') {
+                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
+                return;
+            }
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
             queryAttempts[cardId] = 0;
             if (cardId === 'soat')   await fetchSOAT(plate);
             else if (cardId === 'citv')   await fetchCITV(plate);
-            else if (cardId === 'lunas')  await fetchLunas(plate);
             else if (cardId === 'callao') await fetchCallao(plate);
             else if (cardId === 'lima')   await fetchLima(plate);
             else if (cardId === 'sutran') await fetchSutran(plate);
@@ -694,7 +705,6 @@
             else if (cardId === 'atu')    await fetchATU(plate);
             else if (cardId === 'gnv')    await fetchGNV(plate);
             else if (cardId === 'sbs')    await fetchSBS(plate);
-            else if (cardId === 'sunarp') await fetchSUNARP(plate);
         };
 
         // ====================================================
@@ -780,7 +790,8 @@
         // CACHING LOGIC (localStorage, TTL 5 min)
         // ====================================================
         function saveToCache(plate: string) {
-            const cards = ['soat', 'citv', 'gnv', 'lunas', 'callao', 'sbs', 'sunarp', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo'];
+            // SUNARP y LUNAS están en desarrollo → no se cachean (siempre se muestran bloqueadas).
+            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -818,6 +829,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
+                    if (cardId === 'sunarp' || cardId === 'lunas') return; // en desarrollo
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -826,6 +838,10 @@
                         container.innerHTML = cardCache.innerHTML;
                     }
                 });
+
+                // SUNARP y LUNAS siempre en desarrollo (aunque la caché sea vieja)
+                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 
                 // Set the last query time with a note
                 const lastQueryTimeEl = document.getElementById('last-query-time');
@@ -907,10 +923,11 @@
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
 
-                setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 1)');
-                setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
-                setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
-                setCardWaiting('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 - Final)');
+                // SUNARP y LUNAS están EN DESARROLLO (bloqueadas, no se consultan).
+                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
+                setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 1)');
+                setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -941,18 +958,16 @@
                     return;
                 }
 
-                // Validar Captcha
+                // Validar Captcha — FAIL-CLOSED: bloquea si el código no está listo, si el input
+                // falta, o si no coincide. (Antes, un código vacío dejaba pasar input vacío.)
                 const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
-                if (captchaInput) {
-                    const enteredVal = captchaInput.value.trim().toUpperCase();
-                    if (enteredVal !== currentCaptchaCode) {
-                        queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>Código Captcha incorrecto</span>';
-                        queryStatus.classList.remove('opacity-0');
-                        captchaInput.value = '';
-                        drawCaptcha();
-                        captchaInput.focus();
-                        return;
-                    }
+                const enteredVal = captchaInput ? captchaInput.value.trim().toUpperCase() : '';
+                if (!currentCaptchaCode || !enteredVal || enteredVal !== currentCaptchaCode) {
+                    queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>Ingresa el código Captcha correcto para continuar</span>';
+                    queryStatus.classList.remove('opacity-0');
+                    if (captchaInput) { captchaInput.value = ''; captchaInput.focus(); }
+                    drawCaptcha();
+                    return;
                 }
 
                 // Intentar cargar desde localStorage (Caché inteligente de 5 min)
@@ -1012,22 +1027,17 @@
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
                         
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
-                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En turno (Iniciando...)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 - Final)');
+                        // SUNARP y LUNAS están EN DESARROLLO → bloqueadas, no se consultan.
+                        setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                        setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
 
-                        // 1. SUNARP ES PRIORITARIO Y VA PRIMERO
-                        await fetchSUNARP(plate);
-
-                        // 2. ATU en 2do lugar
+                        // 1. ATU va primero (usa el navegador compartido)
                         await fetchATU(plate);
 
-                        // 3. SBS en 3er lugar
+                        // 2. SBS (Siniestralidad) en segundo lugar
                         await fetchSBS(plate);
-
-                        // 4. LUNAS ES EL MÁS DÍFICIL Y VA AL FINAL DE TODOS
-                        await fetchLunas(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
