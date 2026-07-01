@@ -685,9 +685,10 @@
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
-            // SUNARP y LUNAS están EN DESARROLLO: no se reintentan, se muestran bloqueadas.
+            // LUNAS está EN DESARROLLO: no se reintenta, se muestra bloqueada.
             if (cardId === 'sunarp') {
-                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                queryAttempts[cardId] = 0;
+                await fetchSUNARP(plate);
                 return;
             }
             if (cardId === 'lunas') {
@@ -829,7 +830,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'sunarp' || cardId === 'lunas') return; // en desarrollo
+                    if (cardId === 'lunas') return; // en desarrollo
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -839,8 +840,7 @@
                     }
                 });
 
-                // SUNARP y LUNAS siempre en desarrollo (aunque la caché sea vieja)
-                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                // LUNAS siempre en desarrollo (aunque la caché sea vieja)
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 
                 // Set the last query time with a note
@@ -923,11 +923,11 @@
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
 
-                // SUNARP y LUNAS están EN DESARROLLO (bloqueadas, no se consultan).
-                setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
+                // LUNAS está EN DESARROLLO.
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 1)');
                 setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
+                setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1027,17 +1027,19 @@
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
                         
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
-                        // SUNARP y LUNAS están EN DESARROLLO → bloqueadas, no se consultan.
-                        setCardDevelopment('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', 'SUNARP');
                         setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                         setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
+                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
 
                         // 1. ATU va primero (usa el navegador compartido)
                         await fetchATU(plate);
 
                         // 2. SBS (Siniestralidad) en segundo lugar
                         await fetchSBS(plate);
+
+                        // 3. SUNARP en tercer lugar
+                        await fetchSUNARP(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
