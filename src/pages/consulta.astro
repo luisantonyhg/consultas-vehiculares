@@ -1028,18 +1028,18 @@
                         
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
                         setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
+                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En turno (Iniciando...)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
 
-                        // 1. ATU va primero (usa el navegador compartido)
+                        // 1. SUNARP va primero (usa el navegador compartido)
+                        await fetchSUNARP(plate);
+
+                        // 2. ATU en segundo lugar
                         await fetchATU(plate);
 
-                        // 2. SBS (Siniestralidad) en segundo lugar
+                        // 3. SBS en tercer lugar
                         await fetchSBS(plate);
-
-                        // 3. SUNARP en tercer lugar
-                        await fetchSUNARP(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
