@@ -579,6 +579,13 @@
                     setCardData(id, title, sub, iconClass, bgColorClass, sourceName, htmlContent, isSuccess, hasData, customBadge);
                 },
                 setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
+                    const isHeavyService = id === 'sunarp' || id === 'atu' || id === 'sbs';
+                    if (isHeavyService) {
+                        console.error(`[FINAL] Consulta ${cardId} (servicio pesado) falló: ${errorMessage}`);
+                        setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
+                        resolveFn({ success: false, error: errorMessage });
+                        return;
+                    }
                     if (attempt < 2) {
                         // Intento 1 falló → reintentar inmediatamente (intento 2)
                         console.warn(`[RETRY] Consulta ${cardId} falló (Intento 1): ${errorMessage}. Reintentando...`);
@@ -1028,18 +1035,18 @@
                         
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
                         setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
-                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En turno (Iniciando...)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 2)');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 3)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
+                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
 
-                        // 1. SUNARP va primero (usa el navegador compartido)
-                        await fetchSUNARP(plate);
-
-                        // 2. ATU en segundo lugar
+                        // 1. ATU en primer lugar (usa el navegador compartido)
                         await fetchATU(plate);
 
-                        // 3. SBS en tercer lugar
+                        // 2. SBS en segundo lugar
                         await fetchSBS(plate);
+
+                        // 3. SUNARP en tercer lugar
+                        await fetchSUNARP(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
