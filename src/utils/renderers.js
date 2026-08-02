@@ -35,7 +35,11 @@ export const SOURCE_URLS = {
     vehiculo: 'https://www.sunarp.gob.pe/',
     placas_pe: 'https://www.placas.pe/#/home/verificarEstadoPlaca',
     valor_venal: 'https://www.apeseg.org.pe/lista-referencial-de-precios/',
-    osinergmin: 'https://pvo.osinergmin.gob.pe/msfh5/registroHidrocarburos.xhtml?method=buscar'
+    osinergmin: 'https://pvo.osinergmin.gob.pe/msfh5/registroHidrocarburos.xhtml?method=buscar',
+    sat_captura: 'https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx',
+    sat_deposito: 'https://www.sat.gob.pe/VirtualSAT/modulos/ConsultaDeposito.aspx',
+    sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/',
+    municipal: 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php'
 };
 
 export const SERVICE_COLORS = {
@@ -186,18 +190,28 @@ export function reorderCards() {
         }
 
         const defaultOrder = [
+            'placas_pe-card-container',
+            'vehiculo-card-container',
+            'sunarp-card-container',
             'soat-card-container',
+            'sbs-card-container',
+            'valor_venal-card-container',
             'citv-card-container',
             'gnv-card-container',
+            'osinergmin-card-container',
             'lunas-card-container',
-            'callao-card-container',
-            'sbs-card-container',
             'sutran-card-container',
-            'atu-card-container',
+            'cinemometro-card-container',
+            'callao-card-container',
             'lima-card-container',
-            'vehiculo-card-container'
+            'municipal-card-container',
+            'sat_deuda-card-container',
+            'sat_captura-card-container',
+            'sat_deposito-card-container',
+            'atu-card-container'
         ];
-        return defaultOrder.indexOf(a.id) - defaultOrder.indexOf(b.id);
+        const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
+        return (_ia === -1 ? 999 : _ia) - (_ib === -1 ? 999 : _ib);
     });
     cards.forEach(card => wrapper.appendChild(card));
 }
@@ -356,8 +370,19 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') text = 'SIN PAPELETAS';
             if (cardId === 'atu') text = 'NO REGISTRADO';
             if (cardId === 'lunas') text = 'SIN PERMISO';
-            
-            if (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO' || cardId === 'gnv' || cardId === 'citv') {
+            if (cardId === 'citv') text = 'SIN INSPECCIÓN';   // sin CITV vigente = alerta (rojo)
+
+            // ROJO: la falta de estos registros es una ALERTA para el usuario
+            const rojoSinDato = (cardId === 'citv');
+            // VERDE: la ausencia es lo normal/positivo (sin papeletas, sin deudas, etc.)
+            const verdeSinDato = (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO'
+                || cardId === 'gnv' || cardId === 'osinergmin');
+
+            if (rojoSinDato) {
+                badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation"></i> ${text}
+                </span>`;
+            } else if (verdeSinDato) {
                 badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-circle-check"></i> ${text}
                 </span>`;

@@ -353,20 +353,42 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
         if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
         const data = await res.json();
         const items = Array.isArray(data.data) ? data.data : [];
+        // Portal oficial de cada municipalidad para verificación manual
+        const MUNI_URLS = {
+            'Huánuco': 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php',
+            'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
+            'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
+            'Cajamarca': 'https://www.satcajamarca.gob.pe/#/',
+            'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/buscar_placa_',
+            'Cusco': 'https://cusco.gob.pe/informatica/index.php/',
+            'Ica': 'https://m.satica.gob.pe/consultapapeletas.php',
+            'Piura': 'https://www.munipiura.gob.pe/',
+            'Tacna': 'https://www.munitacna.gob.pe/',
+            'Tarapoto': 'https://www.mpsm.gob.pe/'
+        };
         const rows = items.map(m => {
             const err = !m.success;
             const con = !!m.tiene_papeletas;
             const cls = err ? 'text-slate-400' : (con ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400');
             const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation' : 'fa-circle-check');
             const estado = err ? 'No disponible' : (con ? `${m.total || ''} papeleta(s)`.trim() : 'Sin papeletas');
+            const url = m.url || MUNI_URLS[m.municipio] || '';
+            const verBtn = url
+                ? `<a href="${url}" target="_blank" rel="noopener" title="Verificar en el portal oficial"
+                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700 hover:bg-slate-900 dark:bg-slate-600 dark:hover:bg-slate-500 text-white text-[9px] font-bold uppercase tracking-wide transition-colors shrink-0">
+                     <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+                : '';
             return `<div class="flex items-center justify-between gap-3 py-2.5 px-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
                 <div class="min-w-0">
                     <p class="text-[13px] md:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">${m.municipio || ''}</p>
                     <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">${m.provincia || ''}</p>
                 </div>
-                <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs font-bold ${cls} shrink-0">
-                    <i class="fas ${icon}"></i> ${estado}
-                </span>
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs font-bold ${cls}">
+                        <i class="fas ${icon}"></i> ${estado}
+                    </span>
+                    ${verBtn}
+                </div>
             </div>`;
         }).join('');
         const content = `<div class="p-3 md:p-4"><div class="rounded-xl border border-slate-200 dark:border-slate-800 px-3">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
@@ -462,9 +484,16 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
 
         const deu = data.deuda;
         if (deu && deu.success) {
-            const conDeuda = !!deu.tiene_deuda;
-            callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
-                bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
+            const neutralBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${t}</span>`;
+            if (deu.manual || deu.tiene_deuda === null || deu.tiene_deuda === undefined) {
+                // No se pudo determinar automáticamente → tarjeta neutra + verificación manual (link en el footer)
+                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
+                    bloque(deu.mensaje, deu.fecha, false, null), true, false, neutralBadge('VERIFICAR MANUAL'));
+            } else {
+                const conDeuda = !!deu.tiene_deuda;
+                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
+                    bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
+            }
         } else {
             callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', (deu && deu.error) || 'No se pudo consultar', plate);
         }
@@ -533,8 +562,12 @@ export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
         if (data.success) {
             callbacks.processVehicleInfo('placas_pe', data.data);
             const content = renderPlacasPE(data.data, plate);
-            const hasData = !!(data.data && data.data.serie && data.data.serie !== '-');
-            callbacks.setCardData('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', content, true, hasData);
+            const d = data.data || {};
+            const tieneReg = !!(d.propietario || d.marca || d.modelo || d.estado || (d.serie && d.serie !== '-'));
+            const badge = tieneReg
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> CON REGISTRO</span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> SIN REGISTRO</span>`;
+            callbacks.setCardData('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', content, true, tieneReg, badge);
             return data;
         } else {
             callbacks.setCardError('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', data.error || 'Error al consultar placas.pe', plate);
@@ -549,7 +582,7 @@ export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchValorVenal(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
+    callbacks.setCardLoading('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
@@ -559,16 +592,16 @@ export async function runFetchValorVenal(plate, BACKEND_URL, callbacks) {
         const data = await res.json();
         if (data.success) {
             const content = renderValorVenal(data);
-            callbacks.setCardData('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
+            callbacks.setCardData('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
             return data;
         } else {
-            callbacks.setCardError('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
+            callbacks.setCardError('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', msg, plate);
+        callbacks.setCardError('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', msg, plate);
         return { success: false, error: msg };
     }
 }

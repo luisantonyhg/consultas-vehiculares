@@ -1159,25 +1159,26 @@
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
+                    <!-- Orden lógico: Identidad → Seguros/Valor → Técnica/Gas → Infracciones/Papeletas → Estado legal → Habilitación -->
+                    <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="vehiculo-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sunarp-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
