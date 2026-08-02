@@ -343,9 +343,10 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
-    // 180s: SUNARP comparte el navegador con ATU y SBS (1 a la vez) y suele ir último
-    // en la cola. Necesita margen para esperar a que ambos liberen + su propia ejecución.
-    const timeoutId = setTimeout(() => controller.abort(), 180000);
+    // 95s: SUNARP ya tiene su PROPIO navegador (no espera a ATU/SBS). El backend corta
+    // a los 90s (HARD_TIMEOUT), así que 95s da un pequeño margen para recibir la respuesta.
+    // Antes eran 180s → la tarjeta giraba hasta 3 min cuando Turnstile no daba token.
+    const timeoutId = setTimeout(() => controller.abort(), 95000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
