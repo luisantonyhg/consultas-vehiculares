@@ -300,38 +300,38 @@ export function setCardDevelopment(cardId, title, sub, iconClass, sourceName) {
     reorderCards();
 }
 
-// Tarjeta EN MANTENIMIENTO: no consulta al backend, muestra aviso claro al usuario.
+// Tarjeta EN MANTENIMIENTO: estilo oscuro/gris premium, no consulta al backend.
 export function setCardMaintenance(cardId, title, sub, iconClass, sourceName, mensaje) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', 'maintenance');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-dashed border-amber-300 dark:border-amber-800/60 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins transition-all duration-300 opacity-95";
-    const badge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-300 dark:border-amber-800 shadow-sm uppercase tracking-wider">
-        <i class="fas fa-screwdriver-wrench"></i> En mantenimiento
+    container.className = "accordion-card results-card card-animate bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/70 rounded-2xl shadow-md ring-1 ring-white/5 flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    const badge = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-700/60 text-slate-200 border border-slate-600/70 shadow-inner uppercase tracking-wider backdrop-blur-sm">
+        <i class="fas fa-screwdriver-wrench text-slate-400"></i> Mantenimiento
     </span>`;
     const logoSrc = LOGO_MAPPING[cardId] || '';
     const logoHTML = logoSrc
-        ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 opacity-70">
-               <img src="${logoSrc}" alt="${title}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;object-position:center;display:block;margin:auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-amber-400 text-base md:text-lg&quot;></i>'"/>
+        ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-700/40 border border-slate-600/50 flex items-center justify-center shrink-0 overflow-hidden p-1 opacity-60 grayscale">
+               <img src="${logoSrc}" alt="${title}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;object-position:center;display:block;margin:auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-slate-400 text-base md:text-lg&quot;></i>'"/>
            </div>`
-        : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
-               <i class="${iconClass} text-amber-400 text-base md:text-lg"></i>
+        : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-700/40 border border-slate-600/50 flex items-center justify-center shrink-0">
+               <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>
            </div>`;
-    const msg = mensaje || 'Esta sección está temporalmente en mantenimiento. Estamos mejorándola para ti.';
+    const msg = mensaje || 'Estamos mejorando esta sección para darte una mejor experiencia. Vuelve pronto.';
     container.innerHTML = `
-        <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+        <div class="flex items-center justify-between gap-4 p-3 md:p-4">
             <div class="flex items-center gap-3 md:gap-4">
                 ${logoHTML}
                 <div class="text-left font-poppins">
-                    <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-500 dark:text-slate-400">${title}</h3>
-                    <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-400 dark:text-slate-500">${sourceName}</p>
+                    <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-200">${title}</h3>
+                    <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-500">${sourceName}</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 shrink-0">${badge}</div>
         </div>
-        <div class="w-full px-4 pb-3 -mt-1">
-            <p class="text-[11px] md:text-xs text-amber-700/80 dark:text-amber-400/70 flex items-center gap-1.5">
-                <i class="fas fa-circle-info"></i> ${msg}
+        <div class="w-full px-4 pb-3.5 -mt-1">
+            <p class="text-[11px] md:text-xs text-slate-400 flex items-center gap-1.5">
+                <i class="fas fa-circle-info text-slate-500"></i> ${msg}
             </p>
         </div>`;
     reorderCards();

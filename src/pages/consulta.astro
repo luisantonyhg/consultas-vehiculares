@@ -63,6 +63,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        /* ===== Reporte imprimible / PDF ===== */
+        @media print {
+            @page { margin: 14mm 12mm; }
+            body { background: #fff !important; }
+            /* Ocultar todo lo que no sea el reporte */
+            header, footer, nav, .no-print,
+            #query-form, #hero-section, #captcha-container { display: none !important; }
+            /* Forzar tema claro y expandir tarjetas */
+            .results-card, .accordion-card {
+                break-inside: avoid; page-break-inside: avoid;
+                box-shadow: none !important; border: 1px solid #e2e8f0 !important;
+                background: #fff !important; color: #0f172a !important;
+                border-radius: 12px !important; margin-bottom: 10px !important;
+            }
+            .accordion-body { display: block !important; }
+            #results-section { margin-top: 0 !important; }
+            .print-only { display: block !important; }
+        }
+        .print-only { display: none; }
         @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(12px); }
             to   { opacity: 1; transform: translateY(0); }
@@ -549,9 +568,9 @@
                 if (setIfBetter('propietario', data.Titular || data.Propietario || data.propietario)) updated = true;
             }
 
-            if (updated) {
-                renderVehicleInfoCard(vehicleData);
-            }
+            // La tarjeta "vehiculo" está en mantenimiento → no se re-renderiza aunque llegue
+            // info de CITV/ATU. (Se seguirá acumulando en vehicleData por si se reactiva.)
+            void updated;
         }
 
         // ====================================================
@@ -847,7 +866,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'lunas' || cardId === 'soat' || cardId === 'sunarp') return; // en desarrollo / mantenimiento
+                    if (cardId === 'lunas' || cardId === 'soat' || cardId === 'sunarp' || cardId === 'vehiculo') return; // en desarrollo / mantenimiento
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -861,6 +880,7 @@
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
+                setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
                 // Set the last query time with a note
                 const lastQueryTimeEl = document.getElementById('last-query-time');
@@ -889,6 +909,75 @@
             }
         };
 
+        // ====================================================
+        // 📄 REPORTE PDF (vía impresión del navegador → "Guardar como PDF")
+        // ====================================================
+        (window as any).imprimirReporte = function(plate: string) {
+            // Expandir todas las tarjetas para que salgan completas en el PDF
+            const bodies = Array.from(document.querySelectorAll('.accordion-body')) as HTMLElement[];
+            const wasHidden = bodies.map(b => b.classList.contains('hidden'));
+            bodies.forEach(b => b.classList.remove('hidden'));
+            // Cabecera solo-print con marca y fecha
+            let printHeader = document.getElementById('print-report-header');
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection && !printHeader) {
+                printHeader = document.createElement('div');
+                printHeader.id = 'print-report-header';
+                printHeader.className = 'print-only';
+                printHeader.style.cssText = 'margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #4f46e5;';
+                resultsSection.prepend(printHeader);
+            }
+            if (printHeader) {
+                const fecha = new Date().toLocaleString('es-PE');
+                printHeader.innerHTML =
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-end;">' +
+                        '<div>' +
+                            '<h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0;">Reporte Vehicular</h1>' +
+                            '<p style="font-size:12px;color:#475569;margin:2px 0 0;">Placa <b>' + plate + '</b> · Consulta multifuente</p>' +
+                        '</div>' +
+                        '<p style="font-size:11px;color:#64748b;margin:0;">Generado: ' + fecha + '</p>' +
+                    '</div>';
+            }
+            setTimeout(() => {
+                window.print();
+                // Restaurar el estado de las tarjetas tras imprimir
+                setTimeout(() => bodies.forEach((b, i) => { if (wasHidden[i]) b.classList.add('hidden'); }), 400);
+            }, 200);
+        };
+
+        // ====================================================
+        // 🟢 COMPARTIR POR WHATSAPP (resumen + link)
+        // ====================================================
+        (window as any).compartirWhatsApp = function(plate: string) {
+            const lineas: string[] = [];
+            lineas.push('🚗 *Reporte Vehicular — Placa ' + plate + '*');
+            lineas.push('');
+            const cards = document.querySelectorAll('#results-cards-wrapper > div');
+            cards.forEach(card => {
+                const h3 = card.querySelector('h3');
+                if (!h3) return;
+                const titulo = (h3.textContent || '').trim();
+                const status = card.getAttribute('data-status') || '';
+                if (!titulo || status === 'loading' || status === 'maintenance' || status === 'development') return;
+                // Buscar el badge de estado (primer span con texto en mayúsculas)
+                let estado = '';
+                const badges = card.querySelectorAll('span');
+                badges.forEach(b => {
+                    const t = (b.textContent || '').trim();
+                    if (t && t.length < 30 && !estado) estado = t;
+                });
+                let icon = '•';
+                const e = estado.toUpperCase();
+                if (/ACTIVO|VIGENTE|HABILITADO|SIN SINIESTROS|SIN GRAVAMEN|REGISTRADO|APROBADO/.test(e)) icon = '✅';
+                else if (/VENCIDO|ANULADO|PAPELETA|INFRACC|SINIESTRO|NO HABILITADO/.test(e)) icon = '⚠️';
+                lineas.push(icon + ' ' + titulo + (estado ? ': ' + estado : ''));
+            });
+            lineas.push('');
+            lineas.push('🔎 Consulta la tuya en: ' + window.location.origin);
+            const texto = encodeURIComponent(lineas.join('\n'));
+            window.open('https://wa.me/?text=' + texto, '_blank');
+        };
+
         function renderResultsSkeleton(plate: string, fromCache: boolean = false) {
             const rc = document.getElementById('results-container')!;
             rc.className = 'w-full bg-transparent p-0 shadow-none border-0 text-left text-slate-900 dark:text-white';
@@ -902,6 +991,18 @@
                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition-all duration-200 active:scale-95 shadow-sm ml-1.5 shrink-0"
                                     title="Actualizar datos desde las fuentes oficiales">
                                 <i class="fas fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2.5 no-print">
+                            <button onclick="window.compartirWhatsApp('${plate}')"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0"
+                                    title="Compartir por WhatsApp">
+                                <i class="fab fa-whatsapp text-sm"></i> Compartir
+                            </button>
+                            <button onclick="window.imprimirReporte('${plate}')"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0"
+                                    title="Descargar / imprimir reporte en PDF">
+                                <i class="fas fa-file-arrow-down text-sm"></i> Descargar PDF
                             </button>
                         </div>
                     </div>
@@ -930,8 +1031,9 @@
                 </div>`;
             
             if (!fromCache) {
-                // Render initial empty vehicle card
-                renderVehicleInfoCard(vehicleData);
+                // "Información Vehicular / Registro Multifuente" depende de SUNARP/SOAT/ATU.
+                // Con SUNARP y SOAT en mantenimiento, se muestra en mantenimiento (no se queda "buscando").
+                setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
                 // Mostrar inmediatamente las 12 secciones (ninguna oculta, todas con bordes negros)
                 setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG');
@@ -1013,14 +1115,18 @@
 
                 renderResultsSkeleton(plate, false);
 
-                // Auto scroll to results section on mobile devices
-                if (window.innerWidth < 768) {
-                    const resultsSection = document.getElementById('results-section');
-                    if (resultsSection) {
+                // Auto scroll a la sección de resultados en móvil (donde consulta la mayoría).
+                // Doble rAF + delay para esperar a que el skeleton pinte y el scroll sea exacto.
+                if (window.innerWidth < 900) {
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
                         setTimeout(() => {
-                            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 150);
-                    }
+                            const resultsSection = document.getElementById('results-section');
+                            if (resultsSection) {
+                                const y = resultsSection.getBoundingClientRect().top + window.scrollY - 12;
+                                window.scrollTo({ top: y, behavior: 'smooth' });
+                            }
+                        }, 250);
+                    }));
                 }
 
                 // ====================================================
