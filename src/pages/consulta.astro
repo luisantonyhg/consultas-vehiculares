@@ -375,7 +375,9 @@
             runFetchATU,
             runFetchGNV,
             runFetchSBS,
-            runFetchSUNARP
+            runFetchSUNARP,
+            runFetchSAT,
+            runFetchMunicipal
         } from '../services/api.js';
 
         import { toPng } from 'html-to-image';
@@ -702,6 +704,10 @@
             return runFetchWithRetry('cinemometro', (callbacks) => runFetchCinemometro(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchMunicipal(plate: string) {
+            return runFetchWithRetry('municipal', (callbacks) => runFetchMunicipal(plate, BACKEND_URL, callbacks), plate);
+        }
+
         async function fetchATU(plate: string) {
             return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
@@ -716,6 +722,17 @@
 
         async function fetchSUNARP(plate: string) {
             return runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchSAT(plate: string) {
+            // SAT llena 2 tarjetas (captura + depósito) en una sola consulta; tiene reintentos
+            // internos (captcha) en el backend, así que se llama directo con callbacks simples.
+            const callbacks = {
+                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
+                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
+                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
+            };
+            return runFetchSAT(plate, BACKEND_URL, callbacks);
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
@@ -740,6 +757,7 @@
             else if (cardId === 'lima')   await fetchLima(plate);
             else if (cardId === 'sutran') await fetchSutran(plate);
             else if (cardId === 'cinemometro') await fetchCinemometro(plate);
+            else if (cardId === 'municipal') await fetchMunicipal(plate);
             else if (cardId === 'atu')    await fetchATU(plate);
             else if (cardId === 'gnv')    await fetchGNV(plate);
             else if (cardId === 'sbs')    await fetchSBS(plate);
@@ -829,7 +847,7 @@
         // ====================================================
         function saveToCache(plate: string) {
             // SUNARP y LUNAS están en desarrollo → no se cachean (siempre se muestran bloqueadas).
-            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo'];
+            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'municipal'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -1124,6 +1142,9 @@
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
@@ -1250,6 +1271,7 @@
                             fetchLima(plate),
                             fetchSutran(plate),
                             fetchCinemometro(plate),
+                            fetchMunicipal(plate),
                         ]);
 
                         // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
@@ -1259,12 +1281,17 @@
                         setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                         setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
+                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
+                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
 
                         // 1. ATU en primer lugar (usa el navegador compartido)
                         await fetchATU(plate);
 
                         // 2. SBS en segundo lugar
                         await fetchSBS(plate);
+
+                        // 3. SAT (orden de captura + internamiento) — navegador compartido
+                        await fetchSAT(plate);
 
                         // SUNARP: en mantenimiento (ver arriba) — no se consulta.
 

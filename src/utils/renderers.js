@@ -11,7 +11,9 @@ export const LOGO_MAPPING = {
     gnv: '/assets/infogas.png',
     sbs: '/assets/sbs.png',
     sunarp: '/assets/sunarp.jpeg',
-    vehiculo: '/assets/sunarp.jpeg'
+    vehiculo: '/assets/sunarp.jpeg',
+    sat_captura: '/assets/sat.png',
+    sat_deposito: '/assets/sat.png'
 };
 
 export const SOURCE_URLS = {

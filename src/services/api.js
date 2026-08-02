@@ -340,6 +340,100 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
     }
 }
 
+export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 40000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const items = Array.isArray(data.data) ? data.data : [];
+        const rows = items.map(m => {
+            const err = !m.success;
+            const con = !!m.tiene_papeletas;
+            const cls = err ? 'text-slate-400' : (con ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400');
+            const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation' : 'fa-circle-check');
+            const estado = err ? 'No disponible' : (con ? `${m.total || ''} papeleta(s)`.trim() : 'Sin papeletas');
+            return `<div class="flex items-center justify-between gap-3 py-2.5 px-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                <div class="min-w-0">
+                    <p class="text-[13px] md:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">${m.municipio || ''}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">${m.provincia || ''}</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs font-bold ${cls} shrink-0">
+                    <i class="fas ${icon}"></i> ${estado}
+                </span>
+            </div>`;
+        }).join('');
+        const content = `<div class="p-3 md:p-4"><div class="rounded-xl border border-slate-200 dark:border-slate-800 px-3">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2 flex items-center gap-1"><i class="fas fa-circle-info"></i> Municipalidades provinciales fuera de Lima y Callao. Se irán agregando más.</p></div>`;
+        const conPapeletas = items.some(m => m.tiene_papeletas);
+        let badge = conPapeletas
+            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
+            : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN PAPELETAS</span>`;
+        callbacks.setCardData('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', content, true, conPapeletas, badge);
+        return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
+        callbacks.setCardError('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
+    callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
+
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    const bloque = (mensaje, fecha, resaltarRojo) => `
+        <div class="p-3 md:p-4">
+            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
+                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5"></i>
+                <div>
+                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
+                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1"><i class="fas fa-calendar-day mr-1"></i>Informe actualizado al ${fecha}</p>` : ''}
+                </div>
+            </div>
+        </div>`;
+
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const cap = data.captura;
+        if (cap && cap.success) {
+            const tiene = !!cap.tiene;
+            callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
+                bloque(cap.mensaje, cap.fecha, tiene), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+        } else {
+            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || 'No se pudo consultar', plate);
+        }
+
+        const dep = data.deposito;
+        if (dep && dep.success) {
+            const internado = !!dep.internado;
+            callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
+                bloque(dep.mensaje, dep.fecha, internado), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+        } else {
+            callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || 'No se pudo consultar', plate);
+        }
+        return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
+        callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
