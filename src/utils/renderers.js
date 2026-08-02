@@ -13,7 +13,11 @@ export const LOGO_MAPPING = {
     sunarp: '/assets/sunarp.jpeg',
     vehiculo: '/assets/sunarp.jpeg',
     sat_captura: '/assets/sat.png',
-    sat_deposito: '/assets/sat.png'
+    sat_deposito: '/assets/sat.png',
+    sat_deuda: '/assets/sat.png',
+    placas_pe: '/assets/aap.png',
+    valor_venal: '/assets/apeseg.png',
+    osinergmin: '/assets/osinergmin.png'
 };
 
 export const SOURCE_URLS = {
@@ -28,7 +32,10 @@ export const SOURCE_URLS = {
     gnv: 'https://vh.infogas.com.pe/',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
     sunarp: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/',
-    vehiculo: 'https://www.sunarp.gob.pe/'
+    vehiculo: 'https://www.sunarp.gob.pe/',
+    placas_pe: 'https://www.placas.pe/#/home/verificarEstadoPlaca',
+    valor_venal: 'https://www.apeseg.org.pe/lista-referencial-de-precios/',
+    osinergmin: 'https://pvo.osinergmin.gob.pe/msfh5/registroHidrocarburos.xhtml?method=buscar'
 };
 
 export const SERVICE_COLORS = {
@@ -43,7 +50,10 @@ export const SERVICE_COLORS = {
     gnv:      { bg: 'bg-green-50 dark:bg-green-950/20',     icon: 'text-green-600 dark:text-green-400',   ring: 'ring-green-200 dark:ring-green-900' },
     sbs:      { bg: 'bg-violet-50 dark:bg-violet-950/20',  icon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200 dark:ring-violet-900' },
     sunarp:   { bg: 'bg-indigo-50 dark:bg-indigo-950/20',  icon: 'text-indigo-600 dark:text-indigo-400', ring: 'ring-indigo-200 dark:ring-indigo-900' },
-    vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' }
+    vehiculo: { bg: 'bg-slate-50 dark:bg-slate-950/20',   icon: 'text-slate-600 dark:text-slate-400',  ring: 'ring-slate-200 dark:ring-slate-900' },
+    placas_pe: { bg: 'bg-cyan-50 dark:bg-cyan-950/20',    icon: 'text-cyan-600 dark:text-cyan-400',   ring: 'ring-cyan-200 dark:ring-cyan-900' },
+    valor_venal: { bg: 'bg-amber-50 dark:bg-amber-950/20', icon: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-200 dark:ring-amber-900' },
+    osinergmin: { bg: 'bg-lime-50 dark:bg-lime-950/20',   icon: 'text-lime-600 dark:text-lime-400',   ring: 'ring-lime-200 dark:ring-lime-900' }
 };
 
 // Formatters and Helpers
@@ -1059,6 +1069,85 @@ export function renderSunarp(datos, plate) {
                 <tbody>
                     ${rowsHtml}
                 </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+export function renderPlacasPE(data, plate) {
+    if (!data) return `<div class="p-4 text-center text-xs text-slate-400">Sin datos de la Asociación Automotriz del Perú.</div>`;
+    return `<div class="font-poppins">
+        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                <tbody>
+                    ${fila('Titular Registrado', data.propietario)}
+                    ${fila('Marca / Modelo', `${data.marca || '-'} ${data.modelo || ''}`)}
+                    ${fila('N° Serie / VIN', data.serie)}
+                    ${fila('Tipo de Uso', data.tipoUso)}
+                    ${fila('Estado de Placa', data.estado)}
+                    ${fila('Punto de Entrega', data.puntoEntrega)}
+                    ${fila('Fecha Entrega', data.fechaEntrega)}
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+export function renderValorVenal(data) {
+    if (!data) return `<div class="p-4 text-center text-xs text-slate-400 font-poppins">Información de valor comercial no disponible.</div>`;
+    const valorFmt = (data.valorReferencial || 0).toLocaleString();
+    const tabla = data.tablaHistorica || {};
+    const cols = Object.keys(tabla).map(yr => `
+        <div class="flex-1 text-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+            <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500">${yr}</p>
+            <p class="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">$${(tabla[yr] || 0).toLocaleString()}</p>
+        </div>`).join('');
+
+    return `<div class="p-4 font-poppins">
+        <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 mb-3">
+            <div>
+                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Valor Referencial Estimado</p>
+                <p class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white mt-0.5">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md">
+                <i class="fas fa-tag"></i>
+            </div>
+        </div>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Histórico de Precios Referenciales (APESEG / Automás)</p>
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            ${cols}
+        </div>
+    </div>`;
+}
+
+export function renderOsinergmin(data, plate) {
+    if (!data || !data.registrado) {
+        return `<div class="flex flex-col items-center justify-center py-6 gap-2 text-center font-poppins">
+            <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                <i class="fas fa-gas-pump text-slate-400 text-lg"></i>
+            </div>
+            <p class="font-bold text-slate-700 dark:text-slate-300 text-xs">Sin Registro de Hidrocarburos</p>
+            <p class="text-[11px] text-slate-400 max-w-[260px] leading-relaxed">El vehículo no presenta certificado activo de tanque de hidrocarburos / GNV / GLP en OSINERGMIN.</p>
+        </div>`;
+    }
+    const rows = (data.data || []).map(r => `
+        <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 font-poppins">
+            <td class="py-2 px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">${r.col0 || '-'}</td>
+            <td class="py-2 px-2.5 text-xs text-slate-600 dark:text-slate-400">${r.col1 || '-'}</td>
+            <td class="py-2 px-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">${r.col2 || '-'}</td>
+        </tr>`).join('');
+
+    return `<div class="p-3 font-poppins">
+        <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                <thead>
+                    <tr class="bg-slate-900 text-white text-[9px] uppercase tracking-wider">
+                        <th class="py-2 px-2.5">N° Registro</th>
+                        <th class="py-2 px-2.5">Detalle / Tipo</th>
+                        <th class="py-2 px-2.5">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
             </table>
         </div>
     </div>`;

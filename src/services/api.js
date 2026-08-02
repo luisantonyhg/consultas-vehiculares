@@ -9,7 +9,10 @@ import {
     renderAtu,
     renderGNV,
     renderSBS,
-    renderSunarp
+    renderSunarp,
+    renderPlacasPE,
+    renderValorVenal,
+    renderOsinergmin
 } from '../utils/renderers.js';
 
 async function secureFetch(url, options = {}) {
@@ -385,6 +388,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
 export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
+    callbacks.setCardLoading('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 160000);
 
@@ -455,12 +459,22 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         } else {
             callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || 'No se pudo consultar', plate);
         }
+
+        const deu = data.deuda;
+        if (deu && deu.success) {
+            const conDeuda = !!deu.tiene_deuda;
+            callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
+                bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
+        } else {
+            callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', (deu && deu.error) || 'No se pudo consultar', plate);
+        }
         return data;
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
+        callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -503,6 +517,84 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (180s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/placas_pe/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            callbacks.processVehicleInfo('placas_pe', data.data);
+            const content = renderPlacasPE(data.data, plate);
+            const hasData = !!(data.data && data.data.serie && data.data.serie !== '-');
+            callbacks.setCardData('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', content, true, hasData);
+            return data;
+        } else {
+            callbacks.setCardError('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', data.error || 'Error al consultar placas.pe', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchValorVenal(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/apeseg/precio?marca=TOYOTA&modelo=COROLLA&anio=2023`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const content = renderValorVenal(data);
+            callbacks.setCardData('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
+            return data;
+        } else {
+            callbacks.setCardError('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchOsinergmin(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/osinergmin/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const content = renderOsinergmin(data, plate);
+            const hasData = !!data.registrado;
+            callbacks.setCardData('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN', content, true, hasData);
+            return data;
+        } else {
+            callbacks.setCardError('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN', data.error || 'Error al consultar OSINERGMIN', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN', msg, plate);
         return { success: false, error: msg };
     }
 }

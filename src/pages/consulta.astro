@@ -379,7 +379,10 @@
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
-            runFetchMunicipal
+            runFetchMunicipal,
+            runFetchPlacasPE,
+            runFetchValorVenal,
+            runFetchOsinergmin
         } from '../services/api.js';
 
         import { toPng } from 'html-to-image';
@@ -574,6 +577,14 @@
                 if (setIfBetter('propietario', data.Titular || data.Propietario || data.propietario)) updated = true;
             }
 
+            if (cardId === 'placas_pe' && data) {
+                if (setIfBetter('marca', data.marca)) updated = true;
+                if (setIfBetter('modelo', data.modelo)) updated = true;
+                if (setIfBetter('serie', data.serie)) updated = true;
+                if (setIfBetter('propietario', data.propietario)) updated = true;
+                if (setIfBetter('uso', data.tipoUso)) updated = true;
+            }
+
             // La tarjeta "vehiculo" está en mantenimiento → no se re-renderiza aunque llegue
             // info de CITV/ATU. (Se seguirá acumulando en vehicleData por si se reactiva.)
             void updated;
@@ -711,6 +722,18 @@
             return runFetchWithRetry('municipal', (callbacks) => runFetchMunicipal(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchPlacasPE(plate: string) {
+            return runFetchWithRetry('placas_pe', (callbacks) => runFetchPlacasPE(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchValorVenal(plate: string) {
+            return runFetchWithRetry('valor_venal', (callbacks) => runFetchValorVenal(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchOsinergmin(plate: string) {
+            return runFetchWithRetry('osinergmin', (callbacks) => runFetchOsinergmin(plate, BACKEND_URL, callbacks), plate);
+        }
+
         async function fetchATU(plate: string) {
             return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
@@ -764,6 +787,9 @@
             else if (cardId === 'atu')    await fetchATU(plate);
             else if (cardId === 'gnv')    await fetchGNV(plate);
             else if (cardId === 'sbs')    await fetchSBS(plate);
+            else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
+            else if (cardId === 'valor_venal') await fetchValorVenal(plate);
+            else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
         };
 
         // ====================================================
@@ -850,7 +876,7 @@
         // ====================================================
         function saveToCache(plate: string) {
             // SUNARP y LUNAS están en desarrollo → no se cachean (siempre se muestran bloqueadas).
-            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'municipal'];
+            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -1147,7 +1173,11 @@
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
@@ -1167,6 +1197,9 @@
                 setCardLoading('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
+                setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
+                setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
+                setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
 
                 // LUNAS está EN DESARROLLO.
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
@@ -1275,6 +1308,9 @@
                             fetchSutran(plate),
                             fetchCinemometro(plate),
                             fetchMunicipal(plate),
+                            fetchPlacasPE(plate),
+                            fetchValorVenal(plate),
+                            fetchOsinergmin(plate),
                         ]);
 
                         // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
@@ -1286,6 +1322,7 @@
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
+                        setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
 
                         // 1. ATU en primer lugar (usa el navegador compartido)
                         await fetchATU(plate);
