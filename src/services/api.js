@@ -390,15 +390,46 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
 
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-    const bloque = (mensaje, fecha, resaltarRojo) => `
-        <div class="p-3 md:p-4">
+    const renderTablaDetalle = (detalle) => {
+        if (!Array.isArray(detalle) || detalle.length === 0) return '';
+        const headers = Object.keys(detalle[0]);
+        if (headers.length === 0) return '';
+        
+        const ths = headers.map(h => `<th class="py-2 px-2.5 text-[9px] md:text-[10px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 text-white whitespace-nowrap">${h}</th>`).join('');
+        
+        const rows = detalle.map(row => {
+            const tds = headers.map(h => {
+                const val = row[h] || '—';
+                const isMonto = h.toLowerCase().includes('monto');
+                const cls = isMonto ? 'font-bold text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300';
+                return `<td class="py-2 px-2.5 text-[10px] md:text-xs border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap ${cls}">${val}</td>`;
+            }).join('');
+            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors font-poppins">${tds}</tr>`;
+        }).join('');
+
+        return `
+            <div class="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm">
+                <div class="overflow-x-auto max-h-[260px]">
+                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                        <thead>
+                            <tr class="bg-slate-900 dark:bg-slate-950 text-white">${ths}</tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>`;
+    };
+
+    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
+        <div class="p-3 md:p-4 font-poppins">
             <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
-                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5"></i>
-                <div>
+                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
+                <div class="flex-1 min-w-0">
                     <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
-                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1"><i class="fas fa-calendar-day mr-1"></i>Informe actualizado al ${fecha}</p>` : ''}
+                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
                 </div>
             </div>
+            ${resaltarRojo && detalle ? renderTablaDetalle(detalle) : ''}
         </div>`;
 
     try {
@@ -411,7 +442,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         if (cap && cap.success) {
             const tiene = !!cap.tiene;
             callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
-                bloque(cap.mensaje, cap.fecha, tiene), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+                bloque(cap.mensaje, cap.fecha, tiene, cap.detalle), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
         } else {
             callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || 'No se pudo consultar', plate);
         }
@@ -420,7 +451,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         if (dep && dep.success) {
             const internado = !!dep.internado;
             callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
-                bloque(dep.mensaje, dep.fecha, internado), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+                bloque(dep.mensaje, dep.fecha, internado, dep.detalle), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
         } else {
             callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || 'No se pudo consultar', plate);
         }
