@@ -169,17 +169,20 @@ export function reorderCards() {
     const cards = Array.from(wrapper.children);
     
     const getCardScore = (card) => {
-        if (card.id === 'vehiculo-card-container') {
-            return 2.5; // Entre loading (2) y no-funciona/mantenimiento (3)
-        }
         const status = card.getAttribute('data-status') || 'loading';
+        // TODO lo de mantenimiento/desarrollo va SIEMPRE al final (score 4).
         const statusOrder = {
             'funciona': 1,
             'loading': 2,
-            'no-funciona': 3,
-            'mantenimiento': 3
+            'no-funciona': 4,
+            'mantenimiento': 4,
+            'maintenance': 4,   // setCardMaintenance usa 'maintenance'
+            'development': 4     // setCardDevelopment usa 'development'
         };
-        return statusOrder[status] ?? 2;
+        const score = statusOrder[status] ?? 2;
+        // vehiculo mientras carga va entre loading y el resto; si ya tiene estado (ej. mantenimiento), lo respeta
+        if (card.id === 'vehiculo-card-container' && score === 2) return 2.5;
+        return score;
     };
 
     cards.sort((a, b) => {
