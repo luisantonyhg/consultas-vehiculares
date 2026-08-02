@@ -330,6 +330,7 @@
             setCardLoading,
             setCardWaiting,
             setCardDevelopment,
+            setCardMaintenance,
             setCardData,
             setCardError,
             renderSOAT,
@@ -361,7 +362,13 @@
         // ====================================================
         // CONFIG
         // ====================================================
-        const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000/api/v1';
+        // En local usa localhost; en producción (Vercel HTTPS) usa el hostname HTTPS del VPS.
+        // Esto evita "mixed content" (una página HTTPS NO puede llamar a un backend HTTP).
+        const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || (
+            (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                ? 'http://localhost:8000/api/v1'
+                : 'https://sv-F5YvWyUEXedogGQIRtSm.cloud.elastika.pe/api/v1'
+        );
 
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
@@ -692,20 +699,23 @@
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
-            // LUNAS está EN DESARROLLO: no se reintenta, se muestra bloqueada.
+            // SOAT y SUNARP EN MANTENIMIENTO: no se reintentan ni consultan al backend.
             if (cardId === 'sunarp') {
-                queryAttempts[cardId] = 0;
-                await fetchSUNARP(plate);
+                setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
                 return;
             }
+            if (cardId === 'soat') {
+                setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
+                return;
+            }
+            // LUNAS está EN DESARROLLO: no se reintenta, se muestra bloqueada.
             if (cardId === 'lunas') {
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 return;
             }
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
             queryAttempts[cardId] = 0;
-            if (cardId === 'soat')   await fetchSOAT(plate);
-            else if (cardId === 'citv')   await fetchCITV(plate);
+            if (cardId === 'citv')   await fetchCITV(plate);
             else if (cardId === 'callao') await fetchCallao(plate);
             else if (cardId === 'lima')   await fetchLima(plate);
             else if (cardId === 'sutran') await fetchSutran(plate);
@@ -837,7 +847,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'lunas') return; // en desarrollo
+                    if (cardId === 'lunas' || cardId === 'soat' || cardId === 'sunarp') return; // en desarrollo / mantenimiento
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -847,8 +857,10 @@
                     }
                 });
 
-                // LUNAS siempre en desarrollo (aunque la caché sea vieja)
+                // LUNAS siempre en desarrollo; SOAT y SUNARP siempre en mantenimiento (aunque la caché sea vieja)
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
+                setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
+                setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
                 
                 // Set the last query time with a note
                 const lastQueryTimeEl = document.getElementById('last-query-time');
@@ -1018,10 +1030,14 @@
                 // ====================================================
                 (async () => {
                     try {
+                        // SOAT y SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
+                        // No se consultan al backend hasta tener una solución estable.
+                        setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
+                        setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
+
                         // FASE 1: Servicios ligeros en paralelo (no usan navegador)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
                         await Promise.all([
-                            fetchSOAT(plate),
                             fetchCITV(plate),
                             fetchGNV(plate),
                             fetchCallao(plate),
@@ -1032,12 +1048,11 @@
 
                         // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
-                        
+
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
                         setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                         setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                        setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
 
                         // 1. ATU en primer lugar (usa el navegador compartido)
                         await fetchATU(plate);
@@ -1045,8 +1060,7 @@
                         // 2. SBS en segundo lugar
                         await fetchSBS(plate);
 
-                        // 3. SUNARP en tercer lugar
-                        await fetchSUNARP(plate);
+                        // SUNARP: en mantenimiento (ver arriba) — no se consulta.
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
