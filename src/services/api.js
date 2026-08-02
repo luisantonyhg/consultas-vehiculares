@@ -347,7 +347,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
     try {
         const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
         const data = await res.json();
         const items = Array.isArray(data.data) ? data.data : [];
         const rows = items.map(m => {
@@ -404,7 +404,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     try {
         const res = await secureFetch(`${BACKEND_URL}/sat/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
         const data = await res.json();
 
         const cap = data.captura;

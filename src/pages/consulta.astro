@@ -8,6 +8,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <title>Consulta por Placa | Huamani Gonzales Luis Antony - Proyecto Profesional</title>
     <meta name="description" content="Consulta integral de placas vehiculares en tiempo real en Perú. Aplicativo de ingeniería de sistemas creado por el desarrollador Huamani Gonzales Luis Antony (Luis Antony Huamani Gonzales) con captcha de seguridad y consulta descentralizada.">
     <meta name="keywords" content="Luis Antony Huamani Gonzales, Huamani Gonzales Luis Antony, Ingeniero de Sistemas, Consulta por Placa, Captcha de Seguridad, SUNARP, SOAT, CITV, SAT, SUTRAN, ATU, Web Developer, Perú, Astro">
@@ -610,8 +612,9 @@
                 },
                 setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
                     const isHeavyService = id === 'sunarp' || id === 'atu' || id === 'sbs';
-                    if (isHeavyService) {
-                        console.error(`[FINAL] Consulta ${cardId} (servicio pesado) falló: ${errorMessage}`);
+                    const is404Error = (errorMessage || '').includes('404') || (errorMessage || '').includes('actualización') || (errorMessage || '').includes('no encontrada');
+                    if (isHeavyService || is404Error) {
+                        console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
                         resolveFn({ success: false, error: errorMessage });
                         return;
