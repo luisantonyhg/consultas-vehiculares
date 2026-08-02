@@ -267,47 +267,15 @@ export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sour
     reorderCards();
 }
 
-// Tarjeta de sección EN DESARROLLO (bloqueada): no se consulta, no spinner, candado.
-export function setCardDevelopment(cardId, title, sub, iconClass, sourceName) {
+// ── Base UNIFORME para tarjetas no disponibles (desarrollo / mantenimiento) ──
+// Mismo estilo oscuro/gris premium para todas → consistencia visual total.
+function _renderUnavailableCard(cardId, title, iconClass, sourceName, badgeLabel, statusAttr, mensaje) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
-    container.setAttribute('data-status', 'development');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden font-poppins transition-all duration-300 opacity-90";
-    const devBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-300 dark:border-amber-800 shadow-sm uppercase tracking-wider">
-        <i class="fas fa-screwdriver-wrench"></i> En desarrollo
-    </span>`;
-    const logoSrc = LOGO_MAPPING[cardId] || '';
-    const logoHTML = logoSrc
-        ? `<div data-is-logo="true" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1 opacity-60 grayscale">
-               <img src="${logoSrc}" alt="${title}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; object-position: center; display: block; margin: auto;" onerror="this.outerHTML='<i class=&quot;${iconClass} text-slate-400 text-base md:text-lg&quot;></i>'"/>
-           </div>`
-        : `<div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 opacity-60">
-               <i class="${iconClass} text-slate-400 text-base md:text-lg"></i>
-           </div>`;
-    container.innerHTML = `
-        <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-            <div class="flex items-center gap-3 md:gap-4">
-                ${logoHTML}
-                <div class="text-left font-poppins">
-                    <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
-                    <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-650">${sourceName}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-                ${devBadge}
-            </div>
-        </div>`;
-    reorderCards();
-}
-
-// Tarjeta EN MANTENIMIENTO: estilo oscuro/gris premium, no consulta al backend.
-export function setCardMaintenance(cardId, title, sub, iconClass, sourceName, mensaje) {
-    const container = document.getElementById(`${cardId}-card-container`);
-    if (!container) return;
-    container.setAttribute('data-status', 'maintenance');
+    container.setAttribute('data-status', statusAttr);
     container.className = "accordion-card results-card card-animate bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/70 rounded-2xl shadow-md ring-1 ring-white/5 flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const badge = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-700/60 text-slate-200 border border-slate-600/70 shadow-inner uppercase tracking-wider backdrop-blur-sm">
-        <i class="fas fa-screwdriver-wrench text-slate-400"></i> Mantenimiento
+        <i class="fas fa-screwdriver-wrench text-slate-400"></i> ${badgeLabel}
     </span>`;
     const logoSrc = LOGO_MAPPING[cardId] || '';
     const logoHTML = logoSrc
@@ -335,6 +303,16 @@ export function setCardMaintenance(cardId, title, sub, iconClass, sourceName, me
             </p>
         </div>`;
     reorderCards();
+}
+
+// Tarjeta EN DESARROLLO (estilo oscuro uniforme).
+export function setCardDevelopment(cardId, title, sub, iconClass, sourceName, mensaje) {
+    _renderUnavailableCard(cardId, title, iconClass, sourceName, 'En desarrollo', 'development', mensaje);
+}
+
+// Tarjeta EN MANTENIMIENTO (mismo estilo oscuro uniforme).
+export function setCardMaintenance(cardId, title, sub, iconClass, sourceName, mensaje) {
+    _renderUnavailableCard(cardId, title, iconClass, sourceName, 'Mantenimiento', 'maintenance', mensaje);
 }
 
 export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceName, htmlContent, isSuccess, hasData, customBadge) {
