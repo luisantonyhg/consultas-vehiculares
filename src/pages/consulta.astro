@@ -1015,6 +1015,45 @@
             return card;
         }
 
+        // Modal con la vista previa de la imagen + botones (gesto de usuario FRESCO al compartir).
+        function mostrarModalCompartir(plate: string, dataUrl: string, file: File) {
+            const texto = `🚗 Reporte vehicular de la placa ${plate} · Consulta gratis la tuya en ${window.location.origin}`;
+            document.getElementById('share-modal')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'share-modal';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,0.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;';
+            overlay.innerHTML = `
+                <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;">
+                    <img src="${dataUrl}" alt="Reporte ${plate}" style="width:100%;border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);"/>
+                    <div style="display:flex;gap:10px;">
+                        <button id="sm-share" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:0;border-radius:14px;background:#22c55e;color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:Poppins,sans-serif;">
+                            <i class="fab fa-whatsapp"></i> Compartir
+                        </button>
+                        <button id="sm-dl" title="Descargar" style="width:54px;display:flex;align-items:center;justify-content:center;padding:14px;border:0;border-radius:14px;background:#334155;color:#fff;font-size:16px;cursor:pointer;">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                    <button id="sm-close" style="padding:10px;border:0;border-radius:12px;background:transparent;color:#94a3b8;font-weight:700;font-size:13px;cursor:pointer;font-family:Poppins,sans-serif;">Cerrar</button>
+                </div>`;
+            document.body.appendChild(overlay);
+            const close = () => overlay.remove();
+            overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+            document.getElementById('sm-close')!.onclick = close;
+            document.getElementById('sm-dl')!.onclick = () => {
+                const a = document.createElement('a'); a.href = dataUrl; a.download = `reporte-${plate}.png`; a.click();
+            };
+            // CLAVE: el share se dispara desde ESTE click (gesto fresco) → sin await previo.
+            document.getElementById('sm-share')!.onclick = () => {
+                const nav = navigator as any;
+                if (nav.canShare && nav.canShare({ files: [file] })) {
+                    nav.share({ files: [file], title: `Reporte ${plate}`, text: texto }).then(close).catch(() => {});
+                } else {
+                    const a = document.createElement('a'); a.href = dataUrl; a.download = `reporte-${plate}.png`; a.click();
+                    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+                }
+            };
+        }
+
         (window as any).compartirWhatsApp = async function(plate: string) {
             const btnSel = "button[onclick=\"window.compartirWhatsApp('" + plate + "')\"]";
             const btn = document.querySelector(btnSel) as HTMLButtonElement | null;
@@ -1024,24 +1063,14 @@
             try {
                 card = construirTarjetaImagen(plate);
                 await new Promise(r => setTimeout(r, 60)); // dejar pintar
-                const dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true });
+                // skipFonts evita leer CSS remoto (Google Fonts/FontAwesome) → sin SecurityError.
+                const dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true, skipFonts: true });
                 const blob = await (await fetch(dataUrl)).blob();
                 const file = new File([blob], `reporte-${plate}.png`, { type: 'image/png' });
-                const texto = `🚗 Reporte vehicular de la placa ${plate} · Consulta gratis la tuya en ${window.location.origin}`;
-
-                const nav = navigator as any;
-                if (nav.canShare && nav.canShare({ files: [file] })) {
-                    // Compartir NATIVO con imagen (móvil → WhatsApp con la imagen)
-                    await nav.share({ files: [file], title: `Reporte ${plate}`, text: texto });
-                } else {
-                    // Fallback escritorio: descargar imagen + abrir WhatsApp Web
-                    const a = document.createElement('a');
-                    a.href = dataUrl; a.download = `reporte-${plate}.png`; a.click();
-                    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
-                }
+                if (card) { card.remove(); card = null; }
+                mostrarModalCompartir(plate, dataUrl, file);
             } catch (e) {
                 console.error('[SHARE] Error generando imagen:', e);
-                // Último fallback: solo texto
                 window.open('https://wa.me/?text=' + encodeURIComponent(`🚗 Reporte vehicular ${plate} · ${window.location.origin}`), '_blank');
             } finally {
                 if (card) card.remove();
