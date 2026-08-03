@@ -980,7 +980,11 @@ export function renderSBS(data, plate) {
         if (!tipo) return;
 
         const count = (tipo.data || []).length;
-        totalSiniestros += count;
+        // "N.° de accidentes coberturados" oficial del portal SBS (más preciso que contar pólizas).
+        const acc = typeof tipo.total_accidentes === 'number' ? tipo.total_accidentes : null;
+        const badgeVal = acc !== null ? acc : count;
+        totalSiniestros += badgeVal;
+        const badgeTone = badgeVal > 0 ? 'red' : 'emerald';
 
         html += `<div class="${borderTop} font-poppins">`;
         html += `<div class="flex items-center gap-2 mb-2">
@@ -989,14 +993,14 @@ export function renderSBS(data, plate) {
             </div>
             <span class="text-[10px] font-extrabold uppercase tracking-widest ${cfg.color}">${cfg.label}</span>
             ${count > 0
-                ? `<span class="ml-auto text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-full">${count} siniestro${count > 1 ? 's' : ''}</span>`
+                ? `<span class="ml-auto text-[9px] font-bold ${badgeTone === 'red' ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900'} border px-2 py-0.5 rounded-full">${acc !== null ? `${acc} accidente${acc !== 1 ? 's' : ''}` : `${count} póliza${count > 1 ? 's' : ''}`}</span>`
                 : ''
             }
         </div>`;
 
         if (tipo.error) {
             html += `<p class="text-[10px] text-red-500 italic pl-9">${tipo.error}</p>`;
-        } else if (tipo.sin_registros || count === 0) {
+        } else if (count === 0) {
             html += `<div class="flex items-center gap-2 pl-9 py-1">
                 <i class="fas fa-circle-check text-emerald-500 text-xs"></i>
                 <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Sin siniestros registrados</p>

@@ -774,13 +774,9 @@
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
-            // SOAT y SUNARP EN MANTENIMIENTO: no se reintentan ni consultan al backend.
+            // SUNARP EN MANTENIMIENTO: no se reintenta ni consulta al backend.
             if (cardId === 'sunarp') {
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
-                return;
-            }
-            if (cardId === 'soat') {
-                setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
                 return;
             }
             // LUNAS está EN DESARROLLO: no se reintenta, se muestra bloqueada.
@@ -790,7 +786,8 @@
             }
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
             queryAttempts[cardId] = 0;
-            if (cardId === 'citv')   await fetchCITV(plate);
+            if (cardId === 'soat')   await fetchSOAT(plate);
+            else if (cardId === 'citv')   await fetchCITV(plate);
             else if (cardId === 'callao') await fetchCallao(plate);
             else if (cardId === 'lima')   await fetchLima(plate);
             else if (cardId === 'sutran') await fetchSutran(plate);
@@ -926,7 +923,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'lunas' || cardId === 'soat' || cardId === 'sunarp' || cardId === 'vehiculo') return; // en desarrollo / mantenimiento
+                    if (cardId === 'lunas' || cardId === 'sunarp' || cardId === 'vehiculo') return; // en desarrollo / mantenimiento
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -936,9 +933,8 @@
                     }
                 });
 
-                // LUNAS siempre en desarrollo; SOAT y SUNARP siempre en mantenimiento (aunque la caché sea vieja)
+                // LUNAS siempre en desarrollo; SUNARP y Vehículo siempre en mantenimiento (aunque la caché sea vieja)
                 setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
-                setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
                 setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
@@ -1306,14 +1302,15 @@
                 // ====================================================
                 (async () => {
                     try {
-                        // SOAT y SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
-                        // No se consultan al backend hasta tener una solución estable.
-                        setCardMaintenance('soat', 'SOAT', '', 'fas fa-shield-halved', 'APESEG');
+                        // SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
+                        // No se consulta al backend hasta tener una solución estable.
+                        // SOAT: desbloqueado — usa APESEG y, si falla (Cloudflare), respalda con SBS Reporte SOAT.
                         setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
 
                         // FASE 1: Servicios ligeros en paralelo (no usan navegador)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
                         await Promise.all([
+                            fetchSOAT(plate),
                             fetchCITV(plate),
                             fetchGNV(plate),
                             fetchCallao(plate),

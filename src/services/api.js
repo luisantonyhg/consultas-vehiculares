@@ -26,39 +26,45 @@ async function secureFetch(url, options = {}) {
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG / SBS');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000);
+    // 75s: si APESEG está bloqueado (Cloudflare), el respaldo SBS (navegador) debe caber.
+    const timeoutId = setTimeout(() => controller.abort(), 75000);
     try {
         let rawData = null;
         let isFromSBS = false;
-        try {
-            const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
-            if (res.ok) {
-                const data = await res.json();
+
+        // Consulta PARALELA: APESEG (HTTP directo) + SBS Reporte SOAT (fuente alternativa
+        // sin bloqueos de Cloudflare). Se prefiere APESEG si responde; si está bloqueado,
+        // gana SBS sin esperar el timeout de 35s del intento anterior.
+        const [resA, resS] = await Promise.allSettled([
+            secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal }),
+            secureFetch(`${BACKEND_URL}/sbs/${plate}?tipos=SOAT`, { signal: controller.signal }),
+        ]);
+
+        if (resA.status === 'fulfilled' && resA.value && resA.value.ok) {
+            try {
+                const data = await resA.value.json();
                 if (data.success && Array.isArray(data.data) && data.data.length > 0) {
                     rawData = data.data;
                 }
-            }
-        } catch (_e) {}
+            } catch (_e) {}
+        }
 
         // Respaldar con SBS Reporte SOAT (sin bloqueos de Cloudflare)
-        if (!rawData) {
+        if (!rawData && resS.status === 'fulfilled' && resS.value && resS.value.ok) {
             try {
-                const resSbs = await secureFetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
-                if (resSbs.ok) {
-                    const dataSbs = await resSbs.json();
-                    if (dataSbs.success && dataSbs.soat && Array.isArray(dataSbs.soat.data) && dataSbs.soat.data.length > 0) {
-                        isFromSBS = true;
-                        rawData = dataSbs.soat.data.map(p => ({
-                            NombreCompania: p["Compañía aseguradora"] || p.aseguradora || "Aseguradora Registrada",
-                            NumeroPoliza: p["N.° de póliza"] || p["N.° de certificado"] || p.numPoliza || "—",
-                            FechaInicio: p["Inicio de vigencia"] || p.fechaInicio || "—",
-                            FechaFin: p["Fin de vigencia"] || p.fechaFin || "—",
-                            NombreUsoVehiculo: p["Uso de vehículo"] || p.usoVehiculo || "Particular",
-                            NombreClaseVehiculo: p["Clase del vehículo"] || p.claseVehiculo || "Automóvil",
-                            Placa: plate,
-                            Accidentes: p["N.° de accidentes"] || "0"
-                        }));
-                    }
+                const dataSbs = await resS.value.json();
+                if (dataSbs.success && dataSbs.soat && Array.isArray(dataSbs.soat.data) && dataSbs.soat.data.length > 0) {
+                    isFromSBS = true;
+                    rawData = dataSbs.soat.data.map(p => ({
+                        NombreCompania: p["Compañía aseguradora"] || p.aseguradora || "Aseguradora Registrada",
+                        NumeroPoliza: p["N.° de póliza"] || p["N.° de certificado"] || p.numPoliza || "—",
+                        FechaInicio: p["Inicio de vigencia"] || p.fechaInicio || "—",
+                        FechaFin: p["Fin de vigencia"] || p.fechaFin || "—",
+                        NombreUsoVehiculo: p["Uso de vehículo"] || p.usoVehiculo || "Particular",
+                        NombreClaseVehiculo: p["Clase del vehículo"] || p.claseVehiculo || "Automóvil",
+                        Placa: plate,
+                        Accidentes: p["N.° de accidentes"] || "0"
+                    }));
                 }
             } catch (_e2) {}
         }
@@ -104,7 +110,7 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (35s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (75s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG / SBS', msg, plate);
         return { success: false, error: msg };
     }
@@ -301,15 +307,19 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
     // SBS espera; este margen evita el timeout cuando se ejecutan en serie.
     const timeoutId = setTimeout(() => controller.abort(), 160000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}?tipos=SOAT,Vehicular,CAT`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.success) {
             const sbsData = { soat: data.soat, vehicular: data.vehicular, cat: data.cat };
-            const totalSiniestros = [data.soat, data.vehicular, data.cat]
-                .filter(Boolean)
-                .reduce((acc, t) => acc + ((t.data || []).length), 0);
+            const sbsTipos = [data.soat, data.vehicular, data.cat].filter(Boolean);
+            // Usa el resumen oficial "N.° de accidentes coberturados" del portal SBS cuando existe;
+            // si no, cae al conteo de pólizas devueltas.
+            const totalSiniestros = sbsTipos.reduce(
+                (acc, t) => acc + (typeof t.total_accidentes === 'number' ? t.total_accidentes : (t.data || []).length),
+                0
+            );
             let customBadge = '';
             if (totalSiniestros > 0) {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
