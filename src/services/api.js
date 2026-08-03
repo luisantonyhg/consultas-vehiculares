@@ -24,57 +24,88 @@ async function secureFetch(url, options = {}) {
 }
 
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG');
+    callbacks.setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG / SBS');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            callbacks.processVehicleInfo('soat', data.data);
-
-            if (Array.isArray(data.data)) {
-                data.data.sort((a, b) => {
-                    const dateA = parseDateDDMMYYYY(a.FechaFin || a.FechaFinS);
-                    const dateB = parseDateDDMMYYYY(b.FechaFin || b.FechaFinS);
-                    return dateB.getTime() - dateA.getTime();
-                });
-            }
-
-            let customBadge = '';
-            if (data.data && data.data.length > 0) {
-                const latestSOAT = data.data[0];
-                const estado = (latestSOAT.Estado || '').toUpperCase().trim();
-                const now = new Date();
-                now.setHours(0,0,0,0);
-                const endDate = parseDateDDMMYYYY(latestSOAT.FechaFin);
-                const isExpiredByDate = endDate < now;
-                const isVigente = (estado === 'VIGENTE' || estado === 'ACTIVO') && !isExpiredByDate;
-                if (isVigente) {
-                    customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-check"></i> ACTIVO
-                    </span>`;
-                } else {
-                    const label = estado === 'ANULADO' ? 'ANULADO' : 'VENCIDO';
-                    customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-xmark"></i> ${label}
-                    </span>`;
+        let rawData = null;
+        let isFromSBS = false;
+        try {
+            const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    rawData = data.data;
                 }
             }
+        } catch (_e) {}
 
-            const content = renderSOAT(data.data, plate);
-            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', content, true, data.data?.length > 0, customBadge);
-            return data;
+        // Respaldar con SBS Reporte SOAT (sin bloqueos de Cloudflare)
+        if (!rawData) {
+            try {
+                const resSbs = await secureFetch(`${BACKEND_URL}/sbs/${plate}`, { signal: controller.signal });
+                if (resSbs.ok) {
+                    const dataSbs = await resSbs.json();
+                    if (dataSbs.success && dataSbs.soat && Array.isArray(dataSbs.soat.data) && dataSbs.soat.data.length > 0) {
+                        isFromSBS = true;
+                        rawData = dataSbs.soat.data.map(p => ({
+                            NombreCompania: p["Compañía aseguradora"] || p.aseguradora || "Aseguradora Registrada",
+                            NumeroPoliza: p["N.° de póliza"] || p["N.° de certificado"] || p.numPoliza || "—",
+                            FechaInicio: p["Inicio de vigencia"] || p.fechaInicio || "—",
+                            FechaFin: p["Fin de vigencia"] || p.fechaFin || "—",
+                            NombreUsoVehiculo: p["Uso de vehículo"] || p.usoVehiculo || "Particular",
+                            NombreClaseVehiculo: p["Clase del vehículo"] || p.claseVehiculo || "Automóvil",
+                            Placa: plate,
+                            Accidentes: p["N.° de accidentes"] || "0"
+                        }));
+                    }
+                }
+            } catch (_e2) {}
+        }
+
+        clearTimeout(timeoutId);
+
+        if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+            rawData.sort((a, b) => {
+                const dateA = parseDateDDMMYYYY(a.FechaFin || a.FechaFinS);
+                const dateB = parseDateDDMMYYYY(b.FechaFin || b.FechaFinS);
+                return dateB.getTime() - dateA.getTime();
+            });
+
+            callbacks.processVehicleInfo('soat', rawData);
+
+            const latestSOAT = rawData[0];
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const endDate = parseDateDDMMYYYY(latestSOAT.FechaFin);
+            const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const isVigente = diffDays >= 0;
+
+            let customBadge = '';
+            if (isVigente) {
+                latestSOAT.Estado = 'VIGENTE';
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> VIGENTE (${diffDays} días)
+                </span>`;
+            } else {
+                latestSOAT.Estado = 'VENCIDO';
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-xmark"></i> VENCIDO
+                </span>`;
+            }
+
+            const content = renderSOAT(rawData, plate);
+            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', isFromSBS ? 'SBS Reporte SOAT' : 'APESEG', content, true, true, customBadge);
+            return { success: true, data: rawData };
         } else {
-            callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', data.error || 'Error desconocido', plate);
-            return data;
+            const content = renderSOAT([], plate);
+            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG / SBS', content, true, false);
+            return { success: true, data: [] };
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG', msg, plate);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (35s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG / SBS', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -210,7 +241,7 @@ export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
+    callbacks.setCardLoading('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 65000);
     try {
@@ -220,16 +251,16 @@ export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
         const data = await res.json();
         if (data.success) {
             const content = renderCinemometro(data.data, plate, data.info_reporte || '');
-            callbacks.setCardData('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', content, true, data.data?.length > 0);
+            callbacks.setCardData('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', content, true, data.data?.length > 0);
             return data;
         } else {
-            callbacks.setCardError('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', data.error || 'Error al consultar Cinemómetro', plate);
+            callbacks.setCardError('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', data.error || 'Error al consultar Cinemómetro', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', msg, plate);
+        callbacks.setCardError('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -551,7 +582,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
+    callbacks.setCardLoading('placas_pe', 'Consulta Estado de Placa (AAP)', 'Estado de Placa', 'fas fa-car', '', 'AAP');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
@@ -567,41 +598,57 @@ export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
             const badge = tieneReg
                 ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> CON REGISTRO</span>`
                 : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> SIN REGISTRO</span>`;
-            callbacks.setCardData('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', content, true, tieneReg, badge);
+            callbacks.setCardData('placas_pe', 'Consulta Estado de Placa (AAP)', 'Estado de Placa', 'fas fa-car', '', 'AAP', content, true, tieneReg, badge);
             return data;
         } else {
-            callbacks.setCardError('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', data.error || 'Error al consultar placas.pe', plate);
+            callbacks.setCardError('placas_pe', 'Consulta Estado de Placa (AAP)', 'Estado de Placa', 'fas fa-car', '', 'AAP', data.error || 'Error al consultar placas.pe', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP', msg, plate);
+        callbacks.setCardError('placas_pe', 'Consulta Estado de Placa (AAP)', 'Estado de Placa', 'fas fa-car', '', 'AAP', msg, plate);
         return { success: false, error: msg };
     }
 }
 
-export async function runFetchValorVenal(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG');
+export async function runFetchValorVenal(plate, BACKEND_URL, callbacks, marca, modelo, anio) {
+    const TIT = 'Valor Comercial Referencial (APESEG)';
+    callbacks.setCardLoading('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG');
+    const neutralBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> REQUIERE MARCA/MODELO</span>`;
+
+    const clean = (v) => (v && v !== '-' && String(v).trim()) ? String(v).trim() : '';
+    marca = clean(marca); modelo = clean(modelo);
+    // Sin marca/modelo real (dependen de Estado de Placa / SUNARP) → honesto, sin precios falsos
+    if (!marca || !modelo) {
+        const content = `<div class="p-4 text-center font-poppins">
+            <i class="fas fa-circle-info text-slate-400 text-xl mb-2"></i>
+            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Requiere la marca y el modelo del vehículo.</p>
+            <p class="text-xs text-slate-400 mt-1">Se calcula automáticamente cuando la <b>Consulta de Estado de Placa</b> (o SUNARP) devuelva marca y modelo. Mientras, verifícalo con el botón <b>Verificar</b>.</p></div>`;
+        callbacks.setCardData('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, false, neutralBadge);
+        return { success: true, sinDatos: true };
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/apeseg/precio?marca=TOYOTA&modelo=COROLLA&anio=2023`, { signal: controller.signal });
+        const qs = `marca=${encodeURIComponent(marca)}&modelo=${encodeURIComponent(modelo)}${anio ? `&anio=${encodeURIComponent(anio)}` : ''}`;
+        const res = await secureFetch(`${BACKEND_URL}/apeseg/precio?${qs}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.success) {
             const content = renderValorVenal(data);
-            callbacks.setCardData('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
+            callbacks.setCardData('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
             return data;
         } else {
-            callbacks.setCardError('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
+            callbacks.setCardError('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('valor_venal', 'Valor Comercial Referencial (APESEG)', 'APESEG', 'fas fa-tag', '', 'APESEG', msg, plate);
+        callbacks.setCardError('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', msg, plate);
         return { success: false, error: msg };
     }
 }

@@ -763,36 +763,44 @@ export function renderCinemometro(data, plate, infoReporte) {
     let bodyHTML = '';
     if (!data || data.length === 0) {
         bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 flex items-center justify-center mb-1">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
                 <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
             </div>
             <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas de Velocidad!</p>
             <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron infracciones de cinemómetro para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
         </div>`;
     } else {
-        const allKeys = [...new Set(data.flatMap(r => Object.keys(r)))];
-        const headers = allKeys.length > 0 ? allKeys : ['N° Documento', 'Fecha', 'Código', 'Ubicación', 'Velocidad', 'Monto'];
+        const allKeys = [...new Set(data.flatMap(r => Object.keys(r).filter(k => k !== 'foto')))];
+        const headers = allKeys.length > 0 ? [...allKeys, 'Foto Probatoria'] : ['N° Documento', 'Fecha', 'Código', 'Ubicación', 'Velocidad', 'Monto', 'Foto Probatoria'];
         const theadCells = headers.map(h =>
             `<th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 whitespace-nowrap">${h}</th>`
         ).join('');
         const rows = data.map(r => {
-            const cells = headers.map(h =>
+            const cells = allKeys.map(h =>
                 `<td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap">${r[h] || '-'}</td>`
             ).join('');
-            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">${cells}</tr>`;
+            const fotoTd = `<td class="py-1.5 px-1.5 text-center whitespace-nowrap">
+                ${r.foto ? `
+                    <button onclick="window.abrirModalImagen('${r.foto}', 'Foto Probatoria de Infracción SUTRAN')"
+                        class="inline-flex items-center gap-1 py-1 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-all shadow-sm active:scale-95">
+                        <i class="fas fa-image"></i> Ver Foto
+                    </button>
+                ` : '<span class="text-slate-400 text-[10px]">Sin foto</span>'}
+            </td>`;
+            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">${cells}${fotoTd}</tr>`;
         }).join('');
         bodyHTML = `
             <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
                 <div>
-                    <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Infracciones de velocidad</p>
+                    <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Papeletas y Cinemómetro SUTRAN</p>
                     <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
                 </div>
             </div>
             <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                <div class="overflow-x-auto max-h-[240px]">
+                <div class="overflow-x-auto max-h-[260px]">
                     <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                         <thead>
-                            <tr class="bg-slate-900 dark:bg-slate-950 text-white">${theadCells}</tr>
+                            <tr class="bg-slate-900 dark:bg-slate-955 text-white">${theadCells}</tr>
                         </thead>
                         <tbody>${rows}</tbody>
                     </table>
@@ -1104,17 +1112,35 @@ export function renderSunarp(datos, plate) {
 
 export function renderPlacasPE(data, plate) {
     if (!data) return `<div class="p-4 text-center text-xs text-slate-400">Sin datos de la Asociación Automotriz del Perú.</div>`;
+    const disponible = !!(data.propietario && !/disponible en portal|no disponible/i.test(data.propietario));
+    const P = (v) => (v && v !== '-' && String(v).trim()) ? v : null;
+    const filaOpt = (label, value) => P(value) ? fila(label, value) : '';
+    if (!disponible) {
+        return `<div class="p-4 text-center font-poppins">
+            <i class="fas fa-triangle-exclamation text-amber-400 text-xl mb-2"></i>
+            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">No se pudo obtener el estado de placa automáticamente.</p>
+            <p class="text-xs text-slate-400 mt-1">El portal de la AAP requiere verificación "No soy robot". Usa el botón <b>Verificar</b> para consultarlo directamente.</p>
+        </div>`;
+    }
+    const placaFmt = plate || data.placa || '';
     return `<div class="font-poppins">
+        <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-2 italic">* La información corresponde al último trámite realizado (Placa ${data.tipoPlaca || 'Regular'}).</p>
         <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
             <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                 <tbody>
-                    ${fila('Titular Registrado', data.propietario)}
-                    ${fila('Marca / Modelo', `${data.marca || '-'} ${data.modelo || ''}`)}
-                    ${fila('N° Serie / VIN', data.serie)}
-                    ${fila('Tipo de Uso', data.tipoUso)}
-                    ${fila('Estado de Placa', data.estado)}
-                    ${fila('Punto de Entrega', data.puntoEntrega)}
-                    ${fila('Fecha Entrega', data.fechaEntrega)}
+                    ${fila('Placa Delantera', placaFmt)}
+                    ${fila('Placa Posterior', placaFmt)}
+                    ${filaOpt('Tercera Placa', placaFmt)}
+                    ${filaOpt('Propietario', data.propietario)}
+                    ${filaOpt('Marca', data.marca)}
+                    ${filaOpt('Modelo', data.modelo)}
+                    ${filaOpt('N° de Serie (VIN)', data.serie)}
+                    ${filaOpt('Tipo de Uso', data.tipoUso)}
+                    ${filaOpt('Tipo de Solicitud', data.tipoSolicitud)}
+                    ${filaOpt('Estado', data.estado)}
+                    ${filaOpt('Punto de Entrega', data.puntoEntrega)}
+                    ${filaOpt('Fecha de Inicio', data.fechaInicio)}
+                    ${filaOpt('Fecha de Entrega', data.fechaEntrega)}
                 </tbody>
             </table>
         </div>
@@ -1125,6 +1151,23 @@ export function renderValorVenal(data) {
     if (!data) return `<div class="p-4 text-center text-xs text-slate-400 font-poppins">Información de valor comercial no disponible.</div>`;
     const valorFmt = (data.valorReferencial || 0).toLocaleString();
     const tabla = data.tablaHistorica || {};
+    const car = data.caracteristicas || {};
+
+    const carHtml = Object.keys(car).length > 0 ? `
+        <div class="mb-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Características Técnicas Referenciales</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                <div><span class="text-slate-400">Marca:</span> <strong class="text-slate-700 dark:text-slate-200">${data.marca || '-'}</strong></div>
+                <div><span class="text-slate-400">Modelo:</span> <strong class="text-slate-700 dark:text-slate-200">${data.modelo || '-'}</strong></div>
+                ${car.carroceria ? `<div><span class="text-slate-400">Carrocería:</span> <strong class="text-slate-700 dark:text-slate-200">${car.carroceria}</strong></div>` : ''}
+                ${car.puertas ? `<div><span class="text-slate-400">Puertas/Asientos:</span> <strong class="text-slate-700 dark:text-slate-200">${car.puertas} / ${car.asientos || '5'}</strong></div>` : ''}
+                ${car.traccion ? `<div><span class="text-slate-400">Tracción:</span> <strong class="text-slate-700 dark:text-slate-200">${car.traccion}</strong></div>` : ''}
+                ${car.potencia ? `<div><span class="text-slate-400">Potencia:</span> <strong class="text-slate-700 dark:text-slate-200">${car.potencia}</strong></div>` : ''}
+                ${car.carburante ? `<div><span class="text-slate-400">Combustible:</span> <strong class="text-slate-700 dark:text-slate-200">${car.carburante}</strong></div>` : ''}
+                ${car.peso ? `<div><span class="text-slate-400">Peso:</span> <strong class="text-slate-700 dark:text-slate-200">${car.peso}</strong></div>` : ''}
+            </div>
+        </div>` : '';
+
     const cols = Object.keys(tabla).map(yr => `
         <div class="flex-1 text-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
             <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500">${yr}</p>
@@ -1134,13 +1177,14 @@ export function renderValorVenal(data) {
     return `<div class="p-4 font-poppins">
         <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 mb-3">
             <div>
-                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Valor Referencial Estimado</p>
+                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Valor Referencial Estimado (V.R.N.)</p>
                 <p class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white mt-0.5">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
             </div>
             <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md">
                 <i class="fas fa-tag"></i>
             </div>
         </div>
+        ${carHtml}
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Histórico de Precios Referenciales (APESEG / Automás)</p>
         <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             ${cols}

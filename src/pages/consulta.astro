@@ -726,8 +726,20 @@
             return runFetchWithRetry('placas_pe', (callbacks) => runFetchPlacasPE(plate, BACKEND_URL, callbacks), plate);
         }
 
-        async function fetchValorVenal(plate: string) {
-            return runFetchWithRetry('valor_venal', (callbacks) => runFetchValorVenal(plate, BACKEND_URL, callbacks), plate);
+        async function fetchValorVenal(plate: string, marca?: string, modelo?: string, anio?: string) {
+            return runFetchWithRetry('valor_venal', (callbacks) => runFetchValorVenal(plate, BACKEND_URL, callbacks, marca, modelo, anio), plate);
+        }
+
+        // Estado de Placa (placas.pe) + Valor Venal encadenados: el valor comercial usa la
+        // marca/modelo REAL que devuelve la consulta de estado de placa.
+        async function fetchEstadoPlacaYValor(plate: string) {
+            let d: any = {};
+            try {
+                const pd = await fetchPlacasPE(plate);
+                d = (pd && pd.data) ? pd.data : {};
+            } catch (_e) {}
+            const anio = d.anio || d.anioFabricacion || d['Año'] || '';
+            await fetchValorVenal(plate, d.marca, d.modelo, anio);
         }
 
         async function fetchOsinergmin(plate: string) {
@@ -788,7 +800,7 @@
             else if (cardId === 'gnv')    await fetchGNV(plate);
             else if (cardId === 'sbs')    await fetchSBS(plate);
             else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
-            else if (cardId === 'valor_venal') await fetchValorVenal(plate);
+            else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
             else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
         };
 
@@ -1309,8 +1321,7 @@
                             fetchSutran(plate),
                             fetchCinemometro(plate),
                             fetchMunicipal(plate),
-                            fetchPlacasPE(plate),
-                            fetchValorVenal(plate),
+                            fetchEstadoPlacaYValor(plate),
                             fetchOsinergmin(plate),
                         ]);
 
