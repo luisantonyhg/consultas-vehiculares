@@ -779,11 +779,6 @@
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
                 return;
             }
-            // LUNAS está EN DESARROLLO: no se reintenta, se muestra bloqueada.
-            if (cardId === 'lunas') {
-                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
-                return;
-            }
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
             queryAttempts[cardId] = 0;
             if (cardId === 'soat')   await fetchSOAT(plate);
@@ -799,6 +794,7 @@
             else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
             else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
             else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
+            else if (cardId === 'lunas')  await fetchLunas(plate);
         };
 
         // ====================================================
@@ -884,8 +880,10 @@
         // CACHING LOGIC (localStorage, TTL 5 min)
         // ====================================================
         function saveToCache(plate: string) {
-            // SUNARP y LUNAS están en desarrollo → no se cachean (siempre se muestran bloqueadas).
-            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal'];
+            // SUNARP sigue en mantenimiento → no se cachea. LUNAS sí: es la consulta
+            // más lenta (captcha con reintentos), así que es justo la que más se
+            // agradece servir desde caché al repetir la misma placa.
+            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal', 'lunas'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -923,7 +921,7 @@
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'lunas' || cardId === 'sunarp' || cardId === 'vehiculo') return; // en desarrollo / mantenimiento
+                    if (cardId === 'sunarp' || cardId === 'vehiculo') return; // en mantenimiento
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -933,8 +931,8 @@
                     }
                 });
 
-                // LUNAS siempre en desarrollo; SUNARP y Vehículo siempre en mantenimiento (aunque la caché sea vieja)
-                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
+                // SUNARP y Vehículo siguen en mantenimiento aunque la caché sea vieja.
+                // LUNAS ya no: se restaura de caché como cualquier otra sección.
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
                 setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
@@ -1210,11 +1208,11 @@
                 setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
 
-                // LUNAS está EN DESARROLLO.
-                setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                 setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 1)');
                 setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
                 setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
+                // LUNAS va la ÚLTIMA: el captcha BotDetect obliga a varios reintentos.
+                setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP: es la más lenta', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · última)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1326,12 +1324,12 @@
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola (todos visibles sin ocultar)
-                        setCardDevelopment('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', 'PNP');
                         setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP: es la más lenta', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · última)');
 
                         // 1. ATU en primer lugar (usa el navegador compartido)
                         await fetchATU(plate);
@@ -1341,6 +1339,12 @@
 
                         // 3. SAT (orden de captura + internamiento) — navegador compartido
                         await fetchSAT(plate);
+
+                        // 4. LUNAS al FINAL de todo: el captcha BotDetect de la PNP obliga
+                        // a varios reintentos (hasta 120s en el backend), así que se deja
+                        // para el último lugar y no retrasa al resto de secciones.
+                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Puede tardar: varios reintentos de captcha', 'fas fa-eye-slash', '', 'PNP');
+                        await fetchLunas(plate);
 
                         // SUNARP: en mantenimiento (ver arriba) — no se consulta.
 
