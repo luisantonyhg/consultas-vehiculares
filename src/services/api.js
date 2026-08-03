@@ -95,8 +95,9 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
                 </span>`;
             } else {
                 latestSOAT.Estado = 'VENCIDO';
+                const diasVencido = Math.abs(diffDays);
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-xmark"></i> VENCIDO
+                    <i class="fas fa-circle-xmark"></i> VENCIDO (${diasVencido} ${diasVencido === 1 ? 'día' : 'días'})
                 </span>`;
             }
 
@@ -500,30 +501,54 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         </div>`;
 
     try {
-        const res = await secureFetch(`${BACKEND_URL}/sat/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
-        const data = await res.json();
+        // SAT reintenta hasta 3 veces: el OCR del captcha del SAT falla de forma
+        // probabilística (el backend hace su propio reintento interno por página).
+        // Se conservan los sub-resultados ya resueltos y solo se vuelve a consultar
+        // lo pendiente, sin mostrar error directo al primer fallo.
+        let cap = null, dep = null, deu = null, satLastError = null;
+        const MAX_SAT_ATTEMPTS = 3;
+        const SAT_BUDGET_MS = 150000;
+        const satStart = Date.now();
 
-        const cap = data.captura;
+        for (let satAttempt = 1; satAttempt <= MAX_SAT_ATTEMPTS; satAttempt++) {
+            const elapsed = Date.now() - satStart;
+            if (elapsed >= SAT_BUDGET_MS) break;
+            const satCtrl = new AbortController();
+            const satTime = setTimeout(() => satCtrl.abort(), SAT_BUDGET_MS - elapsed);
+            try {
+                const res = await secureFetch(`${BACKEND_URL}/sat/${plate}`, { signal: satCtrl.signal });
+                clearTimeout(satTime);
+                if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
+                const data = await res.json();
+                cap = data.captura; dep = data.deposito; deu = data.deuda;
+                satLastError = null;
+            } catch (err) {
+                clearTimeout(satTime);
+                satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || 'Error de conexión');
+                if (satAttempt >= MAX_SAT_ATTEMPTS) break;
+                await new Promise(r => setTimeout(r, 800 * satAttempt));
+                continue;
+            }
+            const allSatOk = cap && cap.success && dep && dep.success && deu && deu.success;
+            if (allSatOk || satAttempt >= MAX_SAT_ATTEMPTS) break;
+        }
+
         if (cap && cap.success) {
             const tiene = !!cap.tiene;
             callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
                 bloque(cap.mensaje, cap.fecha, tiene, cap.detalle), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
         } else {
-            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || 'No se pudo consultar', plate);
+            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || satLastError || 'No se pudo consultar', plate);
         }
 
-        const dep = data.deposito;
         if (dep && dep.success) {
             const internado = !!dep.internado;
             callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
                 bloque(dep.mensaje, dep.fecha, internado, dep.detalle), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
         } else {
-            callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || 'No se pudo consultar', plate);
+            callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || satLastError || 'No se pudo consultar', plate);
         }
 
-        const deu = data.deuda;
         if (deu && deu.success) {
             const neutralBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${t}</span>`;
             if (deu.manual || deu.tiene_deuda === null || deu.tiene_deuda === undefined) {
@@ -536,9 +561,9 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
                     bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
             }
         } else {
-            callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', (deu && deu.error) || 'No se pudo consultar', plate);
+            callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', (deu && deu.error) || satLastError || 'No se pudo consultar', plate);
         }
-        return data;
+        return { success: !!(cap && cap.success) || !!(dep && dep.success) || !!(deu && deu.success), error: satLastError, captura: cap, deposito: dep, deuda: deu };
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');

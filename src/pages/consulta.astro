@@ -597,7 +597,8 @@
             cardId: string, 
             fetchCall: (callbacks: any) => Promise<any>, 
             plate: string, 
-            attempt: number = 1
+            attempt: number = 1,
+            maxAttempts: number = 3
         ): Promise<any> {
             if (attempt === 1) {
                 queryAttempts[cardId] = 1;
@@ -622,39 +623,33 @@
                     setCardData(id, title, sub, iconClass, bgColorClass, sourceName, htmlContent, isSuccess, hasData, customBadge);
                 },
                 setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
-                    const isHeavyService = id === 'sunarp' || id === 'atu' || id === 'sbs';
                     const is404Error = (errorMessage || '').includes('404') || (errorMessage || '').includes('actualización') || (errorMessage || '').includes('no encontrada');
-                    if (isHeavyService || is404Error) {
+                    // Solo SUNARP se exime del reintento (portales con Turnstile, en mantenimiento).
+                    // El resto —incluida ATU y SBS— reintenta hasta maxAttempts para no mostrar
+                    // error directo: los captchas (reCAPTCHA v3 / BotDetect) fallan de forma
+                    // probabilística y un nuevo intento suele acertar.
+                    const noRetry = id === 'sunarp' || is404Error;
+                    if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
                         resolveFn({ success: false, error: errorMessage });
                         return;
                     }
-                    if (attempt < 2) {
-                        // Intento 1 falló → reintentar inmediatamente (intento 2)
-                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento 1): ${errorMessage}. Reintentando...`);
-                        await new Promise(r => setTimeout(r, 500));
-                        try {
-                            const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, 2);
-                            resolveFn(retryResult);
-                        } catch (e) {
-                            rejectFn(e);
-                        }
-                    } else if (attempt === 2) {
-                        // Intento 2 falló → programar auto-reintento silencioso en 8s (intento 3)
-                        console.warn(`[AUTO-RETRY] Consulta ${cardId} falló (Intento 2): ${errorMessage}. Auto-reintento en 8s...`);
-                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando auto...)`);
+                    queryAttempts[id] = attempt;
+                    if (attempt < maxAttempts) {
+                        const delay = attempt === 1 ? 500 : 8000;
+                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${maxAttempts}): ${errorMessage}. ${attempt >= 2 ? `Auto-reintento en ${delay / 1000}s...` : 'Reintentando...'}`);
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando${attempt + 1 > 3 ? ' auto' : ''}...)`);
                         setTimeout(async () => {
                             try {
-                                const autoResult = await runFetchWithRetry(cardId, fetchCall, plate, 3);
-                                resolveFn(autoResult);
+                                const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, attempt + 1, maxAttempts);
+                                resolveFn(retryResult);
                             } catch (e) {
                                 rejectFn(e);
                             }
-                        }, 8000);
+                        }, delay);
                     } else {
-                        // Intento 3+ falló → mostrar tarjeta de reintentar definitiva
-                        console.error(`[FINAL] Consulta ${cardId} falló definitivamente (Intento ${attempt}): ${errorMessage}`);
+                        console.error(`[FINAL] Consulta ${cardId} falló definitivamente (Intento ${attempt}/${maxAttempts}): ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
                         resolveFn({ success: false, error: errorMessage });
                     }
@@ -697,7 +692,9 @@
             return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
         }
         async function fetchLunas(plate: string) {
-            return runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate);
+            // LUNAS es la sección MÁS difícil (captcha BotDetect distorsionado): se intenta
+            // hasta 6 veces antes de mostrar error, con backoff (500ms → 8s → 8s...).
+            return runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 6);
         }
 
         async function fetchCallao(plate: string) {
