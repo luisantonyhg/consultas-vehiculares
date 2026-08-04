@@ -22,8 +22,8 @@ export const LOGO_MAPPING = {
 
 export const SOURCE_URLS = {
     soat: 'https://www.apeseg.org.pe/consultas-soat/',
-    citv: 'https://citv.mtc.gob.pe/citv-portal/',
-    lunas: 'https://www.policia.gob.pe/',
+    citv: 'https://rec.mtc.gob.pe/Citv/ArConsultaCitv',
+    lunas: 'https://sistemas.policia.gob.pe/consultalunas/ConsultarServicioLunas',
     callao: 'https://pagopapeletascallao.pe/',
     lima: 'https://www.sat.gob.pe/',
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
@@ -91,9 +91,92 @@ export function getColors(cardId) {
     return SERVICE_COLORS[cardId] || { bg: 'bg-slate-50 dark:bg-slate-900', icon: 'text-slate-600 dark:text-slate-400', ring: 'ring-slate-200 dark:ring-slate-800' };
 }
 
+/**
+ * Convierte una fecha del portal (dd/mm/aaaa, dd-mm-aaaa o aaaa-mm-dd) a Date.
+ * Devuelve null si no se puede interpretar.
+ */
+export function parseFechaPE(str) {
+    if (!str || typeof str !== 'string') return null;
+    const s = str.trim().split(' ')[0];
+    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) {
+        const d = new Date(+m[3], +m[2] - 1, +m[1]);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (m) {
+        const d = new Date(+m[1], +m[2] - 1, +m[3]);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+}
+
+/**
+ * Días completos entre hoy y una fecha. Negativo = ya pasó (vencido).
+ */
+export function diasHasta(fechaStr) {
+    const f = parseFechaPE(fechaStr);
+    if (!f) return null;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    f.setHours(0, 0, 0, 0);
+    return Math.round((f - hoy) / 86400000);
+}
+
+/**
+ * "50 días" / "1 día" / "2 años 3 meses".
+ * Hasta un año se expresa SIEMPRE en días: es la unidad que se pidió y la que
+ * sirve para decidir ("VENCIDO hace 50 días" es accionable, "hace 1 mes" no).
+ * A partir del año se pasa a años/meses porque "hace 2392 días" no se lee.
+ */
+function _formatoLapso(dias) {
+    const n = Math.abs(dias);
+    if (n < 365) return `${n} ${n === 1 ? 'día' : 'días'}`;
+    const anios = Math.floor(n / 365);
+    const meses = Math.floor((n % 365) / 30);
+    return meses > 0
+        ? `${anios} ${anios === 1 ? 'año' : 'años'} ${meses} ${meses === 1 ? 'mes' : 'meses'}`
+        : `${anios} ${anios === 1 ? 'año' : 'años'}`;
+}
+
+/**
+ * Etiqueta de estado enriquecida con el tiempo transcurrido/restante.
+ * "VENCIDO" a secas no dice si caducó ayer o hace tres años, que es justo lo
+ * que necesita saber quien consulta → "VENCIDO (50 días)".
+ */
+export function estadoConVigencia(estado, fechaVencimiento) {
+    const base = (estado || '').toString().trim();
+    const dias = diasHasta(fechaVencimiento);
+    if (dias === null) return base;
+
+    const s = base.toUpperCase();
+    const vigenteDeclarado = s === 'VIGENTE' || s === 'APROBADO' || s === 'APROBADA';
+
+    if (dias < 0) {
+        // Vencido: siempre indicar cuánto hace. Si el portal decía "VIGENTE"
+        // pero la fecha ya pasó, manda la fecha.
+        return `VENCIDO (hace ${_formatoLapso(dias)})`;
+    }
+    if (vigenteDeclarado) {
+        if (dias === 0) return 'VENCE HOY';
+        if (dias <= 30) return `${base} (vence en ${_formatoLapso(dias)})`;
+        return base;
+    }
+    return base;
+}
+
 export function estadoBadge(estado) {
     const s = (estado || '').toUpperCase();
-    if (s === 'VIGENTE' || s === 'APROBADO' || s === 'APROBADA') {
+
+    // Ámbar: vigente pero a punto de caducar (lo genera estadoConVigencia).
+    if (s.includes('VENCE HOY') || s.includes('VENCE EN')) {
+        return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-900 shadow-sm font-poppins">
+            <i class="fas fa-triangle-exclamation"></i> ${estado}
+        </span>`;
+    }
+    // startsWith y no igualdad exacta: el estado puede venir enriquecido
+    // ("VIGENTE (vence en 12 días)") y con === caía al badge rojo de vencido.
+    if (s.startsWith('VIGENTE') || s.startsWith('APROBAD')) {
         return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900 shadow-sm font-poppins">
             <i class="fas fa-circle-check"></i> ${estado}
         </span>`;
@@ -376,7 +459,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             if (cardId === 'citv') text = 'SIN INSPECCIÓN';   // sin CITV vigente = alerta (rojo)
 
             // ROJO: la falta de estos registros es una ALERTA para el usuario
-            const rojoSinDato = (cardId === 'citv');
+            const rojoSinDato = (cardId === 'citv' || cardId === 'lunas');
             // VERDE: la ausencia es lo normal/positivo (sin papeletas, sin deudas, etc.)
             const verdeSinDato = (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO'
                 || cardId === 'gnv' || cardId === 'osinergmin');
@@ -563,7 +646,9 @@ export function renderCITV(data, plate) {
     }
     return data.map((cert, index) => {
         const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
-        const estadoDisplay = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
+        const estadoBase = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
+        // "VENCIDO" a secas no dice hace cuánto → "VENCIDO (hace 50 días)".
+        const estadoDisplay = estadoConVigencia(estadoBase, cert.fechaVencimiento);
         return `
         <div class="${borderClass}">
             <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
@@ -763,48 +848,94 @@ export function renderCinemometro(data, plate, infoReporte) {
     let bodyHTML = '';
     if (!data || data.length === 0) {
         bodyHTML = `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 flex items-center justify-center mb-1">
                 <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
             </div>
             <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">¡Sin Papeletas de Velocidad!</p>
             <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron infracciones de cinemómetro para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
         </div>`;
     } else {
-        const allKeys = [...new Set(data.flatMap(r => Object.keys(r).filter(k => k !== 'foto')))];
-        const headers = allKeys.length > 0 ? [...allKeys, 'Foto Probatoria'] : ['N° Documento', 'Fecha', 'Código', 'Ubicación', 'Velocidad', 'Monto', 'Foto Probatoria'];
-        const theadCells = headers.map(h =>
-            `<th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 whitespace-nowrap">${h}</th>`
-        ).join('');
-        const rows = data.map(r => {
-            const cells = allKeys.map(h =>
-                `<td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap">${r[h] || '-'}</td>`
-            ).join('');
-            const fotoTd = `<td class="py-1.5 px-1.5 text-center whitespace-nowrap">
-                ${r.foto ? `
-                    <button onclick="window.abrirModalImagen('${r.foto}', 'Foto Probatoria de Infracción SUTRAN')"
-                        class="inline-flex items-center gap-1 py-1 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-all shadow-sm active:scale-95">
-                        <i class="fas fa-image"></i> Ver Foto
+        const cards = data.map((r, idx) => {
+            const nroDoc = r['N° de Papeleta'] || r['nroDocumento'] || `Infracción #${idx + 1}`;
+            const fecha = r['F. Infracción'] || r['fechaDocumento'] || '-';
+            const codigo = r['Código Infraccion'] || r['codigoInfraccion'] || 'M20';
+            const calificacion = r['Calificación'] || r['clasificacion'] || 'Muy Grave';
+            const infractor = r['Nombre / Razón social'] || r['infractor'] || '-';
+            const dni = r['Dni/Ruc'] || r['dni'] || '-';
+            const estado = r['Estado'] || 'PENDIENTE DE PAGO';
+            const fotoTarget = r['foto_target'] || '';
+
+            if (r.foto && (r.foto.startsWith('data:') || r.foto.startsWith('http'))) {
+                if (typeof window !== 'undefined') {
+                    window.cinemometroFotos = window.cinemometroFotos || {};
+                    window.cinemometroFotos[nroDoc] = r.foto;
+                }
+            }
+
+            return `
+            <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all font-poppins">
+                <!-- Header del registro -->
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2.5 mb-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold font-mono">
+                            ${nroDoc}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/40">
+                            ${codigo} • ${calificacion}
+                        </span>
+                    </div>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${estado.includes('PENDIENTE') ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-900/40' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40'}">
+                        ${estado}
+                    </span>
+                </div>
+
+                <!-- Rejilla de 2 Columnas -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <!-- Columna 1: Datos principales -->
+                    <div class="space-y-2 bg-slate-50/70 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">Fecha de Infracción</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-200">${fecha}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">Placa Registrada</span>
+                            <span class="font-bold font-mono text-slate-800 dark:text-slate-200">${plate}</span>
+                        </div>
+                    </div>
+
+                    <!-- Columna 2: Propietario e Infracción -->
+                    <div class="space-y-2 bg-slate-50/70 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">Infractor / Razon Social</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 truncate block">${infractor}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">DNI / RUC</span>
+                            <span class="font-bold font-mono text-slate-700 dark:text-slate-300">${dni}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer de Acción: Botón Modal Ver Foto -->
+                <div class="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">SUTRAN Cinemómetro</span>
+                    <button onclick="window.abrirModalFotoCinemometro('${nroDoc}', '${fotoTarget}', '${plate}')"
+                        class="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer">
+                        <i class="fas fa-camera text-xs"></i> Ver Foto Probatoria
                     </button>
-                ` : '<span class="text-slate-400 text-[10px]">Sin foto</span>'}
-            </td>`;
-            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors duration-150 font-poppins">${cells}${fotoTd}</tr>`;
+                </div>
+            </div>`;
         }).join('');
+
         bodyHTML = `
             <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
                 <div>
                     <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Papeletas y Cinemómetro SUTRAN</p>
-                    <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
+                    <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''} registrada${data.length > 1 ? 's' : ''}</p>
                 </div>
             </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                <div class="overflow-x-auto max-h-[260px]">
-                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                        <thead>
-                            <tr class="bg-slate-900 dark:bg-slate-955 text-white">${theadCells}</tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                </div>
+            <div class="flex flex-col gap-3">
+                ${cards}
             </div>`;
     }
     if (infoReporte) {
@@ -1116,25 +1247,37 @@ export function renderSunarp(datos, plate) {
 
 export function renderPlacasPE(data, plate) {
     if (!data) return `<div class="p-4 text-center text-xs text-slate-400">Sin datos de la Asociación Automotriz del Perú.</div>`;
-    const disponible = !!(data.propietario && !/disponible en portal|no disponible/i.test(data.propietario));
+    
     const P = (v) => (v && v !== '-' && String(v).trim()) ? v : null;
     const filaOpt = (label, value) => P(value) ? fila(label, value) : '';
+    
+    // Check if data has real registration info
+    const registrado = data.registrado !== false;
+    const propietario = P(data.propietario);
+    const disponible = registrado && propietario && !/no disponible|disponible en portal/i.test(propietario);
+    
     if (!disponible) {
+        const mensaje = data.mensaje || 'Sin registros activos de entrega de placa en AAP.';
+        const estado = P(data.estado);
         return `<div class="p-4 text-center font-poppins">
-            <i class="fas fa-triangle-exclamation text-amber-400 text-xl mb-2"></i>
-            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">No se pudo obtener el estado de placa automáticamente.</p>
-            <p class="text-xs text-slate-400 mt-1">El portal de la AAP requiere verificación "No soy robot". Usa el botón <b>Verificar</b> para consultarlo directamente.</p>
+            <i class="fas fa-info-circle text-blue-400 text-xl mb-2"></i>
+            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">${mensaje}</p>
+            ${estado ? `<p class="text-xs text-slate-400 mt-1">Estado: <b>${estado}</b></p>` : ''}
+            <a href="https://www.placas.pe/#/home/verificarEstadoPlaca" target="_blank" rel="noopener noreferrer" 
+               class="inline-flex items-center gap-1.5 mt-3 py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white text-xs font-bold transition-all shadow-sm">
+                <i class="fas fa-external-link-alt text-xs"></i> Verificar en Portal AAP
+            </a>
         </div>`;
     }
-    const placaFmt = plate || data.placa || '';
+    
+    const placaFmt = data.placaNueva || plate || data.placa || '';
     return `<div class="font-poppins">
         <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-2 italic">* La información corresponde al último trámite realizado (Placa ${data.tipoPlaca || 'Regular'}).</p>
         <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
             <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                 <tbody>
-                    ${fila('Placa Delantera', placaFmt)}
-                    ${fila('Placa Posterior', placaFmt)}
-                    ${filaOpt('Tercera Placa', placaFmt)}
+                    ${fila('Placa', placaFmt)}
+                    ${filaOpt('Placa Anterior', data.placaAnterior)}
                     ${filaOpt('Propietario', data.propietario)}
                     ${filaOpt('Marca', data.marca)}
                     ${filaOpt('Modelo', data.modelo)}
@@ -1172,17 +1315,35 @@ export function renderValorVenal(data) {
             </div>
         </div>` : '';
 
-    const cols = Object.keys(tabla).map(yr => `
-        <div class="flex-1 text-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+    const yearsList = Object.keys(tabla).map(Number).filter(n => isFinite(n));
+    const maxYear = yearsList.length ? Math.max(...yearsList) : null;
+    const cols = yearsList.map(yr => {
+        const price = `$${(tabla[yr] || 0).toLocaleString()}`;
+        if (yr === maxYear) {
+            // Último año resaltado: verde con letra blanca
+            return `<div class="flex-1 text-center p-2 rounded-lg bg-emerald-600 shadow-sm">
+                <p class="text-[9px] font-bold text-white/80">${yr}</p>
+                <p class="text-xs font-bold text-white mt-0.5">${price}</p>
+            </div>`;
+        }
+        return `<div class="flex-1 text-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
             <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500">${yr}</p>
-            <p class="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">$${(tabla[yr] || 0).toLocaleString()}</p>
-        </div>`).join('');
+            <p class="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">${price}</p>
+        </div>`;
+    }).join('');
 
     return `<div class="p-4 font-poppins">
         <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 mb-3">
             <div>
                 <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Valor Referencial Estimado (V.R.N.)</p>
-                <p class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white mt-0.5">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
+                <div class="flex items-center gap-3 mt-1 flex-wrap">
+                    <p class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
+                    <div id="valor-venal-soles" data-usd="${data.valorReferencial || 0}" title="Al tipo de cambio del día (fuente abierta)" class="inline-flex flex-col items-center px-3 py-1 rounded-lg bg-slate-900 text-white shadow-sm border border-emerald-500/40">
+                        <span class="text-[8px] font-bold text-emerald-400 uppercase tracking-widest leading-none">Soles (hoy)</span>
+                        <span class="vrn-soles-amount text-sm font-extrabold leading-tight">S/ …</span>
+                        <span class="vrn-rate text-[8px] text-slate-400 font-medium leading-none">T.C. …</span>
+                    </div>
+                </div>
             </div>
             <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md">
                 <i class="fas fa-tag"></i>

@@ -382,6 +382,7 @@
             runFetchMunicipal,
             runFetchPlacasPE,
             runFetchValorVenal,
+            fillValorVenalSoles,
             runFetchOsinergmin
         } from '../services/api.js';
 
@@ -694,7 +695,10 @@
         async function fetchLunas(plate: string) {
             // LUNAS es la sección MÁS difícil (captcha BotDetect distorsionado): se intenta
             // hasta 6 veces antes de mostrar error, con backoff (500ms → 8s → 8s...).
-            return runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 6);
+            // Va en la cola serial: cada intento son hasta 120s de CPU resolviendo
+            // captchas y no debe solaparse con las secciones de navegador.
+            return runExclusive('lunas', () =>
+                runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 6));
         }
 
         async function fetchCallao(plate: string) {
@@ -743,8 +747,33 @@
             return runFetchWithRetry('osinergmin', (callbacks) => runFetchOsinergmin(plate, BACKEND_URL, callbacks), plate);
         }
 
+        // ====================================================
+        // COLA SERIAL PARA SECCIONES PESADAS (navegador en el backend)
+        // ====================================================
+        // ATU, SBS, SAT y LUNAS comparten UN solo Chromium en el servidor
+        // (semáforo global de 1). Si se lanzan solapadas, la segunda se queda
+        // esperando hasta 90s por el semáforo y acaba en timeout o en
+        // "The connection to the page has been disconnected".
+        //
+        // La fase 2 ya las llamaba con await, pero los reintentos automáticos
+        // (setTimeout de 8s) y los clics en "Reintentar" se disparan sueltos y
+        // sí se solapan. Esta cola serializa TODO: ejecución inicial, auto
+        // reintentos y reintentos manuales.
+        let heavyQueue: Promise<any> = Promise.resolve();
+        function runExclusive<T>(label: string, fn: () => Promise<T>): Promise<T> {
+            const run = () => {
+                console.info(`[COLA] Iniciando ${label}`);
+                return fn();
+            };
+            const next = heavyQueue.then(run, run);
+            // La cola nunca debe romperse por un fallo de una sección
+            heavyQueue = next.then(() => undefined, () => undefined);
+            return next;
+        }
+
         async function fetchATU(plate: string) {
-            return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
+            return runExclusive('atu', () =>
+                runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchGNV(plate: string) {
@@ -752,11 +781,13 @@
         }
 
         async function fetchSBS(plate: string) {
-            return runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate);
+            return runExclusive('sbs', () =>
+                runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchSUNARP(plate: string) {
-            return runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate);
+            return runExclusive('sunarp', () =>
+                runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchSAT(plate: string) {
@@ -767,7 +798,7 @@
                 setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
                 setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
             };
-            return runFetchSAT(plate, BACKEND_URL, callbacks);
+            return runExclusive('sat', () => runFetchSAT(plate, BACKEND_URL, callbacks));
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
@@ -1240,8 +1271,8 @@
                     return;
                 }
 
-                // Validar Captcha — FAIL-CLOSED: bloquea si el código no está listo, si el input
-                // falta, o si no coincide. (Antes, un código vacío dejaba pasar input vacío.)
+                // Captcha interno desactivado a petición del usuario para consultas directas y rápidas
+                /*
                 const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
                 const enteredVal = captchaInput ? captchaInput.value.trim().toUpperCase() : '';
                 if (!currentCaptchaCode || !enteredVal || enteredVal !== currentCaptchaCode) {
@@ -1251,12 +1282,15 @@
                     drawCaptcha();
                     return;
                 }
+                */
+                const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
 
                 // Intentar cargar desde localStorage (Caché inteligente de 5 min)
                 const isLoadedFromCache = loadFromCache(plate);
                 if (isLoadedFromCache) {
                     if (captchaInput) captchaInput.value = '';
                     drawCaptcha();
+                    fillValorVenalSoles(); // al restaurar de caché también se rellena el monto en soles
                     queryStatus.classList.add('opacity-0');
                     return;
                 }
@@ -1423,6 +1457,74 @@
                     loading.classList.add('hidden');
                     error.classList.remove('hidden');
                     errorMsg.textContent = err.message || 'Error de conexión con el servidor.';
+                }
+            };
+
+            (window as any).abrirModalImagen = function(imgSrc: string, titleText: string = 'Foto Probatoria') {
+                const modal = document.getElementById('papeleta-modal')!;
+                const title = document.getElementById('modal-papeleta-title')!;
+                const loading = document.getElementById('modal-loading')!;
+                const error = document.getElementById('modal-error')!;
+                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+
+                title.textContent = titleText;
+                modal.classList.remove('hidden');
+                loading.classList.add('hidden');
+                error.classList.add('hidden');
+                pdfViewer.classList.add('hidden');
+                
+                imgViewer.src = imgSrc;
+                imgViewer.classList.remove('hidden');
+            };
+
+            (window as any).abrirModalFotoCinemometro = async function(nroPapeleta: string, fotoTarget: string, plate: string) {
+                const modal = document.getElementById('papeleta-modal')!;
+                const title = document.getElementById('modal-papeleta-title')!;
+                const loading = document.getElementById('modal-loading')!;
+                const error = document.getElementById('modal-error')!;
+                const errorMsg = document.getElementById('modal-error-msg')!;
+                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+
+                title.textContent = `Foto Probatoria - Papeleta N° ${nroPapeleta}`;
+                modal.classList.remove('hidden');
+                error.classList.add('hidden');
+                pdfViewer.classList.add('hidden');
+                imgViewer.classList.add('hidden');
+                pdfViewer.src = "";
+                imgViewer.src = "";
+
+                // Check stored Base64 photo map first
+                const fotoDirect = (window as any).cinemometroFotos?.[nroPapeleta];
+                if (fotoDirect && (fotoDirect.startsWith('data:') || fotoDirect.startsWith('http'))) {
+                    loading.classList.add('hidden');
+                    imgViewer.src = fotoDirect;
+                    imgViewer.classList.remove('hidden');
+                    return;
+                }
+
+                loading.classList.remove('hidden');
+
+                try {
+                    const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}`;
+                    const res = await fetch(url, {
+                        headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const result = await res.json();
+                    loading.classList.add('hidden');
+
+                    if (result.success && result.foto) {
+                        imgViewer.src = result.foto;
+                        imgViewer.classList.remove('hidden');
+                    } else {
+                        throw new Error(result.error || 'No se pudo obtener la foto probatoria de SUTRAN');
+                    }
+                } catch (err: any) {
+                    loading.classList.add('hidden');
+                    error.classList.remove('hidden');
+                    errorMsg.textContent = err.message || 'Error al conectar con SUTRAN para obtener la foto.';
                 }
             };
 

@@ -647,6 +647,49 @@ export async function runFetchPlacasPE(plate, BACKEND_URL, callbacks) {
     }
 }
 
+const USD_PEN_CACHE_KEY = 'usd_pen_rate_cache';
+const USD_PEN_TTL_MS = 6 * 60 * 60 * 1000; // 6h: el tipo de cambio se refresca ~diario
+
+// Tipo de cambio USD -> PEN del día, desde fuente abierta (ExchangeRate-API, sin API key).
+// Se cachea en localStorage (TTL 6h) para no golpear el endpoint en cada consulta.
+async function getUSD_PEN() {
+    try {
+        const cachedRaw = localStorage.getItem(USD_PEN_CACHE_KEY);
+        if (cachedRaw) {
+            const c = JSON.parse(cachedRaw);
+            if (c && Number(c.rate) > 0 && (Date.now() - c.ts) < USD_PEN_TTL_MS) {
+                return Number(c.rate);
+            }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (res.ok) {
+            const j = await res.json();
+            const rate = Number(j && j.rates && j.rates.PEN);
+            if (rate && isFinite(rate)) {
+                try { localStorage.setItem(USD_PEN_CACHE_KEY, JSON.stringify({ rate, ts: Date.now() })); } catch (e) { /* ignore */ }
+                return rate;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    return 3.75; // fallback aproximado si la API no responde
+}
+
+// Rellena el monto en soles junto al valor en dólares dentro de la tarjeta de Valor Venal.
+export async function fillValorVenalSoles() {
+    const el = document.getElementById('valor-venal-soles');
+    if (!el) return;
+    const usd = Number(el.getAttribute('data-usd'));
+    if (!usd) return;
+    const rate = await getUSD_PEN();
+    const soles = Math.round(usd * rate);
+    const amountEl = el.querySelector('.vrn-soles-amount');
+    const rateEl = el.querySelector('.vrn-rate');
+    if (amountEl) amountEl.textContent = `S/ ${soles.toLocaleString('es-PE')}`;
+    if (rateEl) rateEl.textContent = `T.C. S/ ${rate.toFixed(2)}`;
+}
+
 export async function runFetchValorVenal(plate, BACKEND_URL, callbacks, marca, modelo, anio) {
     const TIT = 'Valor Comercial Referencial (APESEG)';
     callbacks.setCardLoading('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG');
@@ -675,6 +718,7 @@ export async function runFetchValorVenal(plate, BACKEND_URL, callbacks, marca, m
         if (data.success) {
             const content = renderValorVenal(data);
             callbacks.setCardData('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', content, true, true);
+            fillValorVenalSoles(); // rellena el monto en soles al tipo de cambio del día
             return data;
         } else {
             callbacks.setCardError('valor_venal', TIT, 'APESEG', 'fas fa-tag', '', 'APESEG', data.error || 'Error al consultar valor venal', plate);
