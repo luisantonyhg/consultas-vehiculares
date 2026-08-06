@@ -383,7 +383,8 @@
             runFetchPlacasPE,
             runFetchValorVenal,
             fillValorVenalSoles,
-            runFetchOsinergmin
+            runFetchOsinergmin,
+            runFetchLima
         } from '../services/api.js';
 
         import { toPng } from 'html-to-image';
@@ -706,9 +707,8 @@
         }
 
         async function fetchLima(plate: string) {
-            // Uniforme con las demás secciones no disponibles (mismo estilo oscuro).
-            setCardDevelopment('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', 'SAT Lima',
-                'Consulta automática en desarrollo. Disponible pronto — por ahora consúltala en el portal del SAT.');
+            return runExclusive('lima', () =>
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchSutran(plate: string) {

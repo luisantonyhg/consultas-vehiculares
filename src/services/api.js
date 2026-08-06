@@ -20,7 +20,15 @@ async function secureFetch(url, options = {}) {
         ...options.headers,
         "X-Client-Secret": "VehicularPESecretSecure2026"
     };
-    return fetch(url, { ...options, headers });
+    const res = await fetch(url, { ...options, headers });
+    // Traducir el 429 del rate limiter (10/min por IP) a un mensaje claro. El wrapper
+    // runFetchWithRetry ya reintenta con backoff, aquí solo se mejora el aviso.
+    if (res.status === 429) {
+        const e = new Error('Demasiadas consultas en poco tiempo (límite 10/min por IP). Reintentando...');
+        e.name = 'RateLimited';
+        throw e;
+    }
+    return res;
 }
 
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
@@ -610,7 +618,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (180s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (95s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
         return { success: false, error: msg };
     }
@@ -754,6 +762,37 @@ export async function runFetchOsinergmin(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchLima(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 160000);
+    const LIMA_URL = 'https://www.sat.gob.pe/VirtualSAT/modulos/papeletas.aspx';
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/lima/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const papeletas = Array.isArray(data.data) ? data.data : [];
+            const hasData = papeletas.length > 0;
+            const content = renderLima(plate, data.message || '', LIMA_URL, papeletas);
+            const badge = hasData
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN PAPELETAS</span>`;
+            callbacks.setCardData('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', content, true, hasData, badge);
+            return data;
+        } else {
+            callbacks.setCardError('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', data.error || 'Error al consultar papeletas SAT Lima', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
+        callbacks.setCardError('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
     }
 }

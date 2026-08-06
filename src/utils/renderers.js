@@ -1,4 +1,6 @@
 // Mapings and Configurations
+export * from './renderers/index.js';
+
 export const LOGO_MAPPING = {
     soat: '/assets/apeseg.png',
     citv: '/assets/mtc.png',
@@ -771,23 +773,54 @@ export function renderCallao(data, plate, total) {
         </div>`;
 }
 
-export function renderLima(plate, message, directUrl) {
+export function renderLima(plate, message, directUrl, data) {
+    // Si hay papeletas reales, renderizarlas como tabla detallada
+    if (data && Array.isArray(data) && data.length > 0) {
+        const headers = Object.keys(data[0]).filter(k => data[0][k] !== undefined);
+        const ths = headers.map(h => `<th class="py-2 px-2.5 text-[9px] md:text-[10px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 text-white whitespace-nowrap">${h}</th>`).join('');
+        const rows = data.map(row => {
+            const tds = headers.map(h => {
+                const val = row[h];
+                const isMonto = h.toLowerCase().includes('monto') || h.toLowerCase().includes('importe');
+                const cls = isMonto ? 'font-bold text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300';
+                return `<td class="py-2 px-2.5 text-[10px] md:text-xs border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap ${cls}">${val || '—'}</td>`;
+            }).join('');
+            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors font-poppins">${tds}</tr>`;
+        }).join('');
+        return `
+            <div class="p-3 md:p-4 font-poppins">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${data.length} PAPELETA${data.length > 1 ? 'S' : ''}</span>
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wide">Pendientes de pago — SAT Lima</span>
+                </div>
+                <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm">
+                    <div class="overflow-x-auto max-h-[260px]">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                            <thead><tr class="bg-slate-900 dark:bg-slate-950 text-white">${ths}</tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // Sin papeletas: mensaje de éxito + enlace de verificación manual
     return `
         <div class="flex flex-col gap-5 text-slate-900 dark:text-white font-poppins">
-            <div class="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-955/20 border border-amber-200 dark:border-amber-900 rounded-xl">
-                <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-800 flex items-center justify-center shrink-0">
-                    <i class="fas fa-gavel text-amber-600 dark:text-amber-400"></i>
+            <div class="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 rounded-xl">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                    <i class="fas fa-circle-check text-emerald-600 dark:text-emerald-400"></i>
                 </div>
                 <div>
-                    <p class="font-bold text-slate-850 dark:text-slate-200 text-sm">Consulta directa requerida</p>
-                    <p class="text-xs text-slate-500 dark:text-slate-450 mt-0.5 leading-relaxed">${message}</p>
+                    <p class="font-bold text-emerald-800 dark:text-emerald-300 text-sm">Sin papeletas pendientes</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">${message || `No se encontraron papeletas registradas pendientes de pago para la placa ${plate}.`}</p>
                 </div>
             </div>
             <div class="flex flex-col items-center gap-3">
-                <p class="text-[11px] text-slate-400 dark:text-slate-550">Placa a consultar: <strong class="font-bold text-slate-800 dark:text-slate-250 font-poppins text-sm">${plate}</strong></p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500">Verificado en el SAT Lima</p>
                 <a href="${directUrl}" target="_blank" rel="noopener"
                    class="w-full max-w-xs flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg">
-                   <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal SAT Lima
+                   <i class="fas fa-arrow-up-right-from-square"></i> Verificar en SAT Lima
                 </a>
             </div>
         </div>`;
