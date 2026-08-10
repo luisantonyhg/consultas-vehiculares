@@ -1,0 +1,163 @@
+---
+// Modal global de mantenimiento: se muestra al cargar la vista y bloquea
+// temporalmente las consultas mientras mejoramos el sistema.
+// Para reactivar las consultas: setCardMaintenance solo en frontend y
+// MAINTENANCE_MODE=False en el backend (ver config.py).
+---
+
+<div id="mnt-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <!-- Overlay -->
+    <div class="absolute inset-0 bg-[#05070f]/85 backdrop-blur-xl" id="mnt-backdrop"></div>
+
+    <!-- Tarjeta -->
+    <div class="mnt-card relative w-full max-w-[430px] rounded-3xl overflow-hidden border border-white/10 shadow-[0_40px_90px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/5"
+         style="background: linear-gradient(165deg, #101828 0%, #0b1c36 55%, #171238 130%);">
+        <!-- Barra superior animada -->
+        <div class="h-1 w-full mnt-progress-track"></div>
+
+        <div class="p-7 md:p-8 text-center">
+            <!-- Pill de estado -->
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-bold tracking-[0.2em] uppercase text-brand-yellow/90 mb-6">
+                <span class="relative flex h-1.5 w-1.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-yellow opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-yellow"></span>
+                </span>
+                Sistema en mantenimiento
+            </div>
+
+            <!-- Ícono animado -->
+            <div class="relative w-24 h-24 mx-auto mb-6">
+                <div class="mnt-ring absolute inset-0 rounded-full border-2 border-brand-yellow/25"></div>
+                <div class="mnt-ring mnt-ring-2 absolute inset-2 rounded-full border border-brand-yellow/20"></div>
+                <div class="absolute inset-0 m-auto w-20 h-20 rounded-full flex items-center justify-center"
+                     style="background: linear-gradient(135deg, rgba(255,208,0,0.18), rgba(255,208,0,0.04)); border: 1px solid rgba(255,208,0,0.25);">
+                    <i class="fas fa-screwdriver-wrench text-brand-yellow text-3xl"></i>
+                </div>
+                <div class="mnt-spark absolute -top-1 -right-1 w-3 h-3 rounded-full bg-brand-yellow blur-[1px]"></div>
+                <div class="mnt-spark mnt-spark-2 absolute -bottom-1 -left-2 w-2 h-2 rounded-full bg-white/70 blur-[1px]"></div>
+            </div>
+
+            <h2 class="font-archivo text-white uppercase leading-[0.95] tracking-[-1px] text-[30px]">
+                Mejorando<br><span class="text-brand-yellow">el Sistema</span>
+            </h2>
+
+            <p class="font-dancing text-brand-yellow text-2xl mt-1.5">Pronto estará listo</p>
+
+            <p class="text-xs md:text-[13px] text-slate-300/90 leading-relaxed mt-4 font-inter">
+                Estamos optimizando la plataforma para ofrecerte consultas más rápidas y confiables.
+                <span class="font-bold text-white">Las consultas están temporalmente deshabilitadas.</span>
+            </p>
+
+            <!-- Chips de mejoras -->
+            <div class="grid grid-cols-3 gap-2 mt-5 text-left">
+                <div class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-white/10">
+                    <i class="fas fa-circle-check text-emerald-400 text-[10px]"></i>
+                    <span class="text-[9px] font-bold text-slate-200 leading-tight uppercase tracking-wide">Rendimiento</span>
+                </div>
+                <div class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-white/10">
+                    <i class="fas fa-circle-check text-emerald-400 text-[10px]"></i>
+                    <span class="text-[9px] font-bold text-slate-200 leading-tight uppercase tracking-wide">Precisión</span>
+                </div>
+                <div class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-white/10">
+                    <i class="fas fa-circle-check text-emerald-400 text-[10px]"></i>
+                    <span class="text-[9px] font-bold text-slate-200 leading-tight uppercase tracking-wide">Seguridad</span>
+                </div>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div class="mt-6">
+                <div class="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                    <div class="mnt-shimmer h-full rounded-full" style="width: 42%"></div>
+                </div>
+                <div class="flex justify-between text-[9px] text-slate-400 mt-2 font-inter">
+                    <span class="font-semibold uppercase tracking-widest">Optimizando</span>
+                    <span class="font-bold text-brand-yellow">42%</span>
+                </div>
+            </div>
+
+            <!-- Botón -->
+            <button id="mnt-close"
+                    class="mt-6 w-full py-3 rounded-xl font-extrabold text-sm uppercase tracking-wide transition-all duration-300 active:scale-[0.98] cursor-pointer select-none
+                           bg-white text-brand-navy-dark hover:bg-brand-yellow focus:outline-none focus:ring-2 focus:ring-brand-yellow/60">
+                Entendido
+            </button>
+
+            <p class="text-[9px] text-slate-500 mt-4 uppercase tracking-[0.2em] font-semibold">
+                Consultas Vehiculares · Perú
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mnt-progress-track {
+        background: linear-gradient(90deg, transparent, #ffd000, #ffe066, #ffd000, transparent);
+        background-size: 200% 100%;
+        animation: mntSweep 2.4s linear infinite;
+    }
+    @keyframes mntSweep {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .mnt-ring { animation: mntPulse 2s ease-out infinite; }
+    .mnt-ring-2 { animation-delay: 0.6s; }
+    @keyframes mntPulse {
+        0%   { transform: scale(0.82); opacity: 0.9; }
+        100% { transform: scale(1.18); opacity: 0; }
+    }
+
+    .mnt-spark { animation: mntFloat 2.6s ease-in-out infinite; }
+    .mnt-spark-2 { animation-delay: 1.3s; }
+    @keyframes mntFloat {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50%      { transform: translateY(-5px) scale(1.25); }
+    }
+
+    .mnt-shimmer {
+        background: linear-gradient(90deg, #ffd000 0%, #ffe066 45%, #fff3b0 50%, #ffe066 55%, #ffd000 100%);
+        background-size: 220% 100%;
+        animation: mntLoad 1.6s linear infinite;
+    }
+    @keyframes mntLoad {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .mnt-card { animation: mntIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    @keyframes mntIn {
+        from { opacity: 0; transform: translateY(18px) scale(0.96); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .mnt-modal { transition: opacity 0.3s ease; }
+</style>
+
+<script>
+    function openModal() {
+        const el = document.getElementById('mnt-modal');
+        if (!el) return;
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        const el = document.getElementById('mnt-modal');
+        if (!el) return;
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+
+    (window as any).showMaintenanceModal = openModal;
+    (window as any).closeMaintenanceModal = closeModal;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        openModal();
+        const close = document.getElementById('mnt-close');
+        const backdrop = document.getElementById('mnt-backdrop');
+        if (close) close.addEventListener('click', closeModal);
+        if (backdrop) backdrop.addEventListener('click', closeModal);
+    });
+</script>

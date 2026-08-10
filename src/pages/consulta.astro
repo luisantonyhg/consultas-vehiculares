@@ -1,5 +1,6 @@
 ---
 // Vista de consulta específica por placa - Integrada con el Backend real
+import MaintenanceModal from '../components/MaintenanceModal.astro';
 ---
 
 <!DOCTYPE html>
@@ -1257,8 +1258,26 @@
         const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
 
         if (queryForm && plateInput && queryStatus) {
+            // MANTENIMIENTO TEMPORAL — las consultas están deshabilitadas mientras
+            // mejoramos el sistema. El botón queda bloqueado y se muestra el modal.
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('cursor-not-allowed', 'opacity-70');
+                submitBtn.innerHTML = '<i class="fas fa-lock mr-1.5"></i> Consultas deshabilitadas';
+            }
+
             queryForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                // MANTENIMIENTO TEMPORAL — bloqueo total de la consulta.
+                if ((window as any).showMaintenanceModal) {
+                    (window as any).showMaintenanceModal();
+                } else {
+                    queryStatus.innerHTML = '<span class="text-brand-yellow font-bold"><i class="fas fa-wrench mr-1.5"></i>El sistema está en mantenimiento. Las consultas estarán disponibles pronto.</span>';
+                    queryStatus.classList.remove('opacity-0');
+                }
+                return;
+
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
 
@@ -1561,10 +1580,13 @@
                     <p id="modal-error-msg" class="text-xs text-slate-500 mt-1 font-inter"></p>
                 </div>
                 <iframe id="pdf-viewer" class="hidden w-full h-[65vh] border-0 rounded-lg shadow-sm" src=""></iframe>
-                <img id="image-viewer" class="hidden max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm" src="" alt="Papeleta" />
+                <img id="image-viewer" class="hidden max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm" alt="Papeleta" />
             </div>
         </div>
     </div>
+
+    {/* Modal de Mantenimiento Temporal */}
+    <MaintenanceModal />
 </body>
 
 </html>
