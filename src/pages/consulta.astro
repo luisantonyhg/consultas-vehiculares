@@ -403,14 +403,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
+            const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
             try {
                 await fetch(`${BACKEND_URL}/visits`, { 
                     method: 'POST',
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    headers: { 'X-Client-Secret': clientSecret }
                 }).catch(() => {});
                 
                 const res = await fetch(`${BACKEND_URL}/visits`, {
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    headers: { 'X-Client-Secret': clientSecret }
                 });
                 if (res.ok) {
                     const data = await res.json();
@@ -1330,12 +1331,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // Verificación rápida de disponibilidad del backend (Health endpoint está en raíz /health)
                         try {
                             const baseUrl = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
-                            const healthRes = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+                            const healthRes = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(10000) });
                             if (!healthRes.ok) throw new Error("HTTP Status " + healthRes.status);
                         } catch (_healthErr) {
-                            queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-plug-circle-xmark mr-1.5"></i>El servidor backend no está respondiendo (http://localhost:8000). Inicia el backend con iniciar.bat e intenta de nuevo.</span>';
-                            console.error("[CONEXION] Backend offline. Deteniendo consulta.");
-                            return;
+                            console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
                         }
 
                         // SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
