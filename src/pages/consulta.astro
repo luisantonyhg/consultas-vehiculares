@@ -834,6 +834,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
             else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
             else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
+            else if (cardId === 'sat' || cardId === 'sat_deuda' || cardId === 'sat_captura' || cardId === 'sat_deposito') await fetchSAT(plate);
             else if (cardId === 'lunas')  await fetchLunas(plate);
         };
 

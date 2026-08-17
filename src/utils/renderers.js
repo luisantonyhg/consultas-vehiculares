@@ -259,10 +259,11 @@ export function reorderCards() {
         const statusOrder = {
             'funciona': 1,
             'loading': 2,
-            'no-funciona': 4,
-            'mantenimiento': 4,
-            'maintenance': 4,   // setCardMaintenance usa 'maintenance'
-            'development': 4     // setCardDevelopment usa 'development'
+            'waiting': 2,
+            'no-funciona': 3,
+            'mantenimiento': 10,
+            'maintenance': 10,   // setCardMaintenance usa 'maintenance'
+            'development': 10    // setCardDevelopment usa 'development'
         };
         const score = statusOrder[status] ?? 2;
         // vehiculo mientras carga va entre loading y el resto; si ya tiene estado (ej. mantenimiento), lo respeta
@@ -460,8 +461,8 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             if (cardId === 'lunas') text = 'SIN PERMISO';
             if (cardId === 'citv') text = 'SIN INSPECCIÓN';   // sin CITV vigente = alerta (rojo)
 
-            // ROJO: la falta de estos registros es una ALERTA para el usuario
-            const rojoSinDato = (cardId === 'citv' || cardId === 'lunas');
+            // ROJO: la falta de estos registros es una ALERTA para el usuario (SOAT, CITV, Lunas)
+            const rojoSinDato = (cardId === 'soat' || cardId === 'citv' || cardId === 'lunas');
             // VERDE: la ausencia es lo normal/positivo (sin papeletas, sin deudas, etc.)
             const verdeSinDato = (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO'
                 || cardId === 'gnv' || cardId === 'osinergmin');
