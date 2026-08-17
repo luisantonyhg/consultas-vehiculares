@@ -16,9 +16,18 @@ import {
 } from '../utils/renderers.js';
 
 async function secureFetch(url, options = {}) {
+    // El secreto SOLO se lee de la variable de entorno del build.
+    // NUNCA se hardcodea un fallback aquí: acabaría en el bundle público.
+    const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET) 
+        ? import.meta.env.PUBLIC_CLIENT_SECRET 
+        : "";
+    if (!clientSecret && typeof window !== 'undefined' && !window._warnedClientSecret) {
+        window._warnedClientSecret = true;
+        console.warn("[API] PUBLIC_CLIENT_SECRET no configurado — las peticiones pueden ser rechazadas por el backend.");
+    }
     const headers = {
         ...options.headers,
-        "X-Client-Secret": "VehicularPESecretSecure2026"
+        ...(clientSecret ? {"X-Client-Secret": clientSecret} : {})
     };
     const res = await fetch(url, { ...options, headers });
     // Traducir el 429 del rate limiter (10/min por IP) a un mensaje claro. El wrapper

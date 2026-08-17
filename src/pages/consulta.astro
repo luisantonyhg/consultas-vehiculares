@@ -627,6 +627,16 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 },
                 setCardError: async (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string, errorMessage: string, plate: string) => {
                     const is404Error = (errorMessage || '').includes('404') || (errorMessage || '').includes('actualización') || (errorMessage || '').includes('no encontrada');
+                    const isConnError = (errorMessage || '').includes('Failed to fetch') || (errorMessage || '').includes('NetworkError') || (errorMessage || '').includes('CONNECTION_REFUSED');
+
+                    if (isConnError) {
+                        const friendlyMsg = "No se puede conectar con el servidor backend (http://localhost:8000). Asegúrate de tener el backend iniciado.";
+                        console.error(`[BACKEND DESCONECTADO] No hay conexión con el servidor backend para la consulta ${cardId}`);
+                        setCardError(id, title, sub, iconClass, bgColorClass, sourceName, friendlyMsg, plate);
+                        resolveFn({ success: false, error: friendlyMsg });
+                        return;
+                    }
+
                     // Solo SUNARP se exime del reintento (portales con Turnstile, en mantenimiento).
                     // El resto —incluida ATU y SBS— reintenta hasta maxAttempts para no mostrar
                     // error directo: los captchas (reCAPTCHA v3 / BotDetect) fallan de forma
@@ -695,12 +705,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
         }
         async function fetchLunas(plate: string) {
-            // LUNAS es la sección MÁS difícil (captcha BotDetect distorsionado): se intenta
-            // hasta 6 veces antes de mostrar error, con backoff (500ms → 8s → 8s...).
-            // Va en la cola serial: cada intento son hasta 120s de CPU resolviendo
-            // captchas y no debe solaparse con las secciones de navegador.
+            // Lunas PNP: el backend ejecuta internamente hasta 15 intentos de BotDetect.
+            // En frontend solo reintentamos max 2 veces para evitar bloquear la interfaz 4 minutos.
             return runExclusive('lunas', () =>
-                runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 6));
+                runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchCallao(plate: string) {
@@ -708,8 +716,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchLima(plate: string) {
+            // SAT Lima Papeletas (reCAPTCHA v2): el backend ejecuta 3 intentos con Chromium (85s).
+            // En frontend se ejecuta 1 sola vez para evitar reintentar 3 veces consecutivas (~4 minutos).
             return runExclusive('lima', () =>
-                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate));
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 1));
         }
 
         async function fetchSutran(plate: string) {
@@ -1209,7 +1219,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -1221,8 +1230,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 </div>`;
             
             if (!fromCache) {
-                // "Información Vehicular / Registro Multifuente" depende de SUNARP/SOAT/ATU.
-                // Con SUNARP y SOAT en mantenimiento, se muestra en mantenimiento (no se queda "buscando").
                 setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
                 // Mostrar inmediatamente las 12 secciones (ninguna oculta, todas con bordes negros)
@@ -1230,7 +1237,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
                 setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
                 setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
-                setCardLoading('lima', 'Papeletas Lima', '', 'fas fa-traffic-light', '', 'SAT Lima');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
                 setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
@@ -1239,9 +1245,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                 setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 1)');
                 setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                setCardWaiting('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', 'En espera (Turno 3)');
-                // LUNAS va la ÚLTIMA: el captcha BotDetect obliga a varios reintentos.
-                setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP: es la más lenta', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · última)');
+                setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
+                setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
+                setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
+                setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1258,25 +1266,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
 
         if (queryForm && plateInput && queryStatus) {
-            // MANTENIMIENTO TEMPORAL — las consultas están deshabilitadas mientras
-            // mejoramos el sistema. El botón queda bloqueado y se muestra el modal.
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.classList.add('cursor-not-allowed', 'opacity-70');
-                submitBtn.innerHTML = '<i class="fas fa-lock mr-1.5"></i> Consultas deshabilitadas';
-            }
-
             queryForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-
-                // MANTENIMIENTO TEMPORAL — bloqueo total de la consulta.
-                if ((window as any).showMaintenanceModal) {
-                    (window as any).showMaintenanceModal();
-                } else {
-                    queryStatus.innerHTML = '<span class="text-brand-yellow font-bold"><i class="fas fa-wrench mr-1.5"></i>El sistema está en mantenimiento. Las consultas estarán disponibles pronto.</span>';
-                    queryStatus.classList.remove('opacity-0');
-                }
-                return;
 
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
@@ -1290,18 +1281,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     return;
                 }
 
-                // Captcha interno desactivado a petición del usuario para consultas directas y rápidas
-                /*
-                const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
-                const enteredVal = captchaInput ? captchaInput.value.trim().toUpperCase() : '';
-                if (!currentCaptchaCode || !enteredVal || enteredVal !== currentCaptchaCode) {
-                    queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>Ingresa el código Captcha correcto para continuar</span>';
-                    queryStatus.classList.remove('opacity-0');
-                    if (captchaInput) { captchaInput.value = ''; captchaInput.focus(); }
-                    drawCaptcha();
-                    return;
-                }
-                */
                 const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
 
                 // Intentar cargar desde localStorage (Caché inteligente de 5 min)
@@ -1309,7 +1288,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 if (isLoadedFromCache) {
                     if (captchaInput) captchaInput.value = '';
                     drawCaptcha();
-                    fillValorVenalSoles(); // al restaurar de caché también se rellena el monto en soles
+                    fillValorVenalSoles();
                     queryStatus.classList.add('opacity-0');
                     return;
                 }
@@ -1329,8 +1308,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                 renderResultsSkeleton(plate, false);
 
-                // Auto scroll a la sección de resultados en móvil (donde consulta la mayoría).
-                // Doble rAF + delay para esperar a que el skeleton pinte y el scroll sea exacto.
                 if (window.innerWidth < 900) {
                     requestAnimationFrame(() => requestAnimationFrame(() => {
                         setTimeout(() => {
@@ -1350,19 +1327,27 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // ====================================================
                 (async () => {
                     try {
+                        // Verificación rápida de disponibilidad del backend (Health endpoint está en raíz /health)
+                        try {
+                            const baseUrl = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
+                            const healthRes = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+                            if (!healthRes.ok) throw new Error("HTTP Status " + healthRes.status);
+                        } catch (_healthErr) {
+                            queryStatus.innerHTML = '<span class="text-rose-500 font-bold"><i class="fas fa-plug-circle-xmark mr-1.5"></i>El servidor backend no está respondiendo (http://localhost:8000). Inicia el backend con iniciar.bat e intenta de nuevo.</span>';
+                            console.error("[CONEXION] Backend offline. Deteniendo consulta.");
+                            return;
+                        }
+
                         // SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
-                        // No se consulta al backend hasta tener una solución estable.
-                        // SOAT: desbloqueado — usa APESEG y, si falla (Cloudflare), respalda con SBS Reporte SOAT.
                         setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
 
-                        // FASE 1: Servicios ligeros en paralelo (no usan navegador)
+                        // FASE 1: Servicios ligeros en paralelo (HTTP directo)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
                         await Promise.all([
                             fetchSOAT(plate),
                             fetchCITV(plate),
                             fetchGNV(plate),
                             fetchCallao(plate),
-                            fetchLima(plate),
                             fetchSutran(plate),
                             fetchCinemometro(plate),
                             fetchMunicipal(plate),
@@ -1370,33 +1355,34 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             fetchOsinergmin(plate),
                         ]);
 
-                        // FASE 2: Servicios pesados secuencial (usan Chromium, 1 a la vez)
+                        // FASE 2: Servicios pesados secuencial (usan Chromium / Captchas complejos)
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
-                        // Estado visual bonito para la cola (todos visibles sin ocultar)
+                        // Estado visual bonito para la cola secuencial
                         setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP: es la más lenta', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · última)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
 
-                        // 1. ATU en primer lugar (usa el navegador compartido)
+                        // 1. ATU (navegador compartido)
                         await fetchATU(plate);
 
                         // 2. SBS en segundo lugar
                         await fetchSBS(plate);
 
-                        // 3. SAT (orden de captura + internamiento) — navegador compartido
+                        // 3. SAT (orden de captura + internamiento + deuda) — navegador compartido
                         await fetchSAT(plate);
 
-                        // 4. LUNAS al FINAL de todo: el captcha BotDetect de la PNP obliga
-                        // a varios reintentos (hasta 120s en el backend), así que se deja
-                        // para el último lugar y no retrasa al resto de secciones.
-                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Puede tardar: varios reintentos de captcha', 'fas fa-eye-slash', '', 'PNP');
+                        // 4. LUNAS (PNP BotDetect Captcha)
+                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await fetchLunas(plate);
 
-                        // SUNARP: en mantenimiento (ver arriba) — no se consulta.
+                        // 5. SAT LIMA PAPELETAS (al final)
+                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando portal SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
+                        await fetchLima(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
@@ -1417,7 +1403,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                     submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
                                 }
                             }, 1000);
-                            // Aplicar estado inicial del cooldown inmediatamente
                             submitBtn.disabled = true;
                             submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
                             cooldown--;
@@ -1425,139 +1410,137 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
                 })();
             });
+        }
 
-            (window as any).abrirModalPapeleta = async function(nroPapeleta: string) {
-                const modal = document.getElementById('papeleta-modal')!;
-                const title = document.getElementById('modal-papeleta-title')!;
-                const loading = document.getElementById('modal-loading')!;
-                const error = document.getElementById('modal-error')!;
-                const errorMsg = document.getElementById('modal-error-msg')!;
-                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
-                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+        (window as any).abrirModalPapeleta = async function(nroPapeleta: string) {
+            const modal = document.getElementById('papeleta-modal')!;
+            const title = document.getElementById('modal-papeleta-title')!;
+            const loading = document.getElementById('modal-loading')!;
+            const error = document.getElementById('modal-error')!;
+            const errorMsg = document.getElementById('modal-error-msg')!;
+            const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
 
-                title.textContent = `Papeleta de Infracción N° ${nroPapeleta}`;
-                modal.classList.remove('hidden');
-                loading.classList.remove('hidden');
-                error.classList.add('hidden');
-                pdfViewer.classList.add('hidden');
-                imgViewer.classList.add('hidden');
-                pdfViewer.src = "";
-                imgViewer.src = "";
+            title.textContent = `Papeleta de Infracción N° ${nroPapeleta}`;
+            modal.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            error.classList.add('hidden');
+            pdfViewer.classList.add('hidden');
+            imgViewer.classList.add('hidden');
+            pdfViewer.src = "";
+            imgViewer.src = "";
 
-                try {
-                    const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`, {
-                        headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
-                    });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const result = await res.json();
-                    if (result.success && result.data) {
-                        loading.classList.add('hidden');
-                        const base64Data = result.data.trim();
-                        if (base64Data.startsWith('JVBER')) {
-                            pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
-                            pdfViewer.classList.remove('hidden');
-                        } else if (base64Data.startsWith('/9j/') || base64Data.startsWith('iVBOR')) {
-                            const mime = base64Data.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
-                            imgViewer.src = `data:${mime};base64,${base64Data}`;
-                            imgViewer.classList.remove('hidden');
-                        } else {
-                            if (nroPapeleta.endsWith('A') || nroPapeleta.endsWith('B')) {
-                                imgViewer.src = `data:image/jpeg;base64,${base64Data}`;
-                                imgViewer.classList.remove('hidden');
-                            } else {
-                                pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
-                                pdfViewer.classList.remove('hidden');
-                            }
-                        }
-                    } else {
-                        throw new Error(result.error || 'No se obtuvieron datos de la papeleta');
-                    }
-                } catch (err: any) {
+            try {
+                const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`, {
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const result = await res.json();
+                if (result.success && result.data) {
                     loading.classList.add('hidden');
-                    error.classList.remove('hidden');
-                    errorMsg.textContent = err.message || 'Error de conexión con el servidor.';
-                }
-            };
-
-            (window as any).abrirModalImagen = function(imgSrc: string, titleText: string = 'Foto Probatoria') {
-                const modal = document.getElementById('papeleta-modal')!;
-                const title = document.getElementById('modal-papeleta-title')!;
-                const loading = document.getElementById('modal-loading')!;
-                const error = document.getElementById('modal-error')!;
-                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
-                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
-
-                title.textContent = titleText;
-                modal.classList.remove('hidden');
-                loading.classList.add('hidden');
-                error.classList.add('hidden');
-                pdfViewer.classList.add('hidden');
-                
-                imgViewer.src = imgSrc;
-                imgViewer.classList.remove('hidden');
-            };
-
-            (window as any).abrirModalFotoCinemometro = async function(nroPapeleta: string, fotoTarget: string, plate: string) {
-                const modal = document.getElementById('papeleta-modal')!;
-                const title = document.getElementById('modal-papeleta-title')!;
-                const loading = document.getElementById('modal-loading')!;
-                const error = document.getElementById('modal-error')!;
-                const errorMsg = document.getElementById('modal-error-msg')!;
-                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
-                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
-
-                title.textContent = `Foto Probatoria - Papeleta N° ${nroPapeleta}`;
-                modal.classList.remove('hidden');
-                error.classList.add('hidden');
-                pdfViewer.classList.add('hidden');
-                imgViewer.classList.add('hidden');
-                pdfViewer.src = "";
-                imgViewer.src = "";
-
-                // Check stored Base64 photo map first
-                const fotoDirect = (window as any).cinemometroFotos?.[nroPapeleta];
-                if (fotoDirect && (fotoDirect.startsWith('data:') || fotoDirect.startsWith('http'))) {
-                    loading.classList.add('hidden');
-                    imgViewer.src = fotoDirect;
-                    imgViewer.classList.remove('hidden');
-                    return;
-                }
-
-                loading.classList.remove('hidden');
-
-                try {
-                    const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}`;
-                    const res = await fetch(url, {
-                        headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
-                    });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const result = await res.json();
-                    loading.classList.add('hidden');
-
-                    if (result.success && result.foto) {
-                        imgViewer.src = result.foto;
+                    const base64Data = result.data.trim();
+                    if (base64Data.startsWith('JVBER')) {
+                        pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
+                        pdfViewer.classList.remove('hidden');
+                    } else if (base64Data.startsWith('/9j/') || base64Data.startsWith('iVBOR')) {
+                        const mime = base64Data.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+                        imgViewer.src = `data:${mime};base64,${base64Data}`;
                         imgViewer.classList.remove('hidden');
                     } else {
-                        throw new Error(result.error || 'No se pudo obtener la foto probatoria de SUTRAN');
+                        if (nroPapeleta.endsWith('A') || nroPapeleta.endsWith('B')) {
+                            imgViewer.src = `data:image/jpeg;base64,${base64Data}`;
+                            imgViewer.classList.remove('hidden');
+                        } else {
+                            pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
+                            pdfViewer.classList.remove('hidden');
+                        }
                     }
-                } catch (err: any) {
-                    loading.classList.add('hidden');
-                    error.classList.remove('hidden');
-                    errorMsg.textContent = err.message || 'Error al conectar con SUTRAN para obtener la foto.';
+                } else {
+                    throw new Error(result.error || 'No se obtuvieron datos de la papeleta');
                 }
-            };
+            } catch (err: any) {
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+                errorMsg.textContent = err.message || 'Error de conexión con el servidor.';
+            }
+        };
 
-            (window as any).cerrarModalPapeleta = function() {
-                const modal = document.getElementById('papeleta-modal')!;
-                modal.classList.add('hidden');
-                const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
-                const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
-                pdfViewer.src = "";
-                imgViewer.src = "";
-            };
-        }
-    </script>
+        (window as any).abrirModalImagen = function(imgSrc: string, titleText: string = 'Foto Probatoria') {
+            const modal = document.getElementById('papeleta-modal')!;
+            const title = document.getElementById('modal-papeleta-title')!;
+            const loading = document.getElementById('modal-loading')!;
+            const error = document.getElementById('modal-error')!;
+            const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
 
+            title.textContent = titleText;
+            modal.classList.remove('hidden');
+            loading.classList.add('hidden');
+            error.classList.add('hidden');
+            pdfViewer.classList.add('hidden');
+            
+            imgViewer.src = imgSrc;
+            imgViewer.classList.remove('hidden');
+        };
+
+        (window as any).abrirModalFotoCinemometro = async function(nroPapeleta: string, fotoTarget: string, plate: string) {
+            const modal = document.getElementById('papeleta-modal')!;
+            const title = document.getElementById('modal-papeleta-title')!;
+            const loading = document.getElementById('modal-loading')!;
+            const error = document.getElementById('modal-error')!;
+            const errorMsg = document.getElementById('modal-error-msg')!;
+            const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+
+            title.textContent = `Foto Probatoria - Papeleta N° ${nroPapeleta}`;
+            modal.classList.remove('hidden');
+            error.classList.add('hidden');
+            pdfViewer.classList.add('hidden');
+            imgViewer.classList.add('hidden');
+            pdfViewer.src = "";
+            imgViewer.src = "";
+
+            const fotoDirect = (window as any).cinemometroFotos?.[nroPapeleta];
+            if (fotoDirect && (fotoDirect.startsWith('data:') || fotoDirect.startsWith('http'))) {
+                loading.classList.add('hidden');
+                imgViewer.src = fotoDirect;
+                imgViewer.classList.remove('hidden');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            try {
+                const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}`;
+                const res = await fetch(url, {
+                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const result = await res.json();
+                loading.classList.add('hidden');
+
+                if (result.success && result.foto) {
+                    imgViewer.src = result.foto;
+                    imgViewer.classList.remove('hidden');
+                } else {
+                    throw new Error(result.error || 'No se pudo obtener la foto probatoria de SUTRAN');
+                }
+            } catch (err: any) {
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+                errorMsg.textContent = err.message || 'Error al conectar con SUTRAN para obtener la foto.';
+            }
+        };
+
+        (window as any).cerrarModalPapeleta = function() {
+            const modal = document.getElementById('papeleta-modal')!;
+            modal.classList.add('hidden');
+            const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
+            pdfViewer.src = "";
+            imgViewer.src = "";
+        };
+</script>
     <!-- Modal para ver PDF/Imagen de Papeleta -->
     <div id="papeleta-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">

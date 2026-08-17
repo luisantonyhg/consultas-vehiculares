@@ -154,7 +154,7 @@
     (window as any).closeMaintenanceModal = closeModal;
 
     document.addEventListener('DOMContentLoaded', () => {
-        openModal();
+        // openModal(); // Deshabilitado para pruebas locales. Se puede invocar manualmente con window.showMaintenanceModal() o activar en backend.
         const close = document.getElementById('mnt-close');
         const backdrop = document.getElementById('mnt-backdrop');
         if (close) close.addEventListener('click', closeModal);
