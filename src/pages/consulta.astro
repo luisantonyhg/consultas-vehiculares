@@ -814,9 +814,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
-            // SUNARP EN MANTENIMIENTO: no se reintenta ni consulta al backend.
             if (cardId === 'sunarp') {
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
+                return;
+            }
+            if (cardId === 'lima') {
+                setCardMaintenance('lima', 'Papeletas Lima (SAT)', '', 'fas fa-traffic-light', 'SAT Lima', 'En mantenimiento temporal por actualización del portal.');
                 return;
             }
             // Reiniciar contador de intentos para este cardId en caso de reintento manual
@@ -1338,8 +1341,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
                         }
 
-                        // SUNARP: EN MANTENIMIENTO (portales con Cloudflare Turnstile).
+                        // SUNARP y PAPELETAS LIMA: EN MANTENIMIENTO
                         setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
+                        setCardMaintenance('lima', 'Papeletas Lima (SAT)', '', 'fas fa-traffic-light', 'SAT Lima', 'En mantenimiento temporal por actualización del portal.');
 
                         // FASE 1: Servicios ligeros en paralelo (HTTP directo)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
@@ -1379,10 +1383,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // 4. LUNAS (PNP BotDetect Captcha)
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await fetchLunas(plate);
-
-                        // 5. SAT LIMA PAPELETAS (al final)
-                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando portal SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
-                        await fetchLima(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
