@@ -428,30 +428,90 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
         const rows = items.map(m => {
             const err = !m.success;
             const con = !!m.tiene_papeletas;
-            const cls = err ? 'text-slate-400' : (con ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400');
-            const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation' : 'fa-circle-check');
-            const estado = err ? 'No disponible' : (con ? `${m.total || ''} papeleta(s)`.trim() : 'Sin papeletas');
+            const cls = err ? 'text-slate-400 dark:text-slate-500' : (con ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-emerald-600 dark:text-emerald-400 font-bold');
+            const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation animate-pulse' : 'fa-circle-check');
+            const estado = err ? 'No disponible' : (con ? `${m.total || 1} papeleta(s) registrada(s)` : 'Sin papeletas');
             const url = m.url || MUNI_URLS[m.municipio] || '';
             const verBtn = url
-                ? `<a href="${url}" target="_blank" rel="noopener" title="Verificar en el portal oficial"
-                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700 hover:bg-slate-900 dark:bg-slate-600 dark:hover:bg-slate-500 text-white text-[9px] font-bold uppercase tracking-wide transition-colors shrink-0">
-                     <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+                ? `<a href="${url}" target="_blank" rel="noopener" title="Verificar en el portal oficial de ${m.municipio}"
+                     class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-all shadow-xs border border-slate-200/80 dark:border-slate-700 shrink-0">
+                     <i class="fas fa-arrow-up-right-from-square text-[9px] text-brand-red"></i> Portal</a>`
                 : '';
-            return `<div class="flex items-center justify-between gap-3 py-2.5 px-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                <div class="min-w-0">
-                    <p class="text-[13px] md:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">${m.municipio || ''}</p>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">${m.provincia || ''}</p>
+
+            // Detalle completo y responsivo de todas las papeletas de la municipalidad
+            let detalleHTML = '';
+            if (con && Array.isArray(m.data) && m.data.length > 0) {
+                const totalCount = m.data.length;
+                const pendientesCount = m.data.filter(d => (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
+                const canceladasCount = totalCount - pendientesCount;
+
+                const itemCards = m.data.map((d, idx) => {
+                    const esPendiente = (d['Situación'] || '').toUpperCase().includes('PENDIENTE');
+                    const badgeSit = esPendiente
+                        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-rose-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-clock"></i> ${d['Situación']}</span>`
+                        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-check-double"></i> ${d['Situación']}</span>`;
+
+                    return `
+                        <div class="p-2.5 rounded-xl border ${esPendiente ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80'} shadow-xs font-poppins transition-all">
+                            <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-1.5 flex-wrap">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] font-black flex items-center justify-center">${idx + 1}</span>
+                                    <span class="text-xs font-black text-slate-900 dark:text-white font-mono">${d['Papeleta'] || 'S/N'}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-brand-red/10 text-brand-red text-[9px] font-bold">${d['Infracción'] || ''}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    ${badgeSit}
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-semibold">${d['Estado'] || ''}</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 text-[10px] text-slate-600 dark:text-slate-300">
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Fecha Infracción:</strong> ${d['Fecha'] || '—'}</div>
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Conductor:</strong> <span class="uppercase font-semibold">${d['Conductor'] || '—'}</span></div>
+                                <div class="sm:col-span-2 md:col-span-1"><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Lugar:</strong> <span class="capitalize">${d['Lugar'] || '—'}</span></div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                detalleHTML = `
+                    <div class="mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap text-[11px] font-bold">
+                            <span class="text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fas fa-list-check text-brand-red"></i> Detalle de las ${totalCount} infracciones registradas:
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-rose-600 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded-full text-[10px]">${pendientesCount} pendientes</span>
+                                <span class="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full text-[10px]">${canceladasCount} canceladas</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
+                            ${itemCards}
+                        </div>
+                    </div>`;
+            }
+
+            return `<div class="flex flex-col py-3 px-2 border-b border-slate-100 dark:border-slate-800/80 last:border-0 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                <div class="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                    <div class="min-w-0">
+                        <p class="text-[13px] md:text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight flex items-center gap-1.5">
+                            <i class="fas fa-city text-[11px] text-slate-400"></i> ${m.municipio || ''}
+                        </p>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold mt-0.5">${m.provincia || ''} · ${m.fuente || 'Gobierno Local'}</p>
+                    </div>
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs ${cls}">
+                            <i class="fas ${icon}"></i> ${estado}
+                        </span>
+                        ${verBtn}
+                    </div>
                 </div>
-                <div class="flex items-center gap-2.5 shrink-0">
-                    <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs font-bold ${cls}">
-                        <i class="fas ${icon}"></i> ${estado}
-                    </span>
-                    ${verBtn}
-                </div>
+                ${m.mensaje && m.mensaje !== 'Sin papeletas registradas.' && !con ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">${m.mensaje}</p>` : ''}
+                ${detalleHTML}
             </div>`;
         }).join('');
-        const content = `<div class="p-3 md:p-4"><div class="rounded-xl border border-slate-200 dark:border-slate-800 px-3">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2 flex items-center gap-1"><i class="fas fa-circle-info"></i> Municipalidades provinciales fuera de Lima y Callao. Se irán agregando más.</p></div>`;
+        const content = `<div class="p-3 md:p-4">
+            <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-3 md:px-4 divide-y divide-slate-100 dark:divide-slate-800">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 flex items-center gap-1.5 px-1"><i class="fas fa-circle-info text-blue-500"></i> Cobertura en vivo: Huánuco, Chachapoyas, Arequipa, Cajamarca, Chiclayo, Cusco, Ica, Piura, Tacna, Tarapoto y Trujillo.</p>
+        </div>`;
         const conPapeletas = items.some(m => m.tiene_papeletas);
         let badge = conPapeletas
             ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
@@ -588,6 +648,111 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
+    }
+}
+
+export async function runFetchSATCaptura(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
+        <div class="p-3 md:p-4 font-poppins">
+            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
+                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
+                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
+                </div>
+            </div>
+        </div>`;
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/captura/${plate}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const cap = data.captura;
+        if (cap && cap.success) {
+            const tiene = !!cap.tiene;
+            callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
+                bloque(cap.mensaje, cap.fecha, tiene, cap.detalle), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+            return data;
+        } else {
+            throw new Error((cap && cap.error) || 'No se pudo consultar orden de captura');
+        }
+    } catch (err) {
+        callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', err.message || 'Error de conexión', plate);
+        return { success: false, error: err.message };
+    }
+}
+
+export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
+        <div class="p-3 md:p-4 font-poppins">
+            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
+                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
+                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
+                </div>
+            </div>
+        </div>`;
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/deposito/${plate}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const dep = data.deposito;
+        if (dep && dep.success) {
+            const internado = !!dep.internado;
+            callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
+                bloque(dep.mensaje, dep.fecha, internado, dep.detalle), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+            return data;
+        } else {
+            throw new Error((dep && dep.error) || 'No se pudo consultar internamiento en depósito');
+        }
+    } catch (err) {
+        callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', err.message || 'Error de conexión', plate);
+        return { success: false, error: err.message };
+    }
+}
+
+export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima');
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    const neutralBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${t}</span>`;
+    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
+        <div class="p-3 md:p-4 font-poppins">
+            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
+                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
+                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
+                </div>
+            </div>
+        </div>`;
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/deuda/${plate}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const deu = data.deuda;
+        if (deu && deu.success) {
+            if (deu.manual || deu.tiene_deuda === null || deu.tiene_deuda === undefined) {
+                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
+                    bloque(deu.mensaje, deu.fecha, false, null), true, false, neutralBadge('VERIFICAR MANUAL'));
+            } else {
+                const conDeuda = !!deu.tiene_deuda;
+                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
+                    bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
+            }
+            return data;
+        } else {
+            throw new Error((deu && deu.error) || 'No se pudo consultar deuda');
+        }
+    } catch (err) {
+        callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', err.message || 'Error de conexión', plate);
+        return { success: false, error: err.message };
     }
 }
 

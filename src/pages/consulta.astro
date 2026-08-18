@@ -380,6 +380,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
+            runFetchSATCaptura,
+            runFetchSATDeposito,
+            runFetchSATDeuda,
             runFetchMunicipal,
             runFetchPlacasPE,
             runFetchValorVenal,
@@ -813,6 +816,33 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runExclusive('sat', () => runFetchSAT(plate, BACKEND_URL, callbacks));
         }
 
+        async function fetchSATCaptura(plate: string) {
+            const callbacks = {
+                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
+                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
+                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
+            };
+            return runExclusive('sat', () => runFetchWithRetry('sat_captura', () => runFetchSATCaptura(plate, BACKEND_URL, callbacks), plate));
+        }
+
+        async function fetchSATDeposito(plate: string) {
+            const callbacks = {
+                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
+                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
+                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
+            };
+            return runExclusive('sat', () => runFetchWithRetry('sat_deposito', () => runFetchSATDeposito(plate, BACKEND_URL, callbacks), plate));
+        }
+
+        async function fetchSATDeuda(plate: string) {
+            const callbacks = {
+                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
+                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
+                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
+            };
+            return runExclusive('sat', () => runFetchWithRetry('sat_deuda', () => runFetchSATDeuda(plate, BACKEND_URL, callbacks), plate));
+        }
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
             if (cardId === 'sunarp') {
                 setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
@@ -837,7 +867,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
             else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
             else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
-            else if (cardId === 'sat' || cardId === 'sat_deuda' || cardId === 'sat_captura' || cardId === 'sat_deposito') await fetchSAT(plate);
+            else if (cardId === 'sat_captura') await fetchSATCaptura(plate);
+            else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
+            else if (cardId === 'sat_deuda') await fetchSATDeuda(plate);
+            else if (cardId === 'sat') await fetchSAT(plate);
             else if (cardId === 'lunas')  await fetchLunas(plate);
         };
 
@@ -1223,6 +1256,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -1244,6 +1278,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
+                setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
                 setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
                 setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
@@ -1363,24 +1398,23 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola secuencial
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En turno (Iniciando...)');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
-                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
-                        setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En turno (Iniciando...)');
+                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
+                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
+                        setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 3 · Penúltimo)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · Final)');
 
-                        // 1. ATU (navegador compartido)
-                        await fetchATU(plate);
-
-                        // 2. SBS en segundo lugar
+                        // 1. SBS Siniestralidad
                         await fetchSBS(plate);
 
-                        // 3. SAT (orden de captura + internamiento + deuda) — navegador compartido
+                        // 2. SAT (orden de captura + internamiento + deuda) — navegador compartido
                         await fetchSAT(plate);
 
-                        // 4. LUNAS (PNP BotDetect Captcha)
+                        // 3. ATU (Habilitación Taxi - penúltimo)
+                        await fetchATU(plate);
+
+                        // 4. LUNAS (PNP BotDetect Captcha - último)
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await fetchLunas(plate);
 
