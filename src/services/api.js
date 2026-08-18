@@ -41,49 +41,20 @@ async function secureFetch(url, options = {}) {
 }
 
 export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('soat', 'SOAT', 'Seguro Obligatorio de Accidentes de Tránsito', 'fas fa-shield-halved', '', 'APESEG / SBS');
+    callbacks.setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT');
     const controller = new AbortController();
-    // 75s: si APESEG está bloqueado (Cloudflare), el respaldo SBS (navegador) debe caber.
     const timeoutId = setTimeout(() => controller.abort(), 75000);
     try {
         let rawData = null;
-        let isFromSBS = false;
 
-        // Consulta PARALELA: APESEG (HTTP directo) + SBS Reporte SOAT (fuente alternativa
-        // sin bloqueos de Cloudflare). Se prefiere APESEG si responde; si está bloqueado,
-        // gana SBS sin esperar el timeout de 35s del intento anterior.
-        const [resA, resS] = await Promise.allSettled([
-            secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal }),
-            secureFetch(`${BACKEND_URL}/sbs/${plate}?tipos=SOAT`, { signal: controller.signal }),
-        ]);
-
-        if (resA.status === 'fulfilled' && resA.value && resA.value.ok) {
+        const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
+        if (res && res.ok) {
             try {
-                const data = await resA.value.json();
-                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.data)) {
                     rawData = data.data;
                 }
             } catch (_e) {}
-        }
-
-        // Respaldar con SBS Reporte SOAT (sin bloqueos de Cloudflare)
-        if (!rawData && resS.status === 'fulfilled' && resS.value && resS.value.ok) {
-            try {
-                const dataSbs = await resS.value.json();
-                if (dataSbs.success && dataSbs.soat && Array.isArray(dataSbs.soat.data) && dataSbs.soat.data.length > 0) {
-                    isFromSBS = true;
-                    rawData = dataSbs.soat.data.map(p => ({
-                        NombreCompania: p["Compañía aseguradora"] || p.aseguradora || "Aseguradora Registrada",
-                        NumeroPoliza: p["N.° de póliza"] || p["N.° de certificado"] || p.numPoliza || "—",
-                        FechaInicio: p["Inicio de vigencia"] || p.fechaInicio || "—",
-                        FechaFin: p["Fin de vigencia"] || p.fechaFin || "—",
-                        NombreUsoVehiculo: p["Uso de vehículo"] || p.usoVehiculo || "Particular",
-                        NombreClaseVehiculo: p["Clase del vehículo"] || p.claseVehiculo || "Automóvil",
-                        Placa: plate,
-                        Accidentes: p["N.° de accidentes"] || "0"
-                    }));
-                }
-            } catch (_e2) {}
         }
 
         clearTimeout(timeoutId);
@@ -119,7 +90,7 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
             }
 
             const content = renderSOAT(rawData, plate);
-            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', isFromSBS ? 'SBS Reporte SOAT' : 'APESEG', content, true, true, customBadge);
+            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', content, true, true, customBadge);
             return { success: true, data: rawData };
         } else {
             const emptyBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
@@ -132,7 +103,7 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (75s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG / SBS', msg, plate);
+        callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', msg, plate);
         return { success: false, error: msg };
     }
 }
