@@ -647,32 +647,68 @@ export function renderCITV(data, plate) {
             <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron inspecciones técnicas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
         </div>`;
     }
+
+    const docLabels = ["ÚLTIMO DOCUMENTO REGISTRADO", "PENÚLTIMO DOCUMENTO REGISTRADO", "ANTEPENÚLTIMO DOCUMENTO REGISTRADO"];
+
     return data.map((cert, index) => {
-        const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+        const docTitle = docLabels[index] || `DOCUMENTO REGISTRADO #${index + 1}`;
+        const borderClass = index > 0 ? 'border-t-2 border-slate-200 dark:border-slate-800 pt-6 mt-6' : '';
         const estadoBase = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
-        // "VENCIDO" a secas no dice hace cuánto → "VENCIDO (hace 50 días)".
         const estadoDisplay = estadoConVigencia(estadoBase, cert.fechaVencimiento);
+
         return `
-        <div class="${borderClass}">
-            <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
-                <div>
-                    <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Centro de Inspección ${data.length > 1 ? `#${index + 1}` : ''}</p>
-                    <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.centroInspeccion || 'Centro MTC'}</p>
+        <div class="${borderClass} font-poppins">
+            <div class="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100 dark:border-slate-800 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-xs">${index + 1}</span>
+                    <h4 class="text-xs md:text-sm font-extrabold uppercase tracking-wider text-blue-900 dark:text-blue-300">${docTitle}</h4>
                 </div>
                 <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
             </div>
-            <div class="rounded-xl overflow-hidden">
+
+            <!-- Bloque 1: Empresa Certificadora y Dirección -->
+            <div class="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 mb-3 space-y-2">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">EMPRESA CERTIFICADORA</span>
+                    <p class="text-xs md:text-sm font-bold text-slate-900 dark:text-white leading-tight mt-0.5">${cert.centroInspeccion || 'CENTRO DE INSPECCIÓN TÉCNICA MTC'}</p>
+                </div>
+                ${cert.direccion ? `
+                <div class="pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">DIRECCIÓN</span>
+                    <p class="text-[11px] md:text-xs text-slate-700 dark:text-slate-300 leading-snug mt-0.5 flex items-start gap-1.5">
+                        <i class="fas fa-location-dot text-brand-red text-[11px] mt-0.5 shrink-0"></i>
+                        <span>${cert.direccion}</span>
+                    </p>
+                </div>` : ''}
+            </div>
+
+            <!-- Bloque 2: Tabla de Datos del Certificado (11 campos) -->
+            <div class="rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs mb-3">
                 <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                     <tbody>
-                        ${fila('N° Informe', cert.numeroInforme)}
-                        ${fila('Fecha Inspección', cert.fechaInspeccion)}
-                        ${fila('Fecha Vencimiento', cert.fechaVencimiento)}
-                        ${fila('Clase Vehículo', cert.clase)}
-                        ${fila('Marca', cert.marca)}
-                        ${fila('Modelo', cert.modelo)}
-                        ${fila('Año Fabricación', cert.anio)}
+                        ${fila('Placa', cert.placa || plate)}
+                        ${fila('N° de Certificado', cert.numeroInforme)}
+                        ${fila('Vigente Desde', cert.fechaInspeccion)}
+                        ${fila('Vigente Hasta', cert.fechaVencimiento)}
+                        ${fila('Resultado Inspección', cert.resultado)}
+                        ${fila('Estado', cert.estado)}
+                        ${fila('Ámbito', cert.tipoAmbito)}
+                        ${fila('Tipo de Servicio', cert.tipoServicio)}
+                        ${cert.tipoDocumento ? fila('Tipo Documento', cert.tipoDocumento) : ''}
+                        ${cert.clase ? fila('Clase Vehículo', cert.clase) : ''}
+                        ${cert.marca ? fila('Marca', cert.marca) : ''}
+                        ${cert.modelo ? fila('Modelo', cert.modelo) : ''}
+                        ${cert.anio ? fila('Año Fabricación', cert.anio) : ''}
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Bloque 3: Observaciones -->
+            <div class="bg-amber-50/60 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/40">
+                <span class="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest block mb-0.5">
+                    <i class="fas fa-clipboard-list text-amber-600 mr-1"></i> OBSERVACIONES
+                </span>
+                <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">${cert.observaciones || 'Sin observaciones'}</p>
             </div>
         </div>`;
     }).join('');
