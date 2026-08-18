@@ -599,37 +599,44 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
 export function renderSOAT(data, plate) {
     if (!data || data.length === 0) {
         return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                <i class="fas fa-file-slash text-slate-300 dark:text-slate-650 text-xl"></i>
+            <div class="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 flex items-center justify-center mb-1">
+                <i class="fas fa-file-circle-xmark text-rose-500 text-xl"></i>
             </div>
-            <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin SOAT registrado</p>
-            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron certificados SOAT para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
+            <p class="font-bold text-rose-600 dark:text-rose-400 text-sm">Sin registro de SOAT</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron pólizas ni certificados SOAT contratados para <strong class="text-slate-600 dark:text-slate-300 font-mono">${plate}</strong></p>
         </div>`;
     }
     return data.map((cert, index) => {
-        const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+        const borderClass = index > 0 ? 'border-t-2 border-slate-200 dark:border-slate-800 pt-5 mt-5' : '';
+        const estadoDisplay = estadoConVigencia(cert.Estado, cert.FechaFin);
+        const polizaNum = cert.NumeroPoliza || cert.numPoliza || '—';
+        const certNum = cert.NumeroCertificado || cert.numCertificado || '—';
+
         return `
-        <div class="${borderClass}">
-            <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+        <div class="${borderClass} font-poppins">
+            <div class="flex items-start justify-between mb-3 gap-3 flex-wrap">
                 <div>
-                    <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Aseguradora ${data.length > 1 ? `#${index + 1}` : ''}</p>
-                    <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.NombreCompania || 'N/A'}</p>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.Placa || plate}</strong></p>
+                    <span class="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest block">
+                        PÓLIZA SOAT ${data.length > 1 ? `#${index + 1}` : ''}
+                    </span>
+                    <p class="text-sm md:text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">${cert.NombreCompania || 'Aseguradora Registrada'}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">Placa: <strong class="text-slate-700 dark:text-slate-300 font-mono">${cert.Placa || plate}</strong></p>
                 </div>
-                <div class="shrink-0">${estadoBadge(cert.Estado)}</div>
+                <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
             </div>
-            <div class="rounded-xl overflow-hidden">
+            <div class="rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs mb-2">
                 <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                     <tbody>
-                        ${fila('Certificado N°', cert.NumeroPoliza)}
-                        ${fila('Tipo', cert.TipoCertificado)}
-                        ${fila('Vigencia Inicio', cert.FechaInicio)}
-                        ${fila('Vigencia Fin', cert.FechaFin)}
-                        ${fila('Uso', cert.NombreUsoVehiculo)}
-                        ${fila('Clase', cert.NombreClaseVehiculo)}
-                        ${fila('Marca', cert.Marca)}
-                        ${fila('Modelo', cert.ModeloVehiculo)}
-                        ${fila('Asientos', cert.NumeroAsientos)}
+                        ${fila('N.° de Póliza', polizaNum)}
+                        ${certNum && certNum !== polizaNum ? fila('N.° de Certificado', certNum) : ''}
+                        ${fila('Inicio de Vigencia', cert.FechaInicio)}
+                        ${fila('Fin de Vigencia', cert.FechaFin)}
+                        ${fila('Uso de Vehículo', cert.NombreUsoVehiculo)}
+                        ${fila('Clase de Vehículo', cert.NombreClaseVehiculo)}
+                        ${cert.Marca ? fila('Marca', cert.Marca) : ''}
+                        ${cert.ModeloVehiculo ? fila('Modelo', cert.ModeloVehiculo) : ''}
+                        ${cert.NumeroAsientos ? fila('Asientos', cert.NumeroAsientos) : ''}
+                        ${cert.Comentario ? fila('Comentario', cert.Comentario) : ''}
                     </tbody>
                 </table>
             </div>
@@ -1367,62 +1374,131 @@ export function renderPlacasPE(data, plate) {
 export function renderValorVenal(data) {
     if (!data) return `<div class="p-4 text-center text-xs text-slate-400 font-poppins">Información de valor comercial no disponible.</div>`;
     const valorFmt = (data.valorReferencial || 0).toLocaleString();
+    const vrnFmt = (data.vrn || data.valorReferencial || 0).toLocaleString();
     const tabla = data.tablaHistorica || {};
     const car = data.caracteristicas || {};
 
     const carHtml = Object.keys(car).length > 0 ? `
-        <div class="mb-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Características Técnicas Referenciales</p>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                <div><span class="text-slate-400">Marca:</span> <strong class="text-slate-700 dark:text-slate-200">${data.marca || '-'}</strong></div>
-                <div><span class="text-slate-400">Modelo:</span> <strong class="text-slate-700 dark:text-slate-200">${data.modelo || '-'}</strong></div>
-                ${car.carroceria ? `<div><span class="text-slate-400">Carrocería:</span> <strong class="text-slate-700 dark:text-slate-200">${car.carroceria}</strong></div>` : ''}
-                ${car.puertas ? `<div><span class="text-slate-400">Puertas/Asientos:</span> <strong class="text-slate-700 dark:text-slate-200">${car.puertas} / ${car.asientos || '5'}</strong></div>` : ''}
-                ${car.traccion ? `<div><span class="text-slate-400">Tracción:</span> <strong class="text-slate-700 dark:text-slate-200">${car.traccion}</strong></div>` : ''}
-                ${car.potencia ? `<div><span class="text-slate-400">Potencia:</span> <strong class="text-slate-700 dark:text-slate-200">${car.potencia}</strong></div>` : ''}
-                ${car.carburante ? `<div><span class="text-slate-400">Combustible:</span> <strong class="text-slate-700 dark:text-slate-200">${car.carburante}</strong></div>` : ''}
-                ${car.peso ? `<div><span class="text-slate-400">Peso:</span> <strong class="text-slate-700 dark:text-slate-200">${car.peso}</strong></div>` : ''}
+        <div class="mb-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 font-poppins">
+            <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2 mb-2.5">
+                <span class="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <i class="fas fa-car-side"></i> CARACTERÍSTICAS TÉCNICAS (AUTOMÁS / APESEG)
+                </span>
+                ${data.modeloConsultado && data.modeloConsultado !== data.modelo ? `
+                    <span class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 italic">
+                        Matriz ajustada desde: <strong class="text-slate-600 dark:text-slate-300 font-mono">${data.modeloConsultado}</strong>
+                    </span>` : ''}
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 text-[11px]">
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Marca</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${data.marca || '-'}</strong>
+                </div>
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Modelo</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${data.modelo || '-'}</strong>
+                </div>
+                ${car.lanzamiento ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Lanzamiento / Vigencia</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.lanzamiento} — ${car.vigencia || 'Act.'}</strong>
+                </div>` : ''}
+                ${car.carroceria ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800 sm:col-span-2 md:col-span-1">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Carrocería</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.carroceria}</strong>
+                </div>` : ''}
+                ${car.puertas ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Puertas / Asientos</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.puertas} ptas / ${car.asientos || '5'} astos</strong>
+                </div>` : ''}
+                ${car.traccion ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Tracción</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.traccion}</strong>
+                </div>` : ''}
+                ${car.desplazamiento || car.potencia ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Motor / Potencia</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.desplazamiento || ''} ${car.potencia ? `(${car.potencia})` : ''}</strong>
+                </div>` : ''}
+                ${car.tm || car.ta ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Transmisión (TM/TA)</span>
+                    <strong class="text-slate-800 dark:text-slate-200">TM: ${car.tm || '—'} / TA: ${car.ta || '—'}</strong>
+                </div>` : ''}
+                ${car.peso ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Peso</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.peso}</strong>
+                </div>` : ''}
+                ${car.carburante ? `
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Combustible</span>
+                    <strong class="text-slate-800 dark:text-slate-200">${car.carburante}</strong>
+                </div>` : ''}
             </div>
         </div>` : '';
 
-    const yearsList = Object.keys(tabla).map(Number).filter(n => isFinite(n));
-    const maxYear = yearsList.length ? Math.max(...yearsList) : null;
-    const cols = yearsList.map(yr => {
-        const price = `$${(tabla[yr] || 0).toLocaleString()}`;
-        if (yr === maxYear) {
-            // Último año resaltado: verde con letra blanca
-            return `<div class="flex-1 text-center p-2 rounded-lg bg-emerald-600 shadow-sm">
-                <p class="text-[9px] font-bold text-white/80">${yr}</p>
-                <p class="text-xs font-bold text-white mt-0.5">${price}</p>
-            </div>`;
-        }
-        return `<div class="flex-1 text-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-            <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500">${yr}</p>
-            <p class="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">${price}</p>
-        </div>`;
-    }).join('');
+    const yearsList = Object.keys(tabla).map(Number).filter(n => isFinite(n)).sort((a, b) => a - b);
+    
+    // Segmentar en dos bloques (ej: 2011-2019 y 2020-2026)
+    const block1Years = yearsList.filter(y => y <= 2019);
+    const block2Years = yearsList.filter(y => y >= 2020);
 
-    return `<div class="p-4 font-poppins">
-        <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 mb-3">
+    const renderPriceGrid = (years) => `
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-9 gap-1.5 mb-3">
+            ${years.map(yr => {
+                const price = `$${(tabla[yr] || 0).toLocaleString()}`;
+                const isSelected = yr === (data.anio || 2024);
+                return `
+                    <div class="text-center p-2 rounded-lg ${isSelected ? 'bg-amber-500 text-white shadow-sm font-extrabold' : 'bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800'} transition-all">
+                        <p class="text-[9px] ${isSelected ? 'text-white/90 font-black' : 'text-slate-400 dark:text-slate-500 font-bold'}">${yr}</p>
+                        <p class="text-[11px] md:text-xs font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-slate-800 dark:text-slate-200'}">${price}</p>
+                    </div>`;
+            }).join('')}
+        </div>`;
+
+    return `<div class="p-3 md:p-4 font-poppins">
+        <div class="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/30 mb-4 shadow-xs">
             <div>
-                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Valor Referencial Estimado (V.R.N.)</p>
-                <div class="flex items-center gap-3 mt-1 flex-wrap">
-                    <p class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
-                    <div id="valor-venal-soles" data-usd="${data.valorReferencial || 0}" title="Al tipo de cambio del día (fuente abierta)" class="inline-flex flex-col items-center px-3 py-1 rounded-lg bg-slate-900 text-white shadow-sm border border-emerald-500/40">
+                <p class="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <i class="fas fa-tag"></i> VALOR REFERENCIAL ESTIMADO DEL MERCADO (V.R.N.)
+                </p>
+                <div class="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <p class="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">US$ ${valorFmt} <span class="text-xs font-medium text-slate-400">Dólares</span></p>
+                    <div id="valor-venal-soles" data-usd="${data.valorReferencial || 0}" title="Al tipo de cambio del día (fuente abierta)" class="inline-flex flex-col items-center px-3 py-1 rounded-xl bg-slate-900 text-white shadow-xs border border-emerald-500/40">
                         <span class="text-[8px] font-bold text-emerald-400 uppercase tracking-widest leading-none">Soles (hoy)</span>
                         <span class="vrn-soles-amount text-sm font-extrabold leading-tight">S/ …</span>
                         <span class="vrn-rate text-[8px] text-slate-400 font-medium leading-none">T.C. …</span>
                     </div>
                 </div>
             </div>
-            <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md">
-                <i class="fas fa-tag"></i>
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+                <i class="fas fa-coins"></i>
             </div>
         </div>
+
         ${carHtml}
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Histórico de Precios Referenciales (APESEG / Automás)</p>
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            ${cols}
+
+        <!-- Tablas Históricas por Períodos -->
+        <div class="space-y-3">
+            ${block1Years.length > 0 ? `
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    <i class="fas fa-calendar-alt text-amber-500 mr-1"></i> Precios Referenciales ${block1Years[0]} - ${block1Years[block1Years.length - 1]}
+                </span>
+                ${renderPriceGrid(block1Years)}
+            </div>` : ''}
+
+            ${block2Years.length > 0 ? `
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    <i class="fas fa-calendar-check text-emerald-500 mr-1"></i> Precios Referenciales ${block2Years[0]} - ${block2Years[block2Years.length - 1]} & V.R.N. (US$ ${vrnFmt})
+                </span>
+                ${renderPriceGrid(block2Years)}
+            </div>` : ''}
         </div>
     </div>`;
 }

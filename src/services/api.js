@@ -122,8 +122,11 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', isFromSBS ? 'SBS Reporte SOAT' : 'APESEG', content, true, true, customBadge);
             return { success: true, data: rawData };
         } else {
+            const emptyBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
+                <i class="fas fa-circle-xmark"></i> SIN SOAT REGISTRADO
+            </span>`;
             const content = renderSOAT([], plate);
-            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG / SBS', content, true, false);
+            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', content, true, false, emptyBadge);
             return { success: true, data: [] };
         }
     } catch (err) {
