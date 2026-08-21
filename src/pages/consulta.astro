@@ -1026,7 +1026,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchFISE(plate: string) {
-            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate);
+            // FISE GNV: se ejecuta en cola serial al final con max 1 intento para evitar bloqueos
+            return runExclusive('fise', () =>
+                runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 1));
         }
 
         async function fetchSBS(plate: string) {
@@ -1292,42 +1294,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         // 📄 REPORTE PDF (vía impresión del navegador → "Guardar como PDF")
         // ====================================================
-        (window as any).imprimirReporte = function(plate: string) {
+        (window as any).imprimirReporte = function(_plate: string) {
             // Expandir todas las tarjetas para que salgan completas en el PDF
             const bodies = Array.from(document.querySelectorAll('.accordion-body')) as HTMLElement[];
             const wasHidden = bodies.map(b => b.classList.contains('hidden'));
             bodies.forEach(b => b.classList.remove('hidden'));
             
-            // Cabecera elegante solo-print con logo oficial, metadata y aviso legal
-            let printHeader = document.getElementById('print-report-header');
-            const resultsSection = document.getElementById('results-section');
-            if (resultsSection && !printHeader) {
-                printHeader = document.createElement('div');
-                printHeader.id = 'print-report-header';
-                printHeader.className = 'print-only';
-                printHeader.style.cssText = 'margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0f172a;';
-                resultsSection.prepend(printHeader);
-            }
-            if (printHeader) {
-                const fecha = new Date().toLocaleString('es-PE');
-                printHeader.innerHTML =
-                    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <img src="/assets/logocanita.jpeg" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:2px solid #0f172a;" alt="Cañita Logo" />
-                            <div>
-                                <h1 style="font-size:22px;font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.5px;text-transform:uppercase;font-family:'Archivo Black',sans-serif;">CAÑITA</h1>
-                                <p style="font-size:11px;font-weight:700;color:#475569;margin:0;letter-spacing:1px;text-transform:uppercase;">Plataforma de Análisis Vehicular Integral</p>
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <span style="display:inline-block;padding:4px 12px;border-radius:8px;background:#0f172a;color:#fff;font-weight:900;font-size:14px;letter-spacing:1px;">PLACA: ${plate}</span>
-                            <p style="font-size:10px;color:#64748b;margin:4px 0 0;font-weight:600;">Emisión: ${fecha}</p>
-                        </div>
-                    </div>
-                    <div style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:9.5px;line-height:1.4;color:#64748b;margin-top:6px;">
-                        <strong style="color:#334155;">Nota de Transparencia & Uso Informativo:</strong> Este reporte unifica en tiempo real información oficial de libre acceso público (SUNARP, SAT, MTC, SUTRAN, ATU, APESEG, SBS). La plataforma <strong>CAÑITA</strong> opera de forma tecnológica independiente sin almacenar bases de datos privadas ni tener afiliación con las entidades citadas.
-                    </div>`;
-            }
+            // Eliminar cualquier cabecera previa si existiese
+            document.getElementById('print-report-header')?.remove();
+
             setTimeout(() => {
                 window.print();
                 // Restaurar el estado de las tarjetas tras imprimir
@@ -1547,7 +1522,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             fetchSOAT(plate),
                             fetchCITV(plate),
                             fetchGNV(plate),
-                            fetchFISE(plate),
                             fetchCallao(plate),
                             fetchSutran(plate),
                             fetchCinemometro(plate),
@@ -1556,7 +1530,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             fetchOsinergmin(plate),
                         ]);
 
-                        // FASE 2: Servicios pesados secuencial (usan Chromium / Captchas complejos)
+                        // FASE 2: Servicios avanzados secuencial
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola secuencial
@@ -1567,7 +1541,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 4)');
                         setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 5)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 6 · Final)');
+                        setCardWaiting('fise', 'Deuda GNV (FISE)', 'Ahorro GNV MINEM', 'fas fa-gas-pump', '', 'FISE Ahorro GNV', 'En espera (Turno 6)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 7 · Final)');
 
                         // 1. SBS Siniestralidad
                         await fetchSBS(plate);
@@ -1587,7 +1562,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await fetchLunas(plate);
 
-                        // 6. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
+                        // 6. DEUDA GNV FISE (Ahorro GNV)
+                        setCardLoading('fise', 'Deuda GNV (FISE)', 'Consultando portal FISE MINEM...', 'fas fa-gas-pump', '', 'FISE Ahorro GNV');
+                        await fetchFISE(plate);
+
+                        // 7. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
                         setCardLoading('atu', 'Habilitación Taxi ATU', 'Verificando habilitación de taxi ATU...', 'fas fa-taxi', '', 'ATU');
                         await fetchATU(plate);
 
