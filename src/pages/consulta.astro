@@ -1564,10 +1564,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 3)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                        setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 5)');
-                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 6 · Final)');
+                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
+                        setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 4)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 5)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 6 · Final)');
 
                         // 1. SBS Siniestralidad
                         await fetchSBS(plate);
@@ -1575,20 +1575,21 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // 2. SAT (orden de captura + internamiento + deuda) — navegador compartido
                         await fetchSAT(plate);
 
-                        // 3. ATU (Habilitación Taxi)
-                        await fetchATU(plate);
+                        // 3. SAT LIMA (Papeletas reCAPTCHA v2 - VirtualSAT)
+                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
+                        await fetchLima(plate);
 
-                        // 4. LUNAS (PNP BotDetect Captcha)
-                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
-                        await fetchLunas(plate);
-
-                        // 5. PNP REQUISITORIAS (Captura Vehicular)
+                        // 4. PNP REQUISITORIAS (Captura Vehicular)
                         setCardLoading('pnp_req', 'Requisitorias Policiales (PNP)', 'Consultando órdenes de captura PNP...', 'fas fa-shield-halved', '', 'PNP Tránsito');
                         await fetchPNP(plate);
 
-                        // 6. SAT LIMA (Papeletas reCAPTCHA v2)
-                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
-                        await fetchLima(plate);
+                        // 5. LUNAS (PNP BotDetect Captcha)
+                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
+                        await fetchLunas(plate);
+
+                        // 6. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
+                        setCardLoading('atu', 'Habilitación Taxi ATU', 'Verificando habilitación de taxi ATU...', 'fas fa-taxi', '', 'ATU');
+                        await fetchATU(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
