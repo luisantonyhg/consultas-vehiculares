@@ -1,0 +1,343 @@
+/**
+ * Renderizadores de Consultas Registrales y Vehiculares
+ * (SOAT, CITV, Lunas Polarizadas PNP, GNV Infogas, SUNARP, Información Vehicular)
+ */
+import {
+    fila,
+    escapeHTML,
+    getFormattedTimestamp,
+    estadoConVigencia,
+    estadoBadge,
+    cardHeaderAccordion,
+    SOURCE_URLS
+} from '../renderers.js';
+
+export function renderSOAT(data, plate) {
+    if (!data || data.length === 0) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 flex items-center justify-center mb-1">
+                <i class="fas fa-file-circle-xmark text-rose-500 text-xl"></i>
+            </div>
+            <p class="font-bold text-rose-600 dark:text-rose-400 text-sm">Sin registro de SOAT</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron pólizas ni certificados SOAT contratados para <strong class="text-slate-600 dark:text-slate-300 font-mono">${plate}</strong></p>
+        </div>`;
+    }
+    return data.map((cert, index) => {
+        const borderClass = index > 0 ? 'border-t-2 border-slate-200 dark:border-slate-800 pt-5 mt-5' : '';
+        const estadoDisplay = estadoConVigencia(cert.Estado, cert.FechaFin);
+        const polizaNum = cert.NumeroPoliza || cert.numPoliza || '—';
+        const certNum = cert.NumeroCertificado || cert.numCertificado || '—';
+
+        return `
+        <div class="${borderClass} font-poppins">
+            <div class="flex items-start justify-between mb-3 gap-3 flex-wrap">
+                <div>
+                    <span class="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest block">
+                        PÓLIZA SOAT ${data.length > 1 ? `#${index + 1}` : ''}
+                    </span>
+                    <p class="text-sm md:text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">${cert.NombreCompania || 'Aseguradora Registrada'}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">Placa: <strong class="text-slate-700 dark:text-slate-300 font-mono">${cert.Placa || plate}</strong></p>
+                </div>
+                <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs mb-2">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                    <tbody>
+                        ${fila('N.° de Póliza', polizaNum)}
+                        ${certNum && certNum !== polizaNum ? fila('N.° de Certificado', certNum) : ''}
+                        ${fila('Inicio de Vigencia', cert.FechaInicio)}
+                        ${fila('Fin de Vigencia', cert.FechaFin)}
+                        ${fila('Uso de Vehículo', cert.NombreUsoVehiculo)}
+                        ${fila('Clase de Vehículo', cert.NombreClaseVehiculo)}
+                        ${cert.Marca ? fila('Marca', cert.Marca) : ''}
+                        ${cert.ModeloVehiculo ? fila('Modelo', cert.ModeloVehiculo) : ''}
+                        ${cert.NumeroAsientos ? fila('Asientos', cert.NumeroAsientos) : ''}
+                        ${cert.Comentario ? fila('Comentario', cert.Comentario) : ''}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+export function renderCITV(data, plate) {
+    if (!data || data.length === 0) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
+                <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
+            </div>
+            <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Sin CITV registrado</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron inspecciones técnicas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
+        </div>`;
+    }
+
+    const docLabels = ["ÚLTIMO DOCUMENTO REGISTRADO", "PENÚLTIMO DOCUMENTO REGISTRADO", "ANTEPENÚLTIMO DOCUMENTO REGISTRADO"];
+
+    return data.map((cert, index) => {
+        const docTitle = docLabels[index] || `DOCUMENTO REGISTRADO #${index + 1}`;
+        const borderClass = index > 0 ? 'border-t-2 border-slate-200 dark:border-slate-800 pt-6 mt-6' : '';
+        const estadoBase = (cert.estado && cert.estado !== 'N/A') ? cert.estado : cert.resultado;
+        const estadoDisplay = estadoConVigencia(estadoBase, cert.fechaVencimiento);
+
+        return `
+        <div class="${borderClass} font-poppins">
+            <div class="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100 dark:border-slate-800 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-xs">${index + 1}</span>
+                    <h4 class="text-xs md:text-sm font-extrabold uppercase tracking-wider text-blue-900 dark:text-blue-300">${docTitle}</h4>
+                </div>
+                <div class="shrink-0">${estadoBadge(estadoDisplay)}</div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 mb-3 space-y-2">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">EMPRESA CERTIFICADORA</span>
+                    <p class="text-xs md:text-sm font-bold text-slate-900 dark:text-white leading-tight mt-0.5">${cert.centroInspeccion || 'CENTRO DE INSPECCIÓN TÉCNICA MTC'}</p>
+                </div>
+                ${cert.direccion ? `
+                <div class="pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">DIRECCIÓN</span>
+                    <p class="text-[11px] md:text-xs text-slate-700 dark:text-slate-300 leading-snug mt-0.5 flex items-start gap-1.5">
+                        <i class="fas fa-location-dot text-brand-red text-[11px] mt-0.5 shrink-0"></i>
+                        <span>${cert.direccion}</span>
+                    </p>
+                </div>` : ''}
+            </div>
+
+            <div class="rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs mb-3">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                    <tbody>
+                        ${fila('Placa', cert.placa || plate)}
+                        ${fila('N° de Certificado', cert.numeroInforme)}
+                        ${fila('Vigente Desde', cert.fechaInspeccion)}
+                        ${fila('Vigente Hasta', cert.fechaVencimiento)}
+                        ${fila('Resultado Inspección', cert.resultado)}
+                        ${fila('Estado', cert.estado)}
+                        ${fila('Ámbito', cert.tipoAmbito)}
+                        ${fila('Tipo de Servicio', cert.tipoServicio)}
+                        ${cert.tipoDocumento ? fila('Tipo Documento', cert.tipoDocumento) : ''}
+                        ${cert.clase ? fila('Clase Vehículo', cert.clase) : ''}
+                        ${cert.marca ? fila('Marca', cert.marca) : ''}
+                        ${cert.modelo ? fila('Modelo', cert.modelo) : ''}
+                        ${cert.anio ? fila('Año Fabricación', cert.anio) : ''}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50/60 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/40">
+                <span class="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest block mb-0.5">
+                    <i class="fas fa-clipboard-list text-amber-600 mr-1"></i> OBSERVACIONES
+                </span>
+                <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">${cert.observaciones || 'Sin observaciones'}</p>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+export function renderLunas(data, plate) {
+    if (!data || data.length === 0) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                <i class="fas fa-eye text-slate-300 dark:text-slate-650 text-xl"></i>
+            </div>
+            <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin Permiso de Lunas</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
+        </div>`;
+    }
+    return data.map((cert, index) => {
+        const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+        return `
+        <div class="${borderClass}">
+            <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">N° Certificado ${data.length > 1 ? `#${index + 1}` : ''}</p>
+                    <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.nroCertificado || 'N/A'}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.placa || plate}</strong></p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm shrink-0 font-poppins">
+                    <i class="fas fa-certificate"></i> AUTORIZADO
+                </span>
+            </div>
+            <div class="rounded-xl overflow-hidden">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                    <tbody>
+                        ${fila('Categoría', cert.categoria)}
+                        ${fila('Marca', cert.marca)}
+                        ${fila('Modelo', cert.modelo)}
+                        ${fila('Color', cert.color)}
+                        ${fila('Año', cert.anio)}
+                        ${fila('Fecha Emisión', cert.fechaEmision)}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+export function renderGNV(data, plate) {
+    if (!data || data.length === 0) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 flex items-center justify-center mb-1">
+                <i class="fas fa-circle-check text-emerald-500 text-xl"></i>
+            </div>
+            <p class="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Sin habilitación GNV</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontró registro de Gas Natural Vehicular para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong></p>
+        </div>`;
+    }
+    return data.map((cert, index) => {
+        const borderClass = index > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
+        const habilitado = (cert.vehiculoHabilitado || '').toLowerCase();
+        const habBadge = (habilitado === 'sí' || habilitado === 'si')
+            ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900 shadow-sm font-poppins">
+                <i class="fas fa-circle-check"></i> HABILITADO
+               </span>`
+            : `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900 shadow-sm font-poppins">
+                <i class="fas fa-circle-xmark"></i> NO HABILITADO
+               </span>`;
+        return `
+        <div class="${borderClass}">
+            <div class="flex items-start justify-between mb-4 gap-3 font-poppins">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Gas Natural Vehicular</p>
+                    <p class="text-base font-bold text-slate-900 dark:text-white leading-tight">${cert.tipoCombustible || 'GNV'}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Placa: <strong class="text-slate-700 dark:text-slate-300">${cert.placa || plate}</strong></p>
+                </div>
+                <div class="shrink-0">${habBadge}</div>
+            </div>
+            <div class="rounded-xl overflow-hidden">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                    <tbody>
+                        ${fila('Tipo Combustible', cert.tipoCombustible)}
+                        ${fila('Habilitado para consumir', cert.vehiculoHabilitado)}
+                        ${fila('Venc. Revisión Anual', cert.proximaRevAnual)}
+                        ${fila('Venc. Cilindro', cert.proximoVencCilindro)}
+                        ${fila('¿Tiene Crédito?', cert.tieneCredito)}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+export function renderSunarp(datos, plate, imageBase64 = null) {
+    if (!datos && !imageBase64) {
+        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <i class="fas fa-circle-exclamation text-slate-300 dark:text-slate-600 text-2xl mb-1"></i>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Sin registros de gravamen o datos para <strong>${escapeHTML(plate)}</strong> en SUNARP</p>
+        </div>`;
+    }
+
+    const img = imageBase64 || (datos && (datos.imagen_base64 || datos.official_image_base64 || datos.imagen));
+    const cleanImg = img && img.startsWith('data:') ? img : (img ? `data:image/png;base64,${img}` : null);
+
+    let imageHtml = '';
+    if (cleanImg) {
+        imageHtml = `
+        <div class="mb-4 rounded-xl overflow-hidden border border-emerald-200 dark:border-emerald-950/60 bg-gradient-to-b from-emerald-50/40 to-slate-50/40 dark:from-emerald-950/20 dark:to-slate-900/40 p-3 shadow-sm">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-emerald-100/60 dark:border-emerald-900/30">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                    <i class="fas fa-certificate text-emerald-500"></i>
+                    <span>Resultado Gráfico Oficial SUNARP</span>
+                </div>
+                <a href="${cleanImg}" target="_blank" download="SUNARP_${plate}.png" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs">
+                    <i class="fas fa-download text-[10px]"></i> Descargar
+                </a>
+            </div>
+            <div class="relative group flex justify-center bg-white dark:bg-slate-900 rounded-xl p-3 md:p-4 border border-slate-200/80 dark:border-slate-800 shadow-inner">
+                <img 
+                    src="${cleanImg}" 
+                    alt="Certificado Oficial SUNARP para placa ${escapeHTML(plate)}" 
+                    class="w-full max-h-[550px] md:max-h-[650px] object-contain rounded-lg shadow-sm transition-transform duration-200 group-hover:scale-[1.01]" 
+                />
+            </div>
+            <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 mt-2 italic">
+                * Imagen oficial generada directamente por la Superintendencia Nacional de los Registros Públicos.
+            </p>
+        </div>`;
+    }
+
+    let rowsHtml = '';
+    if (datos && typeof datos === 'object') {
+        for (const [key, val] of Object.entries(datos)) {
+            if (['imagen_base64', 'official_image_base64', 'imagen'].includes(key)) continue;
+            if (val && String(val).trim() && String(val) !== 'null') {
+                rowsHtml += fila(key, String(val));
+            }
+        }
+    }
+
+    let tableHtml = '';
+    if (rowsHtml) {
+        tableHtml = `
+        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    return `<div class="font-poppins">
+        ${imageHtml}
+        ${tableHtml}
+    </div>`;
+}
+
+export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
+    const container = document.getElementById('vehiculo-card-container');
+    if (!container) return;
+
+    const hasData = Object.keys(vehicleData).length > 0;
+    let badgeHTML = '';
+
+    if (hasData) {
+        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+            <i class="fas fa-circle-check"></i> DISPONIBLE
+        </span>`;
+    } else {
+        badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider animate-pulse">
+            <i class="fas fa-circle-notch fa-spin"></i> BUSCANDO
+        </span>`;
+    }
+
+    let tableRows = '';
+    if (hasData) {
+        tableRows = `
+            <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 font-poppins">
+                <tbody>
+                    ${fila('Marca', vehicleData.marca || '—')}
+                    ${fila('Modelo', vehicleData.modelo || '—')}
+                    ${fila('Año Fabricación', vehicleData.anio || '—')}
+                    ${fila('Color', vehicleData.color || '—')}
+                    ${fila('Categoría / Clase', vehicleData.categoria || '—')}
+                    ${fila('Uso registrado', vehicleData.uso || '—')}
+                    ${fila('Número Serie / Chasis', vehicleData.serie || '—')}
+                    ${fila('Número Motor', vehicleData.motor || '—')}
+                    ${fila('Propietario SUNARP', vehicleData.propietario || '—')}
+                </tbody>
+            </table>`;
+    } else {
+        tableRows = `
+            <div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+                <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                    <i class="fas fa-car-side text-slate-300 dark:bg-slate-600 text-xl animate-pulse"></i>
+                </div>
+                <p class="font-extrabold text-slate-600 dark:text-slate-400 text-sm">Esperando información técnica</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[280px] leading-relaxed">Los datos se completarán conforme se obtengan de las consultas en tiempo real.</p>
+            </div>`;
+    }
+
+    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.innerHTML = `
+        ${cardHeaderAccordion('vehiculo', 'Información Vehicular (SUNARP)', 'REGISTRO MULTIFUENTE', 'fas fa-car-side', badgeHTML, isExpanded)}
+        <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
+            <div class="rounded-xl overflow-hidden">
+                ${tableRows}
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+                <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a></span>
+                <span>Consultado: ${getFormattedTimestamp()}</span>
+            </div>
+        </div>`;
+}

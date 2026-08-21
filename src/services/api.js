@@ -4,6 +4,7 @@ import {
     renderCITV,
     renderLunas,
     renderCallao,
+    renderLima,
     renderSutran,
     renderCinemometro,
     renderAtu,
@@ -12,7 +13,10 @@ import {
     renderSunarp,
     renderPlacasPE,
     renderValorVenal,
-    renderOsinergmin
+    renderOsinergmin,
+    renderFise,
+    renderPNPRequisitorias,
+    renderHistorialDueños
 } from '../utils/renderers.js';
 
 async function secureFetch(url, options = {}) {
@@ -21,10 +25,7 @@ async function secureFetch(url, options = {}) {
     const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET) 
         ? import.meta.env.PUBLIC_CLIENT_SECRET 
         : "";
-    if (!clientSecret && typeof window !== 'undefined' && !window._warnedClientSecret) {
-        window._warnedClientSecret = true;
-        console.warn("[API] PUBLIC_CLIENT_SECRET no configurado — las peticiones pueden ser rechazadas por el backend.");
-    }
+    // En desarrollo local o sin secret configurado, el backend opera normalmente con DEBUG=True.
     const headers = {
         ...options.headers,
         ...(clientSecret ? {"X-Client-Secret": clientSecret} : {})
@@ -48,16 +49,14 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
         let rawData = null;
 
         const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
-        if (res && res.ok) {
-            try {
-                const data = await res.json();
-                if (data.success && Array.isArray(data.data)) {
-                    rawData = data.data;
-                }
-            } catch (_e) {}
-        }
-
         clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+            rawData = data.data;
+        } else if (!data.success) {
+            throw new Error(data.error || 'Error al consultar SOAT');
+        }
 
         if (rawData && Array.isArray(rawData) && rawData.length > 0) {
             rawData.sort((a, b) => {
@@ -372,6 +371,42 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (120s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/fise/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const hasData = Boolean(data.data && data.data.tiene_financiamiento);
+            const content = renderFise(data.data, plate);
+            let customBadge = '';
+            if (hasData) {
+                const pend = data.data.montoPendiente;
+                const deudaVencida = Number(data.data.montoDeudaVencido || 0) > 0;
+                customBadge = deudaVencida
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> DEUDA VENCIDA: S/ ${Number(data.data.montoDeudaVencido).toFixed(2)}</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-coins"></i> SALDO: S/ ${Number(pend || 0).toFixed(2)}</span>`;
+            } else {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN DEUDA FISE</span>`;
+            }
+            callbacks.setCardData('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', content, true, hasData, customBadge);
+            return data;
+        } else {
+            callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', data.error || 'Error al consultar FISE', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (45s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -731,7 +766,7 @@ export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
+    callbacks.setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
     // 95s: SUNARP ya tiene su PROPIO navegador (no espera a ATU/SBS). El backend corta
     // a los 90s (HARD_TIMEOUT), así que 95s da un pequeño margen para recibir la respuesta.
@@ -749,7 +784,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
             const hasData = Boolean(data.datos && Object.keys(data.datos).length > 0);
             let customBadge = '';
             if (hasData) {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-indigo-600 text-white shadow-sm uppercase tracking-wider">
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-circle-check"></i> REGISTRADO
                 </span>`;
             } else {
@@ -757,17 +792,18 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
                     <i class="fas fa-info-circle"></i> SIN GRAVAMEN
                 </span>`;
             }
-            const content = renderSunarp(data.datos, plate);
-            callbacks.setCardData('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, hasData, customBadge);
+            const content = renderSunarp(data.datos, plate, data.imagen_base64 || data.official_image_base64);
+            callbacks.setCardData('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, hasData, customBadge);
             return data;
+
         } else {
-            callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', data.error || 'Error al consultar SUNARP', plate);
+            callbacks.setCardError('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', data.error || 'Error al consultar SUNARP', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (95s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('sunarp', 'Gravámenes y Registro (SUNARP)', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
+        callbacks.setCardError('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -927,14 +963,15 @@ export async function runFetchLima(plate, BACKEND_URL, callbacks) {
         if (data.success) {
             const papeletas = Array.isArray(data.data) ? data.data : [];
             const hasData = papeletas.length > 0;
-            const content = renderLima(plate, data.message || '', LIMA_URL, papeletas);
+            const totalDeuda = data.total_deuda || papeletas.reduce((acc, p) => acc + (parseFloat(p.deuda) || 0), 0);
+            const content = renderLima(plate, data.message || '', LIMA_URL, papeletas, totalDeuda);
             const badge = hasData
-                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${papeletas.length} PAPELETA${papeletas.length > 1 ? 'S' : ''} · S/ ${totalDeuda.toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`
                 : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN PAPELETAS</span>`;
-            callbacks.setCardData('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', content, true, hasData, badge);
+            callbacks.setCardData('lima', 'Papeletas Lima (SAT)', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', content, true, hasData, badge);
             return data;
         } else {
-            callbacks.setCardError('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', data.error || 'Error al consultar papeletas SAT Lima', plate);
+            callbacks.setCardError('lima', 'Papeletas Lima (SAT)', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', data.error || 'Error al consultar papeletas SAT Lima', plate);
             return data;
         }
     } catch (err) {
@@ -944,4 +981,41 @@ export async function runFetchLima(plate, BACKEND_URL, callbacks) {
         return { success: false, error: msg };
     }
 }
+
+export async function runFetchPNP(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('pnp_req', 'Requisitorias Policiales', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 145000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/pnp/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success) {
+            const reqData = data.data || {};
+            const tieneCaptura = !!reqData.tiene_captura;
+            const content = renderPNPRequisitorias(reqData, plate);
+            const badge = tieneCaptura
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON CAPTURA</span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN REQUISITORIA</span>`;
+            callbacks.setCardData('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', content, true, tieneCaptura, badge);
+            return data;
+        } else {
+            callbacks.setCardError('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', data.error || 'Error al consultar PNP', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (145s). Por favor reintente la consulta.' : (err.message || 'Error de conexión');
+        callbacks.setCardError('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export function initHistorialDueñosCard(plate, callbacks) {
+    const content = renderHistorialDueños(plate);
+    const badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30 uppercase tracking-wider"><i class="fas fa-wrench text-[9px]"></i> PRÓXIMAMENTE</span>`;
+    callbacks.setCardData('historial_dueños', 'Historial de Dueño y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, false, badge);
+}
+
 

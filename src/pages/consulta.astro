@@ -11,24 +11,24 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <title>Consulta por Placa | Huamani Gonzales Luis Antony - Proyecto Profesional</title>
-    <meta name="description" content="Consulta integral de placas vehiculares en tiempo real en Perú. Aplicativo de ingeniería de sistemas creado por el desarrollador Huamani Gonzales Luis Antony (Luis Antony Huamani Gonzales) con captcha de seguridad y consulta descentralizada.">
-    <meta name="keywords" content="Luis Antony Huamani Gonzales, Huamani Gonzales Luis Antony, Ingeniero de Sistemas, Consulta por Placa, Captcha de Seguridad, SUNARP, SOAT, CITV, SAT, SUTRAN, ATU, Web Developer, Perú, Astro">
+    <title>Cañita | Consulta Vehicular por Placa en Tiempo Real (SUNARP, SOAT, SUTRAN)</title>
+    <meta name="description" content="Cañita: Consulta integral de placas vehiculares en tiempo real en Perú. Información oficial de SUNARP, SOAT, CITV, SUTRAN, SAT, ATU y Lunas Polarizadas.">
+    <meta name="keywords" content="Cañita, Canita, Consulta vehicular Cañita, Consulta por Placa, SUNARP, SOAT, CITV, SAT, SUTRAN, ATU, Lunas PNP, Perú">
     <meta name="author" content="Luis Antony Huamani Gonzales">
-    <meta name="designer" content="Huamani Gonzales Luis Antony">
+    <meta name="designer" content="Luis Antony Huamani Gonzales">
     <meta name="robots" content="index, follow">
 
     {/* Open Graph / Facebook */}
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Consulta por Placa | Huamani Gonzales Luis Antony - Proyecto Profesional">
-    <meta property="og:description" content="Consulta rápida de placas vehiculares en tiempo real en Perú, con control de captcha y centrado de logos. Creado por Luis Antony Huamani Gonzales.">
-    <meta property="og:image" content="/assets/fortuner.png">
+    <meta property="og:title" content="Cañita | Consulta Vehicular por Placa en Tiempo Real">
+    <meta property="og:description" content="Cañita: Consulta rápida de placas vehiculares en tiempo real en Perú con información de SUNARP, SOAT, CITV, SAT, SUTRAN y más.">
+    <meta property="og:image" content="/assets/logocanita.jpeg">
     
     {/* Twitter */}
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Consulta por Placa | Huamani Gonzales Luis Antony">
-    <meta property="twitter:description" content="Módulo de consulta vehicular por placa en tiempo real con captcha. Desarrollado por Luis Antony Huamani Gonzales.">
-    <meta property="twitter:image" content="/assets/fortuner.png">
+    <meta property="twitter:title" content="Cañita | Consulta Vehicular por Placa en Tiempo Real">
+    <meta property="twitter:description" content="Cañita: Consulta vehicular por placa en tiempo real con datos de SUNARP, SOAT, SUTRAN, CITV y multas.">
+    <meta property="twitter:image" content="/assets/logocanita.jpeg">
 
     {/* Structured Data (JSON-LD) */}
     <script type="application/ld+json">
@@ -66,22 +66,45 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* ===== Reporte imprimible / PDF ===== */
+        /* ===== Reporte imprimible / PDF con Marca de Agua ===== */
         @media print {
-            @page { margin: 14mm 12mm; }
-            body { background: #fff !important; }
-            /* Ocultar todo lo que no sea el reporte */
+            @page { margin: 8mm 8mm; size: A4; }
+            body { 
+                background: #fff !important; 
+                position: relative !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-size: 11px !important;
+            }
+            /* Marca de agua diagonal múltiple y repetitiva de CAÑITA */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='170' viewBox='0 0 260 170'><text x='50%' y='50%' fill='%2364748b' fill-opacity='0.07' font-size='24' font-weight='900' font-family='sans-serif' text-anchor='middle' transform='rotate(-28 130 85)'>CAÑITA</text></svg>");
+                background-repeat: repeat;
+                pointer-events: none;
+                z-index: 9999;
+            }
+            /* Ocultar elementos de navegación y formularios */
             header, footer, nav, .no-print,
             #query-form, #hero-section, #captcha-container { display: none !important; }
-            /* Forzar tema claro y expandir tarjetas */
+            /* Forzar tarjetas compactas, nítidas y expandidas sin espacios en blanco */
             .results-card, .accordion-card {
                 break-inside: avoid; page-break-inside: avoid;
-                box-shadow: none !important; border: 1px solid #e2e8f0 !important;
+                box-shadow: none !important; border: 1px solid #cbd5e1 !important;
                 background: #fff !important; color: #0f172a !important;
-                border-radius: 12px !important; margin-bottom: 10px !important;
+                border-radius: 8px !important; margin-bottom: 8px !important;
+                padding: 10px !important;
+            }
+            table, tr, td, th {
+                padding: 3px 6px !important;
+                font-size: 10.5px !important;
             }
             .accordion-body { display: block !important; }
-            #results-section { margin-top: 0 !important; }
+            #results-section { margin-top: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
             .print-only { display: block !important; }
         }
         .print-only { display: none; }
@@ -129,13 +152,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         {/* Banner Section */}
         <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-b border-white/5 px-5 py-4 md:py-4 md:px-2 flex flex-col items-center overflow-hidden relative">
             
-            {/* Header / Barra de Navegación */}
-            <header class="w-full max-w-[1100px] flex justify-between items-center py-1 mx-auto px-0 md:px-2.5 z-20">
+            {/* Header / Barra de Navegación con Logo Rectangular Cañita */}
+            <header class="w-full max-w-[1100px] flex justify-between items-center py-2 mx-auto px-4 md:px-2.5 z-20 gap-3">
+                <a href="/" class="flex items-center gap-2.5 group shrink-0">
+                    <div class="w-28 h-10 sm:w-32 sm:h-12 rounded-xl bg-white overflow-hidden shadow-md border-2 border-brand-yellow/85 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
+                        <img 
+                            src="/assets/logocanita.jpeg" 
+                            alt="Logo Cañita" 
+                            class="w-full h-full object-contain rounded-lg" 
+                        />
+                    </div>
+                    <div class="hidden xs:flex flex-col text-left">
+                        <span class="text-white font-archivo text-base md:text-xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
+                        <span class="text-brand-yellow text-[8.5px] md:text-[10px] font-extrabold tracking-widest uppercase">Consultas Vehiculares</span>
+                    </div>
+                </a>
                 <a
                     href="/"
-                    class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95"
+                    class="w-10 h-10 sm:w-auto sm:px-4 sm:py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2 text-xs md:text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 active:scale-95 shrink-0"
+                    title="Volver al Dashboard"
                 >
-                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    <i class="fas fa-arrow-left text-sm"></i>
+                    <span class="hidden sm:inline">Volver al Dashboard</span>
                 </a>
             </header>
 
@@ -224,9 +262,23 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <p class="text-white font-archivo text-[10px] md:text-xs italic tracking-widest uppercase mt-4">Realizado por:</p>
                     <p class="text-brand-yellow font-dancing text-[24px] md:text-[32px] -mt-1 drop-shadow-[1px_1px_0px_rgba(0,0,0,0.5)]">Huamani Gonzales Luis Antony</p>
                     <p class="text-white/95 font-archivo text-[10px] md:text-xs tracking-wider uppercase -mt-1.5 mb-1.5 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
-                    <p class="text-white font-bold text-[10px] md:text-xs mt-3 max-w-[500px] mx-auto leading-relaxed border-t border-white/10 pt-3 opacity-95">
-                        Esta plataforma unifica y consulta en tiempo real información vehicular oficial de múltiples entidades públicas (MTC, ATU, APESEG, SUTRAN y Municipalidades y otras implementaciones que se haran progresivamente) de manera descentralizada y segura.
-                    </p>
+                    <div class="mt-4 pt-3 border-t border-white/15 max-w-[500px] mx-auto text-center font-sans">
+                        <p class="text-white/95 text-xs md:text-sm leading-relaxed">
+                            Si tienes una <strong>idea de negocio</strong> o un <strong>proyecto tecnológico</strong> en mente, ¡puedes contactarme!
+                        </p>
+                        <div class="mt-3 flex flex-wrap items-center justify-center gap-2.5">
+                            <a 
+                                href="https://www.instagram.com/luisantonyhg/" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-yellow-500 hover:from-purple-500 hover:to-yellow-400 text-white font-extrabold text-[11px] md:text-xs transition-all duration-300 shadow-md transform hover:-translate-y-0.5 active:scale-95"
+                            >
+                                <i class="fab fa-instagram text-sm md:text-base"></i>
+                                <span>@luisantonyhg</span>
+                            </a>
+                            <span class="text-[10px] md:text-xs text-brand-yellow font-extrabold">¡Sígueme y te asesoro gratis! 💡</span>
+                        </div>
+                    </div>
                 </div>
 
                 <img
@@ -237,11 +289,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             </div>
         </section>
 
-        {/* Sección de Resultados */}
+        {/* Sección de Resultados con Recordatorio de Marca Cañita */}
         <div id="results-section" class="w-full max-w-[1100px] mt-8 px-5 md:px-[15px] z-10">
-            <div class="flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-2 mb-6">
-                <i class="fas fa-chart-line text-brand-red text-xl"></i>
-                <h2 class="text-xl font-bold tracking-wide font-poppins">Resultados del Análisis</h2>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-2 mb-6 gap-2">
+                <div class="flex items-center gap-3 text-slate-800">
+                    <i class="fas fa-chart-line text-brand-red text-xl"></i>
+                    <h2 class="text-base sm:text-xl font-bold tracking-wide font-poppins">Resultados del Análisis</h2>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0 select-none">
+                    <div class="w-6 h-6 rounded-md bg-white border border-slate-200 shadow-xs flex items-center justify-center p-0.5">
+                        <img src="/assets/logocanita.jpeg" class="w-full h-full object-contain rounded" alt="Logo Cañita" />
+                    </div>
+                    <span class="text-slate-850 dark:text-slate-200 font-archivo text-[11px] md:text-xs font-black tracking-tight">CAÑITA</span>
+                </div>
             </div>
             
             {/* Estado inicial */}
@@ -267,9 +327,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             <p class="text-xs text-slate-500 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
 
             {/* Contador de Visitas */}
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 border border-slate-350/20 text-[10px] md:text-xs text-slate-600 font-semibold mb-6 shadow-sm">
-                <i class="fas fa-users text-brand-red"></i>
-                <span>Visitas a la página: <strong id="visit-counter" class="text-slate-800">Cargando...</strong></span>
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white border border-slate-700/60 text-xs font-semibold mb-6 shadow-md transition-all hover:scale-105">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <i class="fas fa-users text-amber-400"></i>
+                <span>Personas que han ingresado: <strong id="visit-counter" class="font-extrabold text-emerald-400 tracking-wide font-mono">...</strong></span>
             </div>
 
             {/* Aviso Legal y Uso Ético */}
@@ -280,7 +344,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         Aviso Legal y Uso Ético de la Información
                     </h4>
                     <p class="text-[11px] md:text-xs text-slate-500 mb-5 leading-relaxed">
-                        Este portal web es una herramienta estrictamente académica y de divulgación sin fines de lucro. Facilita la centralización de enlaces y consultas públicas de libre acceso. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
+                        Este portal web es una herramienta de consulta descentralizada e independiente. Facilita la unificación de información pública de libre acceso a través de técnicas avanzadas de automatización y lectura de datos abiertos, sin emplear servicios web oficiales ni APIs provistas por el estado. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[10px] md:text-[11px] leading-relaxed">
                         <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
@@ -317,10 +381,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         </div>
                         <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
                             <p class="font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                <i class="fas fa-graduation-cap text-indigo-500"></i> Fines Académicos
+                                <i class="fas fa-robot text-indigo-500"></i> Automatización Ética
                             </p>
                             <p class="text-slate-500">
-                                Este aplicativo ha sido creado para fines educativos e ilustrativos para la demostración práctica de consumo seguro de servicios públicos descentralizados.
+                                Las consultas automatizan la navegación por portales web abiertos del gobierno de forma segura y optimizada, respetando los términos de acceso a datos públicos.
                             </p>
                         </div>
                         <div class="p-3 rounded-xl bg-slate-50 border border-slate-150">
@@ -336,6 +400,51 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             </div>
         </div>
     </footer>
+
+    <!-- Modal Oficial de Visualización de Copia de Papeleta SAT Lima -->
+    <div id="sat-ticket-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
+        <div class="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] font-poppins">
+            <!-- Header del Modal -->
+            <div class="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900 text-white border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                        <i class="fas fa-file-invoice text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white">Copia Oficial de Papeleta SAT Lima</h3>
+                        <p class="text-[10px] text-slate-400 font-mono" id="sat-modal-doc-title">Documento: —</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="sat-modal-download-btn" href="#" download="Copia_Papeleta_SAT.jpg" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95">
+                        <i class="fas fa-download text-xs"></i> <span class="hidden sm:inline">Descargar Copia</span>
+                    </a>
+                    <button type="button" id="sat-modal-close-btn" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer" title="Cerrar (Esc)">
+                        <i class="fas fa-xmark text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenido / Visualizador -->
+            <div class="relative flex-1 overflow-auto p-3 sm:p-5 flex items-center justify-center bg-slate-100 dark:bg-slate-950 min-h-[350px]">
+                <div id="sat-modal-loader" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs z-10">
+                    <i class="fas fa-circle-notch fa-spin text-2xl text-blue-600"></i>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Cargando copia oficial del SAT...</span>
+                </div>
+                <img id="sat-modal-img" src="" alt="Copia de papeleta SAT" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-slate-200 dark:border-slate-800 hidden" />
+                <iframe id="sat-modal-frame" src="" class="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-800 hidden"></iframe>
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+                <span class="flex items-center gap-1.5"><i class="fas fa-shield-halved text-emerald-500"></i> Documento verificado desde servidor oficial SAT</span>
+                <button type="button" id="sat-modal-close-footer" class="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-extrabold uppercase tracking-wider text-[10px] cursor-pointer">
+                    Volver a la Consulta
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         import {
@@ -365,7 +474,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             renderGNV,
             renderSBS,
             renderSunarp,
-            renderVehicleInfoCard
+            renderVehicleInfoCard,
+            renderFise
         } from '../utils/renderers.js';
 
         import {
@@ -388,10 +498,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchValorVenal,
             fillValorVenalSoles,
             runFetchOsinergmin,
-            runFetchLima
+            runFetchLima,
+            runFetchFISE,
+            runFetchPNP,
+            initHistorialDueñosCard
         } from '../services/api.js';
-
-        import { toPng } from 'html-to-image';
 
         // ====================================================
         // CONFIG
@@ -404,30 +515,145 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 : 'https://sv-F5YvWyUEXedogGQIRtSm.cloud.elastika.pe/api/v1'
         );
 
+        function animateCount(el, target) {
+            let start = 0;
+            const duration = 1200;
+            const startTime = performance.now();
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(easeOut * target);
+                el.textContent = current.toLocaleString();
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    el.textContent = target.toLocaleString();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
             const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
             try {
-                await fetch(`${BACKEND_URL}/visits`, { 
+                // Registrar visita atómica (POST)
+                const postRes = await fetch(`${BACKEND_URL}/visits`, { 
                     method: 'POST',
                     headers: { 'X-Client-Secret': clientSecret }
-                }).catch(() => {});
+                }).catch(() => null);
+
+                if (postRes && postRes.ok) {
+                    const data = await postRes.json();
+                    if (data.success && typeof data.total === 'number' && counterEl) {
+                        animateCount(counterEl, data.total);
+                        return;
+                    }
+                }
                 
+                // Fallback lectura GET
                 const res = await fetch(`${BACKEND_URL}/visits`, {
                     headers: { 'X-Client-Secret': clientSecret }
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.success && counterEl) {
-                        counterEl.textContent = data.total.toLocaleString();
+                    if (data.success && typeof data.total === 'number' && counterEl) {
+                        animateCount(counterEl, data.total);
                     }
                 }
             } catch (e) {
                 console.error("Error al cargar contador de visitas:", e);
-                if (counterEl) counterEl.textContent = "0";
+                if (counterEl) counterEl.textContent = "—";
             }
         }
         initVisits();
+
+        // ====================================================
+        // MODAL SAT LIMA - VISUALIZADOR DE COPIA DE PAPELETA
+        // ====================================================
+        const satModal = document.getElementById('sat-ticket-modal') as HTMLElement;
+        const satModalImg = document.getElementById('sat-modal-img') as HTMLImageElement;
+        const satModalFrame = document.getElementById('sat-modal-frame') as HTMLIFrameElement;
+        const satModalLoader = document.getElementById('sat-modal-loader') as HTMLElement;
+        const satModalDocTitle = document.getElementById('sat-modal-doc-title') as HTMLElement;
+        const satModalDownloadBtn = document.getElementById('sat-modal-download-btn') as HTMLAnchorElement;
+        const satModalCloseBtn = document.getElementById('sat-modal-close-btn');
+        const satModalCloseFooter = document.getElementById('sat-modal-close-footer');
+
+        function openSatTicketModal(url: string, docNumber: string) {
+            if (!satModal) return;
+            if (satModalDocTitle) satModalDocTitle.textContent = `N° Documento: ${docNumber || '—'}`;
+            if (satModalLoader) satModalLoader.classList.remove('hidden');
+            if (satModalImg) satModalImg.classList.add('hidden');
+            if (satModalFrame) satModalFrame.classList.add('hidden');
+
+            if (satModalDownloadBtn) {
+                satModalDownloadBtn.href = url;
+                satModalDownloadBtn.download = `Papeleta_SAT_${docNumber || 'oficial'}.jpg`;
+            }
+
+            const isDirectImg = url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+            if (isDirectImg) {
+                if (satModalImg) {
+                    satModalImg.src = url;
+                    satModalImg.onload = () => {
+                        if (satModalLoader) satModalLoader.classList.add('hidden');
+                        satModalImg.classList.remove('hidden');
+                    };
+                    satModalImg.onerror = () => {
+                        if (satModalLoader) satModalLoader.classList.add('hidden');
+                        if (satModalFrame) {
+                            satModalFrame.src = url;
+                            satModalFrame.classList.remove('hidden');
+                        }
+                    };
+                }
+            } else {
+                if (satModalFrame) {
+                    satModalFrame.src = url;
+                    satModalFrame.onload = () => {
+                        if (satModalLoader) satModalLoader.classList.add('hidden');
+                        satModalFrame.classList.remove('hidden');
+                    };
+                }
+            }
+
+            satModal.classList.remove('hidden');
+            satModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSatTicketModal() {
+            if (!satModal) return;
+            satModal.classList.add('hidden');
+            satModal.classList.remove('flex');
+            if (satModalImg) {
+                satModalImg.src = '';
+                satModalImg.classList.add('hidden');
+            }
+            if (satModalFrame) {
+                satModalFrame.src = '';
+                satModalFrame.classList.add('hidden');
+            }
+            document.body.style.overflow = '';
+        }
+
+        (window as any).openSatTicketModal = openSatTicketModal;
+        (window as any).closeSatTicketModal = closeSatTicketModal;
+
+        if (satModalCloseBtn) satModalCloseBtn.addEventListener('click', closeSatTicketModal);
+        if (satModalCloseFooter) satModalCloseFooter.addEventListener('click', closeSatTicketModal);
+        if (satModal) {
+            satModal.addEventListener('click', (e) => {
+                if (e.target === satModal) closeSatTicketModal();
+            });
+        }
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && satModal && !satModal.classList.contains('hidden')) {
+                closeSatTicketModal();
+            }
+        });
 
         // ====================================================
         // CAPTCHA DE SEGURIDAD
@@ -641,11 +867,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         return;
                     }
 
-                    // Solo SUNARP se exime del reintento (portales con Turnstile, en mantenimiento).
-                    // El resto —incluida ATU y SBS— reintenta hasta maxAttempts para no mostrar
-                    // error directo: los captchas (reCAPTCHA v3 / BotDetect) fallan de forma
-                    // probabilística y un nuevo intento suele acertar.
-                    const noRetry = id === 'sunarp' || is404Error;
+                    // Solo errores 404 (sección inexistente) se eximen de reintento.
+                    // El resto (incluyendo SUNARP, FISE, SBS, SAT, ATU, LUNAS) reintenta automáticamente.
+                    const noRetry = is404Error;
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
@@ -654,9 +878,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
                     queryAttempts[id] = attempt;
                     if (attempt < maxAttempts) {
-                        const delay = attempt === 1 ? 500 : 8000;
-                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${maxAttempts}): ${errorMessage}. ${attempt >= 2 ? `Auto-reintento en ${delay / 1000}s...` : 'Reintentando...'}`);
-                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando${attempt + 1 > 3 ? ' auto' : ''}...)`);
+                        const delay = attempt === 1 ? 1500 : 3500;
+                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${maxAttempts}): ${errorMessage}. Reintentando en ${delay / 1000}s...`);
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando ${attempt + 1}/${maxAttempts}...)`);
                         setTimeout(async () => {
                             try {
                                 const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, attempt + 1, maxAttempts);
@@ -666,7 +890,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             }
                         }, delay);
                     } else {
-                        console.error(`[FINAL] Consulta ${cardId} falló definitivamente (Intento ${attempt}/${maxAttempts}): ${errorMessage}`);
+                        console.error(`[FINAL] Consulta ${cardId} falló definitivamente tras ${attempt} intentos: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
                         resolveFn({ success: false, error: errorMessage });
                     }
@@ -713,6 +937,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             // En frontend solo reintentamos max 2 veces para evitar bloquear la interfaz 4 minutos.
             return runExclusive('lunas', () =>
                 runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 2));
+        }
+
+        async function fetchPNP(plate: string) {
+            // Requisitorias Policiales PNP (Captura Vehicular)
+            return runExclusive('pnp', () =>
+                runFetchWithRetry('pnp_req', (callbacks) => runFetchPNP(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchCallao(plate: string) {
@@ -795,6 +1025,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('gnv', (callbacks) => runFetchGNV(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchFISE(plate: string) {
+            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate);
+        }
+
         async function fetchSBS(plate: string) {
             return runExclusive('sbs', () =>
                 runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate));
@@ -843,35 +1077,56 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runExclusive('sat', () => runFetchWithRetry('sat_deuda', () => runFetchSATDeuda(plate, BACKEND_URL, callbacks), plate));
         }
 
+        const isRetryingCard: Record<string, boolean> = {};
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
-            if (cardId === 'sunarp') {
-                setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
+            if (isRetryingCard[cardId]) {
+                console.warn(`[RETRY-UI] Ya se está procesando el reintento para ${cardId}`);
                 return;
             }
-            if (cardId === 'lima') {
-                setCardMaintenance('lima', 'Papeletas Lima (SAT)', '', 'fas fa-traffic-light', 'SAT Lima', 'En mantenimiento temporal por actualización del portal.');
-                return;
+
+            // Bloquear clics múltiples y dar feedback visual inmediato en los botones de la tarjeta
+            const container = document.getElementById(`${cardId}-card-container`);
+            if (container) {
+                const buttons = container.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.setAttribute('data-prev-html', btn.innerHTML);
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reintentando carga...';
+                    btn.classList.add('opacity-75', 'cursor-not-allowed');
+                });
             }
-            // Reiniciar contador de intentos para este cardId en caso de reintento manual
+
+            isRetryingCard[cardId] = true;
             queryAttempts[cardId] = 0;
-            if (cardId === 'soat')   await fetchSOAT(plate);
-            else if (cardId === 'citv')   await fetchCITV(plate);
-            else if (cardId === 'callao') await fetchCallao(plate);
-            else if (cardId === 'lima')   await fetchLima(plate);
-            else if (cardId === 'sutran') await fetchSutran(plate);
-            else if (cardId === 'cinemometro') await fetchCinemometro(plate);
-            else if (cardId === 'municipal') await fetchMunicipal(plate);
-            else if (cardId === 'atu')    await fetchATU(plate);
-            else if (cardId === 'gnv')    await fetchGNV(plate);
-            else if (cardId === 'sbs')    await fetchSBS(plate);
-            else if (cardId === 'placas_pe') await fetchPlacasPE(plate);
-            else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
-            else if (cardId === 'osinergmin') await fetchOsinergmin(plate);
-            else if (cardId === 'sat_captura') await fetchSATCaptura(plate);
-            else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
-            else if (cardId === 'sat_deuda') await fetchSATDeuda(plate);
-            else if (cardId === 'sat') await fetchSAT(plate);
-            else if (cardId === 'lunas')  await fetchLunas(plate);
+
+            try {
+                if (cardId === 'sunarp')           await fetchSUNARP(plate);
+                else if (cardId === 'soat')        await fetchSOAT(plate);
+                else if (cardId === 'citv')        await fetchCITV(plate);
+                else if (cardId === 'callao')      await fetchCallao(plate);
+                else if (cardId === 'sutran')      await fetchSutran(plate);
+                else if (cardId === 'cinemometro') await fetchCinemometro(plate);
+                else if (cardId === 'municipal')   await fetchMunicipal(plate);
+                else if (cardId === 'gnv')         await fetchGNV(plate);
+                else if (cardId === 'fise')        await fetchFISE(plate);
+                else if (cardId === 'osinergmin')  await fetchOsinergmin(plate);
+                else if (cardId === 'placas_pe')   await fetchPlacasPE(plate);
+                else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
+                else if (cardId === 'atu')         await fetchATU(plate);
+                else if (cardId === 'sbs')         await fetchSBS(plate);
+                else if (cardId === 'sat_captura') await fetchSATCaptura(plate);
+                else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
+                else if (cardId === 'sat_deuda')   await fetchSATDeuda(plate);
+                else if (cardId === 'sat')         await fetchSAT(plate);
+                else if (cardId === 'lima')        await fetchLima(plate);
+                else if (cardId === 'lunas')       await fetchLunas(plate);
+                else if (cardId === 'pnp_req')     await fetchPNP(plate);
+            } catch (e) {
+                console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
+            } finally {
+                isRetryingCard[cardId] = false;
+            }
         };
 
         // ====================================================
@@ -998,7 +1253,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 
                 // Restore cards
                 Object.keys(cacheData.cards).forEach(cardId => {
-                    if (cardId === 'sunarp' || cardId === 'vehiculo') return; // en mantenimiento
                     const container = document.getElementById(`${cardId}-card-container`);
                     if (container) {
                         const cardCache = cacheData.cards[cardId];
@@ -1007,11 +1261,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         container.innerHTML = cardCache.innerHTML;
                     }
                 });
-
-                // SUNARP y Vehículo siguen en mantenimiento aunque la caché sea vieja.
-                // LUNAS ya no: se restaura de caché como cualquier otra sección.
-                setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
-                setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
                 
                 // Set the last query time with a note
                 const lastQueryTimeEl = document.getElementById('last-query-time');
@@ -1048,26 +1297,36 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const bodies = Array.from(document.querySelectorAll('.accordion-body')) as HTMLElement[];
             const wasHidden = bodies.map(b => b.classList.contains('hidden'));
             bodies.forEach(b => b.classList.remove('hidden'));
-            // Cabecera solo-print con marca y fecha
+            
+            // Cabecera elegante solo-print con logo oficial, metadata y aviso legal
             let printHeader = document.getElementById('print-report-header');
             const resultsSection = document.getElementById('results-section');
             if (resultsSection && !printHeader) {
                 printHeader = document.createElement('div');
                 printHeader.id = 'print-report-header';
                 printHeader.className = 'print-only';
-                printHeader.style.cssText = 'margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #4f46e5;';
+                printHeader.style.cssText = 'margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0f172a;';
                 resultsSection.prepend(printHeader);
             }
             if (printHeader) {
                 const fecha = new Date().toLocaleString('es-PE');
                 printHeader.innerHTML =
-                    '<div style="display:flex;justify-content:space-between;align-items:flex-end;">' +
-                        '<div>' +
-                            '<h1 style="font-size:20px;font-weight:800;color:#0f172a;margin:0;">Reporte Vehicular</h1>' +
-                            '<p style="font-size:12px;color:#475569;margin:2px 0 0;">Placa <b>' + plate + '</b> · Consulta multifuente</p>' +
-                        '</div>' +
-                        '<p style="font-size:11px;color:#64748b;margin:0;">Generado: ' + fecha + '</p>' +
-                    '</div>';
+                    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <img src="/assets/logocanita.jpeg" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:2px solid #0f172a;" alt="Cañita Logo" />
+                            <div>
+                                <h1 style="font-size:22px;font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.5px;text-transform:uppercase;font-family:'Archivo Black',sans-serif;">CAÑITA</h1>
+                                <p style="font-size:11px;font-weight:700;color:#475569;margin:0;letter-spacing:1px;text-transform:uppercase;">Plataforma de Análisis Vehicular Integral</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="display:inline-block;padding:4px 12px;border-radius:8px;background:#0f172a;color:#fff;font-weight:900;font-size:14px;letter-spacing:1px;">PLACA: ${plate}</span>
+                            <p style="font-size:10px;color:#64748b;margin:4px 0 0;font-weight:600;">Emisión: ${fecha}</p>
+                        </div>
+                    </div>
+                    <div style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:9.5px;line-height:1.4;color:#64748b;margin-top:6px;">
+                        <strong style="color:#334155;">Nota de Transparencia & Uso Informativo:</strong> Este reporte unifica en tiempo real información oficial de libre acceso público (SUNARP, SAT, MTC, SUTRAN, ATU, APESEG, SBS). La plataforma <strong>CAÑITA</strong> opera de forma tecnológica independiente sin almacenar bases de datos privadas ni tener afiliación con las entidades citadas.
+                    </div>`;
             }
             setTimeout(() => {
                 window.print();
@@ -1078,136 +1337,35 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         // ====================================================
         // 🟢 COMPARTIR POR WHATSAPP como IMAGEN estilo "Yape" (no texto feo)
-        // ====================================================
-        // Recolecta las secciones con datos y su estado (icono + color).
-        function recolectarResumen() {
-            const items: {titulo:string, estado:string, tipo:string}[] = [];
-            const cards = document.querySelectorAll('#results-cards-wrapper > div');
-            cards.forEach(card => {
-                const h3 = card.querySelector('h3');
-                if (!h3) return;
-                const titulo = (h3.textContent || '').trim();
-                const status = card.getAttribute('data-status') || '';
-                if (!titulo || status === 'loading' || status === 'maintenance' || status === 'development') return;
-                let estado = '';
-                card.querySelectorAll('span').forEach(b => {
-                    const t = (b.textContent || '').trim();
-                    if (t && t.length < 30 && !estado) estado = t;
-                });
-                const e = estado.toUpperCase();
-                let tipo = 'neutral';
-                if (/ACTIVO|VIGENTE|HABILITADO|SIN SINIESTROS|SIN GRAVAMEN|REGISTRADO|APROBADO/.test(e)) tipo = 'ok';
-                else if (/VENCIDO|ANULADO|PAPELETA|INFRACC|SINIESTRO|NO HABILITADO/.test(e)) tipo = 'warn';
-                items.push({ titulo, estado, tipo });
+
+
+        (window as any).compartirWhatsApp = function(plate: string) {
+            document.getElementById('wsp-dev-modal')?.remove();
+            const modal = document.createElement('div');
+            modal.id = 'wsp-dev-modal';
+            modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in font-poppins';
+            modal.innerHTML = `
+                <div class="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center shadow-2xl text-white">
+                    <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-3xl">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25 text-[11px] font-bold uppercase tracking-wider mb-3">
+                        <i class="fas fa-wrench text-[10px]"></i> Próximamente
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Compartir por WhatsApp</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Esta función está en <strong>desarrollo de implementación</strong>. Pronto podrás compartir y enviar directamente el comprobante y reporte vehicular de la placa <strong class="text-emerald-400">${plate}</strong> a cualquier chat o grupo de WhatsApp con un solo clic.
+                    </p>
+                    <button onclick="document.getElementById('wsp-dev-modal')?.remove()" 
+                            class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors border border-slate-600">
+                        Entendido, volver a la consulta
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
             });
-            return items;
-        }
-
-        // Construye la tarjeta visual (estilo comprobante Yape). Se renderiza VISIBLE
-        // dentro del modal (en pantalla) para que html-to-image la capture completa.
-        function construirTarjetaImagen(plate: string) {
-            const items = recolectarResumen();
-            const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'long', year:'numeric' });
-            const filas = items.map(it => {
-                const color = it.tipo === 'ok' ? '#10b981' : it.tipo === 'warn' ? '#f59e0b' : '#94a3b8';
-                const icon  = it.tipo === 'ok' ? '✓' : it.tipo === 'warn' ? '!' : '•';
-                return `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.09);border-radius:14px;margin-bottom:8px;">
-                    <div style="width:26px;height:26px;border-radius:50%;background:${color};color:#0b1220;font-weight:900;font-size:15px;line-height:26px;text-align:center;flex-shrink:0;">${icon}</div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="color:#e2e8f0;font-size:14px;font-weight:700;line-height:1.25;">${it.titulo}</div>
-                        ${it.estado ? `<div style="color:${color};font-size:12px;font-weight:800;letter-spacing:.4px;margin-top:2px;">${it.estado.toUpperCase()}</div>` : ''}
-                    </div>
-                </div>`;
-            }).join('');
-
-            const card = document.createElement('div');
-            card.id = 'share-card-render';
-            card.style.cssText = 'width:100%;max-width:400px;margin:0 auto;padding:26px 22px 18px;box-sizing:border-box;font-family:Poppins,system-ui,sans-serif;background:linear-gradient(160deg,#111827 0%,#0b1220 55%,#1e1b4b 130%);border-radius:22px;';
-            card.innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);text-align:center;line-height:42px;font-size:21px;">🚗</div>
-                        <div>
-                            <div style="color:#fff;font-size:18px;font-weight:800;line-height:1;">Reporte Vehicular</div>
-                            <div style="color:#94a3b8;font-size:11px;font-weight:600;margin-top:3px;">Consulta multifuente · Perú</div>
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Placa</div>
-                        <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:2px;font-family:'Courier New',monospace;">${plate}</div>
-                    </div>
-                </div>
-                <div>${filas || '<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">Sin datos disponibles para mostrar.</div>'}</div>
-                <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;">
-                    <div style="color:#818cf8;font-size:12px;font-weight:800;">🔎 ${window.location.hostname.replace('www.','')}</div>
-                    <div style="color:#64748b;font-size:11px;font-weight:600;">${fecha}</div>
-                </div>`;
-            return card;
-        }
-
-        (window as any).compartirWhatsApp = async function(plate: string) {
-            const texto = `🚗 Reporte vehicular de la placa ${plate} · Consulta gratis la tuya en ${window.location.origin}`;
-            const btnSel = "button[onclick=\"window.compartirWhatsApp('" + plate + "')\"]";
-            const btn = document.querySelector(btnSel) as HTMLButtonElement | null;
-            const originalHTML = btn ? btn.innerHTML : '';
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...'; }
-
-            // Modal con la tarjeta REAL visible (en pantalla) → se captura correctamente.
-            document.getElementById('share-modal')?.remove();
-            const overlay = document.createElement('div');
-            overlay.id = 'share-modal';
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,0.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;';
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;';
-            const card = construirTarjetaImagen(plate);
-            const controls = document.createElement('div');
-            controls.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;font-weight:700;font-family:Poppins,sans-serif;padding:6px;"><i class="fas fa-spinner fa-spin"></i> Preparando imagen...</div>';
-            wrap.appendChild(card);
-            wrap.appendChild(controls);
-            overlay.appendChild(wrap);
-            document.body.appendChild(overlay);
-            const close = () => overlay.remove();
-            overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
-
-            let file: File | null = null;
-            let dataUrl = '';
-            try {
-                await new Promise(r => setTimeout(r, 90)); // dejar pintar la tarjeta
-                // backgroundColor evita transparencia→negro; skipFonts evita CSS remoto.
-                dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true, skipFonts: true, backgroundColor: '#0b1220' });
-                const blob = await (await fetch(dataUrl)).blob();
-                file = new File([blob], `reporte-${plate}.png`, { type: 'image/png' });
-            } catch (e) {
-                console.error('[SHARE] Error generando imagen:', e);
-            } finally {
-                if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
-            }
-
-            // Botones (el share se dispara con gesto FRESCO desde este click → sin await previo).
-            controls.innerHTML = `
-                <div style="display:flex;gap:10px;">
-                    <button id="sm-share" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:0;border-radius:14px;background:#22c55e;color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:Poppins,sans-serif;">
-                        <i class="fab fa-whatsapp"></i> Compartir
-                    </button>
-                    <button id="sm-dl" title="Descargar" style="width:54px;display:flex;align-items:center;justify-content:center;padding:14px;border:0;border-radius:14px;background:#334155;color:#fff;font-size:16px;cursor:pointer;">
-                        <i class="fas fa-download"></i>
-                    </button>
-                </div>
-                <button id="sm-close" style="margin-top:10px;width:100%;padding:10px;border:0;border-radius:12px;background:transparent;color:#94a3b8;font-weight:700;font-size:13px;cursor:pointer;font-family:Poppins,sans-serif;">Cerrar</button>`;
-            (document.getElementById('sm-close') as HTMLElement).onclick = close;
-            (document.getElementById('sm-dl') as HTMLElement).onclick = () => {
-                if (!dataUrl) return;
-                const a = document.createElement('a'); a.href = dataUrl; a.download = `reporte-${plate}.png`; a.click();
-            };
-            (document.getElementById('sm-share') as HTMLElement).onclick = () => {
-                const nav = navigator as any;
-                if (file && nav.canShare && nav.canShare({ files: [file] })) {
-                    nav.share({ files: [file], title: `Reporte ${plate}`, text: texto }).then(close).catch(() => {});
-                } else {
-                    if (dataUrl) { const a = document.createElement('a'); a.href = dataUrl; a.download = `reporte-${plate}.png`; a.click(); }
-                    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
-                }
-            };
         };
 
         function renderResultsSkeleton(plate: string, fromCache: boolean = false) {
@@ -1238,30 +1396,33 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     </div>
                     <div class="text-left sm:text-right">
                         <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">APESEG · MTC · SUNARP · Infogas · Callao · SBS · SUTRAN · ATU · Cinemómetro</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · PNP Tránsito · AAP · FISE MINEM · SAT Lima · Municipalidades · OSINERGMIN</p>
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
-                    <!-- Orden lógico: Identidad → Seguros/Valor → Técnica/Gas → Infracciones/Papeletas → Estado legal → Habilitación -->
-                    <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="vehiculo-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <!-- 1. SUNARP Registro Oficial en primera posición -->
                     <div id="sunarp-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <!-- 2. Papeletas Lima SAT en segunda posición -->
+                    <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="fise-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="pnp_req-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="historial_dueños-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
@@ -1269,12 +1430,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 </div>`;
             
             if (!fromCache) {
-                setCardMaintenance('vehiculo', 'Información Vehicular (SUNARP)', '', 'fas fa-car-side', 'REGISTRO MULTIFUENTE');
+                setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
                 
-                // Mostrar inmediatamente las 12 secciones (ninguna oculta, todas con bordes negros)
+                // Mostrar inmediatamente las secciones iniciales
                 setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG');
                 setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
                 setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
+                setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
                 setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
@@ -1289,7 +1451,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
+                setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 5)');
+                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 6 · final)');
+                initHistorialDueñosCard(plate, { setCardData });
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1376,16 +1540,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
                         }
 
-                        // SUNARP y PAPELETAS LIMA: EN MANTENIMIENTO
-                        setCardMaintenance('sunarp', 'Gravámenes y Registro (SUNARP)', '', 'fas fa-file-contract', 'SUNARP');
-                        setCardMaintenance('lima', 'Papeletas Lima (SAT)', '', 'fas fa-traffic-light', 'SAT Lima', 'En mantenimiento temporal por actualización del portal.');
-
-                        // FASE 1: Servicios ligeros en paralelo (HTTP directo)
+                        // FASE 1: Servicios ligeros en paralelo (HTTP directo y consultas rápidas)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
                         await Promise.all([
+                            fetchSUNARP(plate),
                             fetchSOAT(plate),
                             fetchCITV(plate),
                             fetchGNV(plate),
+                            fetchFISE(plate),
                             fetchCallao(plate),
                             fetchSutran(plate),
                             fetchCinemometro(plate),
@@ -1402,8 +1564,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 3 · Penúltimo)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4 · Final)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 3)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                        setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 5)');
+                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 6 · Final)');
 
                         // 1. SBS Siniestralidad
                         await fetchSBS(plate);
@@ -1411,12 +1575,20 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // 2. SAT (orden de captura + internamiento + deuda) — navegador compartido
                         await fetchSAT(plate);
 
-                        // 3. ATU (Habilitación Taxi - penúltimo)
+                        // 3. ATU (Habilitación Taxi)
                         await fetchATU(plate);
 
-                        // 4. LUNAS (PNP BotDetect Captcha - último)
+                        // 4. LUNAS (PNP BotDetect Captcha)
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await fetchLunas(plate);
+
+                        // 5. PNP REQUISITORIAS (Captura Vehicular)
+                        setCardLoading('pnp_req', 'Requisitorias Policiales (PNP)', 'Consultando órdenes de captura PNP...', 'fas fa-shield-halved', '', 'PNP Tránsito');
+                        await fetchPNP(plate);
+
+                        // 6. SAT LIMA (Papeletas reCAPTCHA v2)
+                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
+                        await fetchLima(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);

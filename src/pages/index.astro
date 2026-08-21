@@ -49,11 +49,11 @@ import { SERVICES_DATA } from '../data/services';
             ]
           },
           {
-            "@type": "SoftwareApplication",
-            "name": "Análisis Vehicular por Placa",
-            "applicationCategory": "DeveloperApplication",
-            "operatingSystem": "Web",
-            "description": "Aplicación web que centraliza consultas públicas en tiempo real para análisis vehicular integral en Perú (SUNARP, SOAT, CITV, multas).",
+            "@type": "WebApplication",
+            "name": "Cañita - Consultas Vehiculares Perú",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "All",
+            "description": "Cañita: Aplicación web que centraliza consultas públicas en tiempo real para análisis vehicular integral en Perú (SUNARP, SOAT, CITV, multas).",
             "creator": {
               "@type": "Person",
               "name": "Luis Antony Huamani Gonzales"
@@ -74,7 +74,33 @@ import { SERVICES_DATA } from '../data/services';
 
     <main class="w-full flex flex-col items-center">
         {/* Banner Section */}
-        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-y border-white/5 px-5 py-8 md:py-4 md:px-2 flex justify-center items-center overflow-hidden relative">
+        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-y border-white/5 px-5 py-6 md:py-4 md:px-2 flex flex-col items-center overflow-hidden relative">
+            
+            {/* Top Bar con Logo Rectangular Cañita */}
+            <header class="w-full max-w-[1100px] flex justify-between items-center py-2.5 mx-auto px-4 md:px-2.5 z-20 mb-2 gap-3">
+                <a href="/" class="flex items-center gap-2.5 group shrink-0">
+                    <div class="w-28 h-10 sm:w-32 sm:h-12 rounded-xl bg-white overflow-hidden shadow-md border-2 border-brand-yellow/85 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
+                        <img 
+                            src="/assets/logocanita.jpeg" 
+                            alt="Logo Cañita" 
+                            class="w-full h-full object-contain rounded-lg" 
+                        />
+                    </div>
+                    <div class="hidden xs:flex flex-col text-left">
+                        <span class="text-white font-archivo text-base md:text-xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
+                        <span class="text-brand-yellow text-[8.5px] md:text-[10px] font-extrabold tracking-widest uppercase">Consultas Vehiculares</span>
+                    </div>
+                </a>
+                <a
+                    href="/consulta"
+                    class="w-10 h-10 sm:w-auto sm:px-5 sm:py-2.5 rounded-xl bg-brand-yellow hover:bg-[#ffd000]/90 text-brand-navy-dark transition-all duration-300 flex items-center justify-center gap-2 text-xs md:text-sm font-extrabold shadow-md active:scale-95 shrink-0"
+                    title="Consultar Placa"
+                >
+                    <i class="fas fa-search text-sm"></i>
+                    <span class="hidden sm:inline">Consultar Placa</span>
+                </a>
+            </header>
+
             <div class="max-w-[1100px] w-full flex flex-row flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-5 px-0 md:px-2.5">
                 
                 {/* Toyota Fortuner (Izquierda en desktop, arriba izquierda en móvil) */}
@@ -116,9 +142,23 @@ import { SERVICES_DATA } from '../data/services';
                     <p class="text-white font-archivo text-[10px] md:text-xs italic tracking-widest uppercase mt-3">Realizado por:</p>
                     <p class="text-brand-yellow font-dancing text-[24px] md:text-[32px] -mt-1 drop-shadow-[1px_1px_0px_rgba(0,0,0,0.5)]">Luis Antony Huamani Gonzales</p>
                     <p class="text-white/95 font-archivo text-[10px] md:text-xs tracking-wider uppercase -mt-1.5 mb-1.5 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
-                    <p class="text-white font-bold text-[10px] md:text-xs mt-3 max-w-[500px] mx-auto leading-relaxed border-t border-white/10 pt-3 opacity-95">
-                        Esta plataforma unifica y consulta en tiempo real información vehicular oficial de múltiples entidades públicas (MTC, ATU, APESEG, SUTRAN y Municipalidades y otras implementaciones que se haran progresivamente) de manera descentralizada y segura.
-                    </p>
+                    <div class="mt-4 pt-3 border-t border-white/15 max-w-[500px] mx-auto text-center font-sans">
+                        <p class="text-white/95 text-xs md:text-sm leading-relaxed">
+                            Si tienes una <strong>idea de negocio</strong> o un <strong>proyecto tecnológico</strong> en mente, ¡puedes contactarme!
+                        </p>
+                        <div class="mt-3 flex flex-wrap items-center justify-center gap-2.5">
+                            <a 
+                                href="https://www.instagram.com/luisantonyhg/" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-yellow-500 hover:from-purple-500 hover:to-yellow-400 text-white font-extrabold text-[11px] md:text-xs transition-all duration-300 shadow-md transform hover:-translate-y-0.5 active:scale-95"
+                            >
+                                <i class="fab fa-instagram text-sm md:text-base"></i>
+                                <span>@luisantonyhg</span>
+                            </a>
+                            <span class="text-[10px] md:text-xs text-brand-yellow font-extrabold">¡Sígueme y te asesoro gratis! 💡</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Toyota Hilux (Derecha en desktop, arriba derecha en móvil) */}
@@ -246,9 +286,13 @@ import { SERVICES_DATA } from '../data/services';
             <p class="text-xs text-slate-500 dark:text-brand-yellow/80 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
 
             {/* Contador de Visitas */}
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800/40 border border-slate-350/20 dark:border-slate-700/50 text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-6 shadow-sm">
-                <i class="fas fa-users text-brand-red dark:text-brand-yellow"></i>
-                <span>Visitas a la página: <strong id="visit-counter" class="text-slate-800 dark:text-white">Cargando...</strong></span>
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white dark:bg-slate-800/80 border border-slate-700/60 text-xs font-semibold mb-6 shadow-md transition-all hover:scale-105">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <i class="fas fa-users text-amber-400"></i>
+                <span>Personas que han ingresado: <strong id="visit-counter" class="font-extrabold text-emerald-400 tracking-wide font-mono">...</strong></span>
             </div>
 
             {/* Aviso Legal y Uso Ético */}
@@ -259,7 +303,7 @@ import { SERVICES_DATA } from '../data/services';
                         Aviso Legal y Uso Ético de la Información
                     </h4>
                     <p class="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
-                        Este portal web es una herramienta estrictamente académica y de divulgación sin fines de lucro. Facilita la centralización de enlaces y consultas públicas de libre acceso. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
+                        Este portal web es una herramienta de consulta descentralizada e independiente. Facilita la unificación de información pública de libre acceso a través de técnicas avanzadas de automatización y lectura de datos abiertos, sin emplear servicios web oficiales ni APIs provistas por el estado. Al utilizar esta herramienta, usted acepta cumplir con las siguientes directrices:
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[10px] md:text-[11px] leading-relaxed">
                         <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
@@ -296,10 +340,10 @@ import { SERVICES_DATA } from '../data/services';
                         </div>
                         <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
                             <p class="font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                <i class="fas fa-graduation-cap text-indigo-500"></i> Fines Académicos
+                                <i class="fas fa-robot text-indigo-500"></i> Automatización Ética
                             </p>
                             <p class="text-slate-500 dark:text-slate-400">
-                                Este aplicativo ha sido creado para fines educativos e ilustrativos para la demostración práctica de consumo seguro de servicios públicos descentralizados.
+                                Las consultas automatizan la navegación por portales web abiertos del gobierno de forma segura y optimizada, respetando los términos de acceso a datos públicos.
                             </p>
                         </div>
                         <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
@@ -326,28 +370,56 @@ import { SERVICES_DATA } from '../data/services';
                 : 'https://sv-F5YvWyUEXedogGQIRtSm.cloud.elastika.pe/api/v1'
         );
 
+        function animateCount(el, target) {
+            let start = 0;
+            const duration = 1200;
+            const startTime = performance.now();
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(easeOut * target);
+                el.textContent = current.toLocaleString();
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    el.textContent = target.toLocaleString();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
+            const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
             try {
-                // Registrar visita (POST)
-                await fetch(`${BACKEND_URL}/visits`, { 
+                // Registrar visita atómica (POST)
+                const postRes = await fetch(`${BACKEND_URL}/visits`, { 
                     method: 'POST',
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
-                }).catch(() => {});
+                    headers: { 'X-Client-Secret': clientSecret }
+                }).catch(() => null);
+
+                if (postRes && postRes.ok) {
+                    const data = await postRes.json();
+                    if (data.success && typeof data.total === 'number' && counterEl) {
+                        animateCount(counterEl, data.total);
+                        return;
+                    }
+                }
                 
-                // Obtener conteo (GET)
+                // Fallback lectura GET
                 const res = await fetch(`${BACKEND_URL}/visits`, {
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    headers: { 'X-Client-Secret': clientSecret }
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.success && counterEl) {
-                        counterEl.textContent = data.total.toLocaleString();
+                    if (data.success && typeof data.total === 'number' && counterEl) {
+                        animateCount(counterEl, data.total);
                     }
                 }
             } catch (e) {
                 console.error("Error al cargar contador de visitas:", e);
-                if (counterEl) counterEl.textContent = "0";
+                if (counterEl) counterEl.textContent = "—";
             }
         }
 

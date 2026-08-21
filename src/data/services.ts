@@ -49,13 +49,19 @@ export const SERVICES_DATA: ServiceSection[] = [
         id: "pnp-lunas",
         title: "Permisos de Lunas (PNP)",
         url: "https://sistemas.policia.gob.pe/consultalunas/ConsultarServicioLunas",
-        logo: "/assets/Escudo_de_la_Policía_Nacional_del_Perú.png"
+        logo: "/assets/logopnp.png"
       },
       {
         id: "infogas-consulta",
         title: "Consulta Info Gas",
         url: "https://vh.infogas.com.pe/",
         logo: "/assets/infogas.png"
+      },
+      {
+        id: "fise-ahorro-gnv",
+        title: "Ahorro GNV Deuda (FISE)",
+        url: "https://fise.minem.gob.pe:23308/consulta-taller/pages/consultaTaller/inicio",
+        logo: "/assets/fise.png"
       },
       {
         id: "sunarp-robo",
@@ -146,7 +152,7 @@ export const SERVICES_DATA: ServiceSection[] = [
         id: "pnp-velocidad",
         title: "Foto Papeleta Velocidad",
         url: "http://www.pit.gob.pe/pit2007/EstadoCuentaVelocidad.aspx",
-        logo: "/assets/Escudo_de_la_Policía_Nacional_del_Perú.png"
+        logo: "/assets/logopnp.png"
       }
     ]
   },
