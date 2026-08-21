@@ -1637,8 +1637,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             imgViewer.src = "";
 
             try {
+                const secKey = (import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026');
                 const res = await fetch(`${BACKEND_URL}/callao/pdf/${nroPapeleta}`, {
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    headers: { 'X-Client-Secret': secKey }
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const result = await res.json();
@@ -1717,9 +1718,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             loading.classList.remove('hidden');
 
             try {
+                const secKey = (import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026');
                 const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}`;
                 const res = await fetch(url, {
-                    headers: { 'X-Client-Secret': 'VehicularPESecretSecure2026' }
+                    headers: { 'X-Client-Secret': secKey }
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const result = await res.json();
