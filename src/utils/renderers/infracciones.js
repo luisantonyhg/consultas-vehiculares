@@ -496,7 +496,7 @@ export function renderSBS(data, plate) {
 
     const tiposConfig = [
         { key: 'soat',      label: 'SOAT',             icon: 'fas fa-shield-halved', color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-950/20',   border: 'border-blue-200 dark:border-blue-900' },
-        { key: 'vehicular', label: 'Vehícular',         icon: 'fas fa-car',           color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/20', border: 'border-violet-200 dark:border-violet-900' },
+        { key: 'vehicular', label: 'Vehicular',         icon: 'fas fa-car',           color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/20', border: 'border-violet-200 dark:border-violet-900' },
         { key: 'cat',       label: 'CAT',               icon: 'fas fa-house-chimney-crack', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/20',  border: 'border-amber-200 dark:border-amber-900' },
     ];
 
@@ -534,24 +534,30 @@ export function renderSBS(data, plate) {
                 <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Sin siniestros registrados</p>
             </div>`;
         } else {
-            const headers = Object.keys(tipo.data[0] || {});
-            html += `<div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
-                <div class="overflow-x-auto max-h-[200px]">
-                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
-                        <thead>
-                            <tr class="bg-slate-900 dark:bg-slate-955 text-white">
-                                ${headers.map(h => `<th class="py-1.5 px-2 text-[8px] font-bold uppercase tracking-wider border-r border-white/10 last:border-0 sticky top-0 bg-slate-900">${h}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tipo.data.map(row => `
-                                <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-violet-50/50 dark:hover:bg-violet-955/10 transition-colors duration-150">
-                                    ${headers.map(h => `<td class="py-1.5 px-2 text-[9px] font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 leading-tight">${row[h] || '—'}</td>`).join('')}
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
+            // Las tablas de SBS tienen hasta diez columnas y eran ilegibles en
+            // celular. Cada registro se presenta como ficha; se conservan todos
+            // los campos y los valores largos pueden envolver sin superponerse.
+            html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">${tipo.data.map((row, rowIndex) => {
+                const entries = Object.entries(row || {});
+                const companyEntry = entries.find(([key]) => /compa|aseg/i.test(key));
+                const company = companyEntry && companyEntry[1] ? String(companyEntry[1]) : `${cfg.label} #${rowIndex + 1}`;
+                return `<article class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 bg-slate-900 dark:bg-slate-950 px-3 py-2.5 text-white">
+                        <div class="min-w-0">
+                            <p class="text-[8px] font-bold uppercase tracking-[.16em] text-slate-400">Registro ${rowIndex + 1}</p>
+                            <p class="truncate text-[11px] font-extrabold" title="${escapeHTML(company)}">${escapeHTML(company)}</p>
+                        </div>
+                        <span class="shrink-0 rounded-md bg-white/10 px-2 py-1 text-[8px] font-bold uppercase tracking-wider">${cfg.label}</span>
+                    </div>
+                    <dl class="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-800">${entries.map(([key, rawValue]) => {
+                        const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);
+                        return `<div class="min-w-0 bg-white dark:bg-slate-900 px-3 py-2.5">
+                            <dt class="mb-1 text-[8px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 break-words">${escapeHTML(key)}</dt>
+                            <dd class="text-[11px] font-bold leading-snug text-slate-700 dark:text-slate-200 break-words [overflow-wrap:anywhere]">${escapeHTML(value)}</dd>
+                        </div>`;
+                    }).join('')}</dl>
+                </article>`;
+            }).join('')}</div>`;
         }
         html += '</div>';
     });

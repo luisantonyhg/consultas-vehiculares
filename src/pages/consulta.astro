@@ -151,6 +151,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         .accordion-card:hover {
             box-shadow: 0 8px 24px rgba(26, 58, 107, 0.12);
         }
+
+        /* La exportación usa tipografías del sistema para que el PNG sea idéntico
+           en Android/iOS y no dependa de fuentes externas dentro del canvas. */
+        [data-exporting="true"],
+        [data-exporting="true"] * {
+            font-family: Arial, Helvetica, sans-serif !important;
+            animation: none !important;
+        }
+        [data-exporting="true"] .accordion-header h3 {
+            line-height: 1.2 !important;
+            overflow-wrap: anywhere;
+        }
+
+        /* Loader Cañita: una sola animación, sobria y ligera. */
+        .loader-license-plate {
+            animation: plateBreath 1.8s ease-in-out infinite;
+            filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.14));
+        }
+        @keyframes plateBreath {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-3px) scale(1.012); }
+        }
     </style>
 </head>
 
@@ -200,7 +222,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         <span class="text-white/80 font-normal font-sans text-lg md:text-2xl">por</span>
                         <span>Placa</span>
                     </div>
-                    
+
                     <p class="text-white/95 text-xs md:text-sm mt-3.5 font-medium tracking-wide">
                         Ingresa el número de placa para realizar un análisis vehicular integral en tiempo real
                     </p>
@@ -227,7 +249,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 <button
                                     type="button"
                                     id="refresh-captcha-btn"
-                                    class="text-white/40 hover:text-white transition-all text-xs p-1 focus:outline-none"
+                                    class="text-white/40 hover:text-white transition-all text-xs p-1 focus:outline-none cursor-pointer"
                                     title="Recargar Captcha"
                                 >
                                     <i class="fas fa-rotate-right"></i>
@@ -249,7 +271,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             <button
                                 type="submit"
                                 id="submit-btn"
-                                class="w-full bg-brand-yellow hover:bg-[#ffd000]/80 text-brand-navy-dark py-3 rounded-xl transition-all duration-300 font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] whitespace-nowrap text-sm shadow-md"
+                                class="w-full bg-brand-yellow hover:bg-[#ffd000]/80 text-brand-navy-dark py-3 rounded-xl transition-all duration-300 font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] whitespace-nowrap text-sm shadow-md cursor-pointer select-none"
                             >
                                 <i class="fas fa-search"></i> Buscar
                             </button>
@@ -262,27 +284,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     >
                         &nbsp;
                     </p>
-
-                    <p class="text-white font-archivo text-[10px] md:text-xs italic tracking-widest uppercase mt-4">Realizado por:</p>
-                    <p class="text-brand-yellow font-dancing text-[24px] md:text-[32px] -mt-1 drop-shadow-[1px_1px_0px_rgba(0,0,0,0.5)]">Huamani Gonzales Luis Antony</p>
-                    <p class="text-white/95 font-archivo text-[10px] md:text-xs tracking-wider uppercase -mt-1.5 mb-1.5 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
-                    <div class="mt-4 pt-3 border-t border-white/15 max-w-[500px] mx-auto text-center font-sans">
-                        <p class="text-white/95 text-xs md:text-sm leading-relaxed">
-                            Si tienes una <strong>idea de negocio</strong> o un <strong>proyecto tecnológico</strong> en mente, ¡puedes contactarme!
-                        </p>
-                        <div class="mt-3 flex flex-wrap items-center justify-center gap-2.5">
-                            <a 
-                                href="https://www.instagram.com/luisantonyhg/" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-yellow-500 hover:from-purple-500 hover:to-yellow-400 text-white font-extrabold text-[11px] md:text-xs transition-all duration-300 shadow-md transform hover:-translate-y-0.5 active:scale-95"
-                            >
-                                <i class="fab fa-instagram text-sm md:text-base"></i>
-                                <span>@luisantonyhg</span>
-                            </a>
-                            <span class="text-[10px] md:text-xs text-brand-yellow font-extrabold">¡Sígueme y te asesoro gratis! 💡</span>
-                        </div>
-                    </div>
                 </div>
 
                 <img
@@ -326,9 +327,29 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     {/* Footer */}
     <footer class="mt-16 py-10 px-5 bg-slate-100 backdrop-blur-md border-t border-slate-200 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
-            <p class="text-xs text-slate-400 mb-1.5 uppercase tracking-widest">Realizado por:</p>
-            <p class="text-lg md:text-xl font-extrabold text-slate-800 mb-1">Luis Antony Huamani Gonzales</p>
-            <p class="text-xs text-slate-500 -mt-0.5 mb-3 font-semibold uppercase tracking-wide">Egresado de la carrera de Ingeniería de Sistemas</p>
+            {/* Tarjeta de Desarrollador y Contacto */}
+            <div class="mb-8 p-6 md:p-7 rounded-3xl bg-white border border-slate-200 shadow-sm max-w-xl mx-auto text-center font-sans">
+                <p class="text-slate-400 font-archivo text-[10px] md:text-xs italic tracking-widest uppercase">Realizado por:</p>
+                <p class="text-brand-navy-dark font-dancing text-[28px] md:text-[34px] font-bold -mt-0.5 mb-0 text-[#0b1c36]">Huamani Gonzales Luis Antony</p>
+                <p class="text-slate-600 font-archivo text-[10px] md:text-xs tracking-wider uppercase mb-3 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
+                <div class="pt-3 border-t border-slate-200">
+                    <p class="text-slate-700 text-xs md:text-sm leading-relaxed font-medium">
+                        Si tienes una <strong>idea de negocio</strong> o un <strong>proyecto tecnológico</strong> en mente, ¡puedes contactarme!
+                    </p>
+                    <div class="mt-3.5 flex flex-wrap items-center justify-center gap-2.5">
+                        <a
+                            href="https://www.instagram.com/luisantonyhg/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-yellow-500 hover:from-purple-500 hover:to-yellow-400 text-white font-extrabold text-xs transition-all duration-300 shadow-md transform hover:-translate-y-0.5 active:scale-95"
+                        >
+                            <i class="fab fa-instagram text-sm md:text-base"></i>
+                            <span>@luisantonyhg</span>
+                        </a>
+                        <span class="text-xs text-amber-600 font-extrabold">¡Sígueme y te asesoro gratis! 💡</span>
+                    </div>
+                </div>
+            </div>
 
             {/* Contador de Visitas */}
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white border border-slate-700/60 text-xs font-semibold mb-6 shadow-md transition-all hover:scale-105">
@@ -405,6 +426,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         </div>
     </footer>
 
+    <!-- Loader claro Cañita -->
+    <div id="loading-overlay" class="fixed inset-0 z-[120] hidden opacity-0 transition-all duration-300 items-center justify-center p-5 backdrop-blur-sm"
+         style="background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.98) 0%, rgba(248,250,252,.97) 55%, rgba(226,232,240,.96) 100%);">
+        <div class="relative flex w-full max-w-[390px] flex-col items-center rounded-[28px] border border-slate-200 bg-white/95 px-5 py-8 text-center shadow-[0_24px_70px_rgba(15,23,42,.13)] ring-1 ring-black/[.025] sm:px-8">
+            <img src="/assets/logocanita.jpeg" alt="Cañita" class="mb-5 h-9 w-auto max-w-[125px] rounded-lg object-contain" />
+
+            <div class="loader-license-plate relative w-full max-w-[330px] overflow-hidden rounded-xl">
+                <img src="/assets/PERU-PLACA-REGULAR.png" alt="Placa vehicular peruana" class="block h-auto w-full" />
+                <div class="absolute left-[4.5%] right-[4.5%] top-[27%] bottom-[11%] flex items-center justify-center bg-white">
+                    <span id="loader-plate-badge" class="font-archivo whitespace-nowrap text-[clamp(2.4rem,13vw,4.15rem)] font-black leading-none tracking-[-.08em] text-black">---</span>
+                </div>
+                <div class="absolute right-[4.5%] top-[9%] flex h-[16%] min-w-[18%] items-center justify-center rounded-md bg-slate-200 px-1">
+                    <span id="loader-plate-mini" class="text-[clamp(.55rem,2.5vw,.9rem)] font-black tracking-tight text-slate-500">---</span>
+                </div>
+            </div>
+
+            <h3 class="mt-6 text-base font-black uppercase tracking-[.08em] text-slate-950 sm:text-lg">Consultando vehículo</h3>
+            <p id="loader-status-text" class="mt-1.5 min-h-[20px] text-[11px] font-semibold leading-relaxed text-slate-500 sm:text-xs">Preparando consulta segura...</p>
+
+        </div>
+    </div>
+
     <!-- Modal Oficial de Visualización de Copia de Papeleta SAT Lima -->
     <div id="sat-ticket-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
         <div class="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] font-poppins">
@@ -451,6 +494,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     </div>
 
     <script>
+        import { toCanvas } from 'html-to-image';
         import {
             LOGO_MAPPING,
             SOURCE_URLS,
@@ -490,14 +534,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchCallao,
             runFetchSutran,
             runFetchCinemometro,
-            runFetchATU,
             runFetchGNV,
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
             runFetchSATCaptura,
             runFetchSATDeposito,
-            runFetchSATDeuda,
             runFetchMunicipal,
             runFetchPlacasPE,
             runFetchValorVenal,
@@ -781,6 +823,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         let vehicleData: Record<string, string> = {};
         let queryAttempts: Record<string, number> = {};
+        let currentSunarpValidation: 'found' | 'not_found' | 'indeterminate' = 'indeterminate';
 
         function processVehicleInfo(cardId: string, data: any) {
             if (!data) return;
@@ -1089,11 +1132,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return next;
         }
 
-        async function fetchATU(plate: string) {
-            return runExclusive('atu', () =>
-                runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate));
-        }
-
         async function fetchGNV(plate: string) {
             return runFetchWithRetry('gnv', (callbacks) => runFetchGNV(plate, BACKEND_URL, callbacks), plate);
         }
@@ -1137,15 +1175,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runExclusive('sat', () => runFetchWithRetry('sat_deposito', () => runFetchSATDeposito(plate, BACKEND_URL, callbacks), plate));
         }
 
-        async function fetchSATDeuda(plate: string) {
-            const callbacks = {
-                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
-                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
-                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
-            };
-            return runExclusive('sat', () => runFetchWithRetry('sat_deuda', () => runFetchSATDeuda(plate, BACKEND_URL, callbacks), plate));
-        }
-
         const isRetryingCard: Record<string, boolean> = {};
 
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
@@ -1182,11 +1211,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'osinergmin')  await fetchOsinergmin(plate);
                 else if (cardId === 'placas_pe')   await fetchPlacasPE(plate);
                 else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
-                else if (cardId === 'atu')         await fetchATU(plate);
                 else if (cardId === 'sbs')         await fetchSBS(plate);
                 else if (cardId === 'sat_captura') await fetchSATCaptura(plate);
                 else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
-                else if (cardId === 'sat_deuda')   await fetchSATDeuda(plate);
                 else if (cardId === 'sat')         await fetchSAT(plate);
                 else if (cardId === 'lima')        await fetchLima(plate);
                 else if (cardId === 'lunas')       await fetchLunas(plate);
@@ -1281,12 +1308,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // CACHING LOGIC (localStorage, TTL 5 min)
         // ====================================================
         function saveToCache(plate: string) {
-            // SUNARP sigue en mantenimiento → no se cachea. LUNAS sí: es la consulta
-            // más lenta (captcha con reintentos), así que es justo la que más se
-            // agradece servir desde caché al repetir la misma placa.
-            const cards = ['soat', 'soat_detallado', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal', 'lunas'];
+            // Solo se reutiliza un informe si SUNARP confirmó la existencia. Así una
+            // falla temporal nunca se convierte en una validación persistente.
+            if (currentSunarpValidation !== 'found') return;
+            const cards = ['sunarp', 'soat', 'soat_detallado', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'vehiculo', 'sat_captura', 'sat_deposito', 'municipal', 'lunas'];
             const cacheData: any = {
+                version: 2,
                 timestamp: Date.now(),
+                sunarpValidation: currentSunarpValidation,
                 vehicleData: vehicleData,
                 cards: {}
             };
@@ -1308,6 +1337,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             if (!cached) return false;
             try {
                 const cacheData = JSON.parse(cached);
+                if (cacheData.version !== 2 || cacheData.sunarpValidation !== 'found' || !cacheData.cards?.sunarp) {
+                    localStorage.removeItem(`vehiculo_cache_${plate}`);
+                    return false;
+                }
                 const age = Date.now() - cacheData.timestamp;
                 if (age > 5 * 60 * 1000) { // 5 minutes TTL
                     localStorage.removeItem(`vehiculo_cache_${plate}`);
@@ -1316,6 +1349,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 
                 // Restore vehicleData
                 vehicleData = cacheData.vehicleData || {};
+                currentSunarpValidation = 'found';
                 
                 // Build results container
                 renderResultsSkeleton(plate, true); // true = from cache
@@ -1378,70 +1412,310 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         };
 
         // ====================================================
-        // 🟢 COMPARTIR POR WHATSAPP como IMAGEN estilo "Yape" (no texto feo)
+        // DESCARGA Y COMPARTIR POR SECCIÓN — se genera en el cliente y no
+        // consume CPU, cola ni navegadores del backend.
+        // ====================================================
+        const exportFileName = (value: string) => value
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
 
+        function currentExportPlate() {
+            return document.getElementById('results-cards-wrapper')?.getAttribute('data-plate') || 'PLACA';
+        }
 
-        (window as any).compartirWhatsApp = function(plate: string) {
-            document.getElementById('wsp-dev-modal')?.remove();
-            const modal = document.createElement('div');
-            modal.id = 'wsp-dev-modal';
-            modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in font-poppins';
-            modal.innerHTML = `
-                <div class="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center shadow-2xl text-white">
-                    <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-3xl">
-                        <i class="fab fa-whatsapp"></i>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25 text-[11px] font-bold uppercase tracking-wider mb-3">
-                        <i class="fas fa-wrench text-[10px]"></i> Próximamente
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-2">Compartir por WhatsApp</h3>
-                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
-                        Esta función está en <strong>desarrollo de implementación</strong>. Pronto podrás compartir y enviar directamente el comprobante y reporte vehicular de la placa <strong class="text-emerald-400">${plate}</strong> a cualquier chat o grupo de WhatsApp con un solo clic.
-                    </p>
-                    <button onclick="document.getElementById('wsp-dev-modal')?.remove()" 
-                            class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors border border-slate-600">
-                        Entendido, volver a la consulta
-                    </button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.remove();
+        function showExportNotice(message: string, isError = false) {
+            document.getElementById('canita-export-notice')?.remove();
+            const notice = document.createElement('div');
+            notice.id = 'canita-export-notice';
+            notice.className = `fixed bottom-5 left-1/2 z-[99999] -translate-x-1/2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-2xl ${isError ? 'bg-rose-600' : 'bg-slate-900'}`;
+            notice.textContent = message;
+            document.body.appendChild(notice);
+            setTimeout(() => notice.remove(), 3200);
+        }
+
+        const EXPORT_WIDTH = 1440;
+        const EXPORT_PAGE_CONTENT_HEIGHT = 1680;
+        const EXPORT_FOOTER_HEIGHT = 116;
+        const EXPORT_MAX_PIXELS = 24_000_000;
+
+        async function waitForExportAssets(card: HTMLElement) {
+            await (document as any).fonts?.ready;
+            const images = Array.from(card.querySelectorAll('img')) as HTMLImageElement[];
+            await Promise.all(images.map(async image => {
+                if (!image.complete) {
+                    await new Promise<void>(resolve => {
+                        image.addEventListener('load', () => resolve(), { once: true });
+                        image.addEventListener('error', () => resolve(), { once: true });
+                    });
+                }
+                try { await image.decode(); } catch { /* La captura continúa sin bloquearse. */ }
+            }));
+        }
+
+        function exportScale(card: HTMLElement) {
+            const rect = card.getBoundingClientRect();
+            const width = Math.max(1, rect.width);
+            const height = Math.max(1, rect.height);
+            const sharpScale = Math.min(4, Math.max(1.5, EXPORT_WIDTH / width));
+            const memoryScale = Math.sqrt(EXPORT_MAX_PIXELS / (width * height));
+            return Math.max(1, Math.min(sharpScale, memoryScale));
+        }
+
+        function exportBreakpoints(card: HTMLElement, scale: number, canvasHeight: number) {
+            const cardTop = card.getBoundingClientRect().top;
+            const candidates = new Set<number>();
+            card.querySelectorAll('.accordion-body > *, tr, [data-export-break-after]').forEach(node => {
+                const rect = (node as HTMLElement).getBoundingClientRect();
+                const position = Math.round((rect.bottom - cardTop) * scale);
+                if (position > 0 && position < canvasHeight) candidates.add(position);
+            });
+            return Array.from(candidates).sort((a, b) => a - b);
+        }
+
+        function exportSegments(canvasHeight: number, breakpoints: number[]) {
+            if (canvasHeight <= EXPORT_PAGE_CONTENT_HEIGHT) return [[0, canvasHeight]];
+            const segments: number[][] = [];
+            let start = 0;
+            while (start < canvasHeight) {
+                const target = Math.min(start + EXPORT_PAGE_CONTENT_HEIGHT, canvasHeight);
+                let end = target;
+                if (target < canvasHeight) {
+                    const minimumUsefulCut = start + Math.round(EXPORT_PAGE_CONTENT_HEIGHT * 0.62);
+                    const safeCuts = breakpoints.filter(point => point >= minimumUsefulCut && point <= target);
+                    if (safeCuts.length) end = safeCuts[safeCuts.length - 1];
+                }
+                if (end <= start + 200) end = target;
+                segments.push([start, end]);
+                start = end;
+            }
+            return segments;
+        }
+
+        async function exportLogo() {
+            const image = new Image();
+            image.src = '/assets/logocanita.jpeg';
+            await new Promise<void>((resolve, reject) => {
+                image.onload = () => resolve();
+                image.onerror = () => reject(new Error('No se pudo cargar el logo de Cañita.'));
+            });
+            try { await image.decode(); } catch { /* onload ya confirmó la imagen. */ }
+            return image;
+        }
+
+        function canvasBlob(canvas: HTMLCanvasElement) {
+            return new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear la imagen.')), 'image/png');
+            });
+        }
+
+        async function brandedExportPages(source: HTMLCanvasElement, card: HTMLElement, title: string, plate: string) {
+            const cssWidth = Math.max(1, card.getBoundingClientRect().width);
+            const scale = source.width / cssWidth;
+            const segments = exportSegments(source.height, exportBreakpoints(card, scale, source.height));
+            const logo = await exportLogo();
+            const pages: Blob[] = [];
+
+            for (let index = 0; index < segments.length; index++) {
+                const [start, end] = segments[index];
+                const contentHeight = end - start;
+                const page = document.createElement('canvas');
+                page.width = source.width;
+                page.height = contentHeight + EXPORT_FOOTER_HEIGHT;
+                const context = page.getContext('2d');
+                if (!context) throw new Error('El dispositivo no permitió preparar la imagen.');
+
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, page.width, page.height);
+                context.drawImage(source, 0, start, source.width, contentHeight, 0, 0, source.width, contentHeight);
+
+                const footerY = contentHeight;
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, footerY, page.width, EXPORT_FOOTER_HEIGHT);
+                context.fillStyle = '#e2e8f0';
+                context.fillRect(0, footerY, page.width, 2);
+
+                const logoHeight = 62;
+                const logoWidth = Math.round(logo.width * (logoHeight / logo.height));
+                context.drawImage(logo, 38, footerY + 25, logoWidth, logoHeight);
+
+                context.fillStyle = '#0f172a';
+                context.font = '700 23px Arial, sans-serif';
+                context.textBaseline = 'middle';
+                context.fillText(`${title} · ${plate}`, 38 + logoWidth + 28, footerY + 47);
+                context.fillStyle = '#64748b';
+                context.font = '600 19px Arial, sans-serif';
+                context.fillText('Resultado consultado en Cañita', 38 + logoWidth + 28, footerY + 76);
+
+                context.textAlign = 'right';
+                context.fillStyle = '#334155';
+                context.font = '700 21px Arial, sans-serif';
+                context.fillText(`Página ${index + 1} de ${segments.length}`, page.width - 38, footerY + 60);
+                context.textAlign = 'left';
+
+                pages.push(await canvasBlob(page));
+                page.width = 1;
+                page.height = 1;
+            }
+            source.width = 1;
+            source.height = 1;
+            return pages;
+        }
+
+        async function sectionImages(cardId: string, title: string, plate: string) {
+            const card = document.getElementById(`${cardId}-card-container`) as HTMLElement | null;
+            if (!card || card.getAttribute('data-status') !== 'funciona') {
+                throw new Error('Esta sección todavía no tiene un resultado disponible.');
+            }
+            const body = card.querySelector('.accordion-body') as HTMLElement | null;
+            const wasHidden = !!body?.classList.contains('hidden');
+            const hadDark = document.documentElement.classList.contains('dark');
+            const originalInlineStyle = card.getAttribute('style');
+            if (wasHidden) body?.classList.remove('hidden');
+            if (hadDark) document.documentElement.classList.remove('dark');
+            card.setAttribute('data-exporting', 'true');
+            // Capturar con un ancho de reporte estable. Aumentar solo pixelRatio
+            // conserva el layout angosto del móvil y produce títulos amontonados.
+            card.style.width = '720px';
+            card.style.minWidth = '720px';
+            card.style.maxWidth = '720px';
+            card.style.margin = '0';
+            try {
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                await waitForExportAssets(card);
+                const canvas = await toCanvas(card, {
+                    backgroundColor: '#ffffff',
+                    cacheBust: true,
+                    pixelRatio: exportScale(card),
+                    fontEmbedCSS: '',
+                    filter: (node: HTMLElement) => {
+                        const classes = node.classList;
+                        const isFontAwesomeIcon = node.tagName === 'I' &&
+                            ['fa', 'fas', 'far', 'fab'].some(name => classes?.contains(name));
+                        return !classes?.contains('card-share-actions') &&
+                            !classes?.contains('no-print') &&
+                            !classes?.contains('canita-export-brand') &&
+                            !classes?.contains('card-source-footer') &&
+                            !isFontAwesomeIcon;
+                    },
+                });
+                if (!canvas.width || !canvas.height) throw new Error('No se pudo crear la imagen.');
+                return await brandedExportPages(canvas, card, title, plate);
+            } finally {
+                card.removeAttribute('data-exporting');
+                if (originalInlineStyle === null) card.removeAttribute('style');
+                else card.setAttribute('style', originalInlineStyle);
+                if (wasHidden) body?.classList.add('hidden');
+                if (hadDark) document.documentElement.classList.add('dark');
+            }
+        }
+
+        function downloadBlob(blob: Blob, filename: string) {
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+
+        async function withExportButton(button: HTMLButtonElement | null, task: () => Promise<void>) {
+            const old = button?.innerHTML || '';
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Preparando';
+            }
+            try { await task(); }
+            catch (error) { showExportNotice((error as Error).message || 'No se pudo generar la imagen.', true); }
+            finally {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = old;
+                }
+            }
+        }
+
+        (window as any).descargarSeccion = function(cardId: string, button?: HTMLButtonElement) {
+            return withExportButton(button || null, async () => {
+                const card = document.getElementById(`${cardId}-card-container`)!;
+                const title = card.getAttribute('data-export-title') || cardId;
+                const plate = currentExportPlate();
+                const pages = await sectionImages(cardId, title, plate);
+                pages.forEach((blob, index) => {
+                    const suffix = pages.length > 1 ? `_pagina_${index + 1}_de_${pages.length}` : '';
+                    downloadBlob(blob, `Canita_${exportFileName(title)}_${exportFileName(plate)}${suffix}.png`);
+                });
+                showExportNotice(pages.length > 1 ? `${pages.length} imágenes nítidas descargadas.` : 'Resultado nítido descargado con la marca Cañita.');
+            });
+        };
+
+        (window as any).compartirSeccion = function(cardId: string, button?: HTMLButtonElement) {
+            return withExportButton(button || null, async () => {
+                const card = document.getElementById(`${cardId}-card-container`)!;
+                const title = card.getAttribute('data-export-title') || cardId;
+                const plate = currentExportPlate();
+                const pages = await sectionImages(cardId, title, plate);
+                const files = pages.map((blob, index) => {
+                    const suffix = pages.length > 1 ? `_pagina_${index + 1}_de_${pages.length}` : '';
+                    return new File([blob], `Canita_${exportFileName(title)}_${exportFileName(plate)}${suffix}.png`, { type: 'image/png' });
+                });
+                const shareData = { title: `Cañita · ${title}`, text: `Resultado vehicular de la placa ${plate}, consultado en Cañita.`, files };
+                if (navigator.share && (!navigator.canShare || navigator.canShare({ files }))) {
+                    try {
+                        await navigator.share(shareData);
+                        showExportNotice(files.length > 1 ? `${files.length} imágenes nítidas listas para compartir.` : 'Resultado nítido listo para compartir.');
+                        return;
+                    } catch (error) {
+                        // Cancelar el selector es una decisión del usuario, no un fallo.
+                        if ((error as DOMException)?.name === 'AbortError') return;
+                        // Algunos navegadores anuncian soporte pero rechazan varios archivos.
+                        // En ese caso continuamos con la descarga + apertura de WhatsApp.
+                        console.warn('[COMPARTIR] El selector nativo rechazó los archivos; usando respaldo.', error);
+                    }
+                }
+                files.forEach(file => downloadBlob(file, file.name));
+                const text = encodeURIComponent(`Te comparto el resultado “${title}” de la placa ${plate}, consultado en Cañita. Las imágenes se descargaron en mi dispositivo.`);
+                window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+                showExportNotice(`${files.length} imagen${files.length === 1 ? '' : 'es'} descargada${files.length === 1 ? '' : 's'}. Selecciónala${files.length === 1 ? '' : 's'} en WhatsApp.`);
             });
         };
 
         function renderResultsSkeleton(plate: string, fromCache: boolean = false) {
+            const cleanPlate = (plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            const formattedPlate = cleanPlate.length === 6 ? `${cleanPlate.slice(0, 3)}-${cleanPlate.slice(3)}` : (plate || '---');
             const rc = document.getElementById('results-container')!;
             rc.className = 'w-full bg-transparent p-0 shadow-none border-0 text-left text-slate-900 dark:text-white';
             rc.innerHTML = `
-                <div class="flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800 font-poppins">
-                    <div>
-                        <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Placa consultada</p>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <p class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-poppins tracking-wide">${plate}</p>
-                            <button onclick="window.refreshPlateData('${plate}')"
-                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0"
-                                    title="Actualizar datos desde las fuentes oficiales">
-                                <i class="fas fa-rotate"></i> Actualizar
-                            </button>
-                            <button onclick="window.imprimirReporte('${plate}')"
-                                    class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black dark:bg-black dark:hover:bg-slate-950 text-white text-[10px] font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0 border border-slate-700"
-                                    title="Descargar / imprimir reporte en PDF">
-                                <i class="fas fa-file-arrow-down text-sm"></i> Descargar PDF
-                            </button>
-                            <button onclick="window.compartirWhatsApp('${plate}')"
-                                    class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0"
-                                    title="Compartir por WhatsApp">
-                                <i class="fab fa-whatsapp text-sm"></i> Compartir
-                            </button>
+                <div class="flex flex-col items-center justify-center mb-6 pb-4 border-b border-slate-200 dark:border-slate-800 font-poppins w-full text-center">
+                    <p class="text-[10px] md:text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Placa consultada</p>
+
+                    <!-- Marco de Placa Peruana Centrado -->
+                    <div class="loader-license-plate relative w-full max-w-[210px] sm:max-w-[240px] overflow-hidden rounded-xl shadow-md border border-slate-200 dark:border-slate-700 mx-auto my-1">
+                        <img src="/assets/PERU-PLACA-REGULAR.png" alt="Placa vehicular peruana" class="block h-auto w-full" />
+                        <div class="absolute left-[4.5%] right-[4.5%] top-[27%] bottom-[11%] flex items-center justify-center bg-white">
+                            <span class="font-archivo whitespace-nowrap text-[clamp(1.85rem,6vw,2.55rem)] font-black leading-none tracking-[-.06em] text-black">${formattedPlate}</span>
+                        </div>
+                        <div class="absolute right-[4.5%] top-[9%] flex h-[16%] min-w-[18%] items-center justify-center rounded-sm bg-slate-200 px-1">
+                            <span class="text-[8px] sm:text-[9px] font-black tracking-tight text-slate-600">${formattedPlate}</span>
                         </div>
                     </div>
-                    <div class="text-left sm:text-right">
-                        <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · AAP · SAT Lima · Municipalidades · OSINERGMIN</p>
+
+                    <!-- Botones de Acción Centrados -->
+                    <div class="flex items-center justify-center gap-2.5 mt-3 flex-wrap">
+                        <button onclick="window.refreshPlateData('${plate}')"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0 border border-slate-200/80 dark:border-slate-700 cursor-pointer"
+                                title="Actualizar datos desde las fuentes oficiales">
+                            <i class="fas fa-rotate"></i> Actualizar
+                        </button>
+                        <button onclick="window.imprimirReporte('${plate}')"
+                                class="no-print inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0 border border-slate-700 cursor-pointer"
+                                title="Descargar / imprimir reporte en PDF">
+                            <i class="fas fa-file-arrow-down text-sm"></i> Descargar PDF
+                        </button>
                     </div>
                 </div>
-                <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
+                <div id="results-cards-wrapper" data-plate="${plate}" class="flex flex-col gap-3 md:gap-4 w-full">
                     <!-- 1. SUNARP Registro Oficial en primera posición -->
                     <div id="sunarp-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- 2. Papeletas Lima SAT en segunda posición -->
@@ -1458,10 +1732,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="callao-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="sat_deuda-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sat_deuda-card-container" data-status="development"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="atu-card-container" data-status="development"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- Requisitorias PNP retirado temporalmente: sin tarjeta visible. -->
                     <div id="historial_dueños-card-container" data-status="development"></div>
@@ -1480,6 +1754,22 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 'fas fa-clock-rotate-left',
                 'SUNARP / Registral',
                 'Estamos preparando el historial cronológico de propietarios, transferencias y gravámenes.'
+            );
+            setCardComingSoon(
+                'atu',
+                'Habilitación Taxi ATU',
+                'Lima y Callao',
+                'fas fa-taxi',
+                'ATU',
+                'Esta verificación estará disponible próximamente. No se ejecuta ni ocupa recursos del servidor mientras mejoramos su estabilidad.'
+            );
+            setCardComingSoon(
+                'sat_deuda',
+                'Deuda Imp. Vehicular (SAT)',
+                'Impuesto Vehicular',
+                'fas fa-file-invoice-dollar',
+                'SAT Lima',
+                'Esta verificación estará disponible próximamente. Actualmente no se ejecuta para proteger la velocidad y estabilidad de las demás consultas.'
             );
             setCardComingSoon(
                 'fise',
@@ -1506,19 +1796,108 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
 
-                setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 1)');
-                setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 3)');
-                setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
-                setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
+                setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 1)');
+                setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
+                setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
+                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
                     lastQueryTimeEl.textContent = new Date().toLocaleString('es-PE');
                 }
             }
+        }
+
+        // ====================================================
+        // LOADER OVERLAY Y CONTROL DE BÚSQUEDA
+        // ====================================================
+        let isSubmitting = false;
+
+        function showLoadingOverlay(plate: string) {
+            const overlay = document.getElementById('loading-overlay');
+            const badge = document.getElementById('loader-plate-badge');
+            const miniBadge = document.getElementById('loader-plate-mini');
+            const statusText = document.getElementById('loader-status-text');
+            const cleanPlate = plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            const formattedPlate = cleanPlate.length === 6 ? `${cleanPlate.slice(0, 3)}-${cleanPlate.slice(3)}` : plate.toUpperCase();
+            if (badge) badge.textContent = formattedPlate;
+            if (miniBadge) miniBadge.textContent = formattedPlate;
+            if (statusText) statusText.textContent = 'Preparando consulta segura...';
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    overlay.classList.remove('opacity-0');
+                    overlay.classList.add('opacity-100', 'flex');
+                });
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function updateLoadingStatus(text: string, _step?: string) {
+            const statusText = document.getElementById('loader-status-text');
+            if (statusText && text) statusText.textContent = text;
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            if (!overlay) return;
+            overlay.classList.remove('opacity-100');
+            overlay.classList.add('opacity-0');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }, 350);
+        }
+
+        function scrollToResults() {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                const y = resultsSection.getBoundingClientRect().top + window.scrollY - 15;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+        }
+
+        function showInvalidPlateAlert(plate: string) {
+            const wrapper = document.getElementById('results-cards-wrapper');
+            if (!wrapper) return;
+            document.getElementById('sunarp-invalid-plate-alert')?.remove();
+            const safePlate = plate.replace(/[^A-Z0-9-]/g, '');
+            const alert = document.createElement('section');
+            alert.id = 'sunarp-invalid-plate-alert';
+            alert.className = 'card-animate mb-4 overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-lg font-poppins';
+            alert.innerHTML = `
+                <div class="flex flex-col items-center gap-4 bg-gradient-to-br from-white via-white to-slate-100 px-5 py-7 text-center sm:px-8">
+                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
+                        <img src="/assets/logocanita.jpeg" alt="Cañita" class="h-11 w-14 object-contain" />
+                    </div>
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-white">
+                            <i class="fas fa-shield-halved"></i> Validación SUNARP
+                        </span>
+                        <h3 class="mt-3 text-xl font-black text-slate-950 sm:text-2xl">No encontramos la placa ${safePlate}</h3>
+                        <p class="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 sm:text-sm">
+                            Revisa que las seis letras y números estén escritos correctamente. SUNARP confirmó que la placa ingresada no tiene registro vehicular.
+                        </p>
+                    </div>
+                    <button type="button" id="invalid-plate-edit-button" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-md transition hover:bg-black active:scale-95">
+                        <i class="fas fa-pen"></i> Corregir placa
+                    </button>
+                    <p class="text-[10px] font-semibold text-slate-400">Las demás fuentes no se ejecutaron para proteger la velocidad y capacidad de Cañita.</p>
+                </div>`;
+            wrapper.parentElement?.insertBefore(alert, wrapper);
+            Array.from(wrapper.children).forEach(card => {
+                if ((card as HTMLElement).id !== 'sunarp-card-container') {
+                    (card as HTMLElement).classList.add('hidden');
+                    (card as HTMLElement).setAttribute('data-skipped', 'invalid-plate');
+                }
+            });
+            document.getElementById('invalid-plate-edit-button')?.addEventListener('click', () => {
+                plateInput?.focus();
+                plateInput?.select();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
         }
 
         // ====================================================
@@ -1531,6 +1910,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         if (queryForm && plateInput && queryStatus) {
             queryForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                if (isSubmitting) return;
 
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
@@ -1553,35 +1934,36 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     drawCaptcha();
                     fillValorVenalSoles();
                     queryStatus.classList.add('opacity-0');
+                    scrollToResults();
                     return;
                 }
 
+                isSubmitting = true;
                 if (submitBtn) {
                     submitBtn.disabled = true;
+                    submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
                 }
                 queryStatus.textContent = 'Iniciando consulta multiorigen...';
                 queryStatus.classList.remove('opacity-0');
 
+                // Mostrar el Loader Overlay Fullscreen
+                showLoadingOverlay(plate);
+
                 // Reset vehicle info
                 vehicleData = {};
+                currentSunarpValidation = 'indeterminate';
 
                 if (captchaInput) captchaInput.value = '';
                 drawCaptcha();
 
                 renderResultsSkeleton(plate, false);
 
-                if (window.innerWidth < 900) {
-                    requestAnimationFrame(() => requestAnimationFrame(() => {
-                        setTimeout(() => {
-                            const resultsSection = document.getElementById('results-section');
-                            if (resultsSection) {
-                                const y = resultsSection.getBoundingClientRect().top + window.scrollY - 12;
-                                window.scrollTo({ top: y, behavior: 'smooth' });
-                            }
-                        }, 250);
-                    }));
-                }
+                // Si SUNARP demora, mantener el loader e informar. Nunca ocultarlo
+                // por reloj: debe cerrarse solo cuando la tarjeta ya esté renderizada.
+                const safetyLoaderTimeout = setTimeout(() => {
+                    updateLoadingStatus('SUNARP está demorando más de lo habitual. Seguimos validando...');
+                }, 8000);
 
                 // ====================================================
                 // EJECUCIÓN EN 2 FASES
@@ -1592,9 +1974,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     let queueError = false;
                     try {
                         // Un turno representa a la persona y protege el fan-out
-                        // de las 17+ secciones. Solo las consultas admitidas
-                        // comienzan a consumir endpoints y portales externos.
                         queryStatus.innerHTML = '<i class="fas fa-ticket mr-1"></i> Reservando turno de consulta...';
+                        updateLoadingStatus('Preparando tu consulta...');
+
                         let admission = await acquireConsultationSlot(BACKEND_URL);
                         if (admission.supported) {
                             activeConsultationTicket = admission.ticket_id;
@@ -1602,6 +1984,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 if (state.status === 'queued') {
                                     const wait = Math.max(1, Math.round((state.estimated_wait_seconds || 0) / 60));
                                     queryStatus.innerHTML = `<span class="text-amber-600 font-bold"><i class="fas fa-hourglass-half mr-1"></i> Alta demanda: estás en la posición ${state.position}. Espera estimada: ${wait} min. Tu consulta iniciará automáticamente.</span>`;
+                                    updateLoadingStatus(`Alta demanda · turno ${state.position} · aprox. ${wait} min`);
                                 } else {
                                     const modeLabel = state.load_mode === 'fast' ? 'Modo rápido' : state.load_mode === 'balanced' ? 'Modo balanceado' : 'Modo protegido';
                                     queryStatus.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fas fa-bolt mr-1"></i> Turno confirmado · ${modeLabel}. Iniciando consulta...</span>`;
@@ -1615,7 +1998,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             }, 30000);
                         }
 
-                        // Verificación rápida de disponibilidad del backend (Health endpoint está en raíz /health)
+                        // Verificación rápida de disponibilidad del backend
                         try {
                             const baseUrl = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
                             const healthRes = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(10000) });
@@ -1624,14 +2007,39 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
                         }
 
-                        // FASE 1: Servicios ligeros en paralelo (HTTP directo y consultas rápidas)
-                        queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
-                        // Máximo cuatro solicitudes simultáneas por usuario.
-                        // Con 50 usuarios esto reduce el pico teórico de 500 a
-                        // 200 requests y permite que el backend aplique cola y
-                        // backpressure sin una avalancha instantánea.
+                        // VALIDACIÓN INICIAL: SUNARP se resuelve primero. Solo una respuesta
+                        // oficial y explícita "no encontrada" detiene el resto. Un timeout,
+                        // captcha o caída es indeterminado y deja continuar las demás fuentes.
+                        queryStatus.textContent = 'Validando la existencia de la placa en SUNARP...';
+                        updateLoadingStatus('Validando placa en SUNARP...');
+                        const sunarpResult = await fetchSUNARP(plate);
+                        currentSunarpValidation = sunarpResult?.validation_status === 'found'
+                            ? 'found'
+                            : sunarpResult?.validation_status === 'not_found'
+                                ? 'not_found'
+                                : 'indeterminate';
+
+                        // setCardData/setCardError ya insertó el resultado. Esperar dos
+                        // frames garantiza que el navegador pinte el estado antes del fade.
+                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                        clearTimeout(safetyLoaderTimeout);
+                        hideLoadingOverlay();
+                        scrollToResults();
+
+                        if (currentSunarpValidation === 'not_found') {
+                            showInvalidPlateAlert(plate);
+                            queryStatus.innerHTML = '<span class="font-bold text-slate-700"><i class="fas fa-circle-xmark mr-1"></i> Placa no encontrada. Verifica los datos ingresados.</span>';
+                            queryStatus.classList.remove('opacity-0');
+                            localStorage.removeItem(`vehiculo_cache_${plate}`);
+                            return;
+                        }
+
+                        queryStatus.textContent = currentSunarpValidation === 'found'
+                            ? 'Placa confirmada. Completando las demás secciones...'
+                            : 'SUNARP no pudo confirmar temporalmente. Continuando con las demás fuentes...';
+
+                        // FASE 1: una vez validada SUNARP, ejecutar servicios rápidos.
                         await runInBatches([
-                            () => fetchSUNARP(plate),
                             () => fetchSOAT(plate),
                             () => fetchSOATDetallado(plate),
                             () => fetchCITV(plate),
@@ -1662,41 +2070,37 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En turno (Iniciando...)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
-                        setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 5 · Final)');
 
                         // 1. SBS Siniestralidad
                         await runSectionSafely('sbs', () => fetchSBS(plate));
 
-                        // 2. SAT (orden de captura + internamiento + deuda) — navegador compartido
+                        // 2. SAT (orden de captura + internamiento) — navegador compartido
                         await runSectionSafely('sat', () => fetchSAT(plate));
 
                         // 3. SAT LIMA (Papeletas reCAPTCHA v2 - VirtualSAT)
                         setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
                         await runSectionSafely('lima', () => fetchLima(plate));
 
-                        // Requisitorias PNP desactivado: no se programa ni se llama al backend.
-
                         // 4. LUNAS (PNP BotDetect Captcha)
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await runSectionSafely('lunas', () => fetchLunas(plate));
-
-                        // 5. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
-                        setCardLoading('atu', 'Habilitación Taxi ATU', 'Verificando habilitación de taxi ATU...', 'fas fa-taxi', '', 'ATU');
-                        await runSectionSafely('atu', () => fetchATU(plate));
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
+                        clearTimeout(safetyLoaderTimeout);
+                        hideLoadingOverlay();
                         queueError = (err as any)?.name?.startsWith('ConsultationQueue') || false;
                         if (queueError) {
                             queryStatus.innerHTML = `<span class="text-rose-600 font-bold"><i class="fas fa-users mr-1"></i> ${(err as any).message || 'Estamos atendiendo muchas consultas. Inténtalo nuevamente en unos segundos.'}</span>`;
                             queryStatus.classList.remove('opacity-0');
                         }
                     } finally {
+                        clearTimeout(safetyLoaderTimeout);
+                        hideLoadingOverlay();
                         if (activeConsultationTicket) {
                             const ticketToRelease = activeConsultationTicket;
                             activeConsultationTicket = null;
@@ -1709,21 +2113,27 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         }
                         if (!queueError) queryStatus.classList.add('opacity-0');
                         if (submitBtn) {
-                            let cooldown = 10;
+                            let cooldown = 5;
                             const interval = setInterval(() => {
                                 if (cooldown > 0) {
                                     submitBtn.disabled = true;
+                                    submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
                                     submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
                                     cooldown--;
                                 } else {
                                     clearInterval(interval);
                                     submitBtn.disabled = false;
+                                    submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
                                     submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                                    isSubmitting = false;
                                 }
                             }, 1000);
                             submitBtn.disabled = true;
+                            submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
                             submitBtn.innerHTML = `<i class="fas fa-clock"></i> Esperar ${cooldown}s`;
                             cooldown--;
+                        } else {
+                            isSubmitting = false;
                         }
                     }
                 })();

@@ -289,13 +289,13 @@ export function reorderCards() {
             'cinemometro-card-container',
             'callao-card-container',
             'municipal-card-container',
-            'sat_deuda-card-container',
             'sat_captura-card-container',
             'sat_deposito-card-container',
-            'atu-card-container',
             'lunas-card-container',
-            // Secciones futuras: siempre ocupan las dos últimas posiciones.
+            // Secciones futuras: siempre ocupan las últimas posiciones.
             'historial_dueños-card-container',
+            'atu-card-container',
+            'sat_deuda-card-container',
             'fise-card-container'
         ];
         const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
@@ -318,8 +318,12 @@ export function reorderCards() {
 
     // Estas tarjetas son informativas y nunca participan en la consulta.
     const historyCard = document.getElementById('historial_dueños-card-container');
+    const atuCard = document.getElementById('atu-card-container');
+    const satDebtCard = document.getElementById('sat_deuda-card-container');
     const fiseCard = document.getElementById('fise-card-container');
     if (historyCard?.parentElement === wrapper) wrapper.appendChild(historyCard);
+    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
+    if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
     if (fiseCard?.parentElement === wrapper) wrapper.appendChild(fiseCard);
 }
 
@@ -513,13 +517,36 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
     const finalContent = `
         <div class="flex flex-col h-full justify-between">
             <div class="flex-1">${htmlContent}</div>
-            <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
-                <span>Fuente: ${sourceName}${verifyLink}</span>
-                <span>Consultado: ${getFormattedTimestamp()}</span>
+            <div class="canita-export-brand mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-800">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-2.5">
+                        <img src="/assets/logocanita.jpeg" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
+                        <div class="min-w-0">
+                            <p class="text-[9px] font-extrabold uppercase tracking-[.14em] text-slate-800">Consulta vehicular Cañita</p>
+                            <p class="text-[8px] font-semibold text-slate-400">Información clara desde fuentes oficiales</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-shield-halved shrink-0 text-emerald-500"></i>
+                </div>
+            </div>
+            <div class="card-source-footer mt-2.5 flex flex-col gap-2 border-t border-slate-200 pt-2.5 dark:border-slate-850 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center justify-between gap-2 text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+                    <span>Fuente: ${sourceName}${verifyLink}</span>
+                    <span>Consultado: ${getFormattedTimestamp()}</span>
+                </div>
+                <div class="card-share-actions no-print flex shrink-0 items-center gap-1.5">
+                    <button type="button" onclick="event.stopPropagation(); window.descargarSeccion('${cardId}', this)" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm transition hover:bg-black active:scale-95">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); window.compartirSeccion('${cardId}', this)" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm transition hover:bg-emerald-600 active:scale-95">
+                        <i class="fab fa-whatsapp"></i> Compartir
+                    </button>
+                </div>
             </div>
         </div>`;
 
     container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.setAttribute('data-export-title', title);
     container.innerHTML = `
         ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
         <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">

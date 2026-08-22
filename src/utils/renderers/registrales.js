@@ -198,13 +198,15 @@ export function renderSOATDetallado(result, plate) {
 
     const mobileCards = certificados.map((cert, index) => {
         const active = estadoActivo(cert.estado);
-        return `<article class="overflow-hidden rounded-xl border ${active ? 'border-emerald-300 dark:border-emerald-800' : 'border-slate-200 dark:border-slate-800'} bg-white shadow-sm dark:bg-slate-900">
-            <div class="flex items-start justify-between gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+        const badgeClass = active ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+        const estadoText = String(cert.estado || '').toUpperCase() || (active ? 'ACTIVO' : 'VENCIDO');
+        return `<article class="overflow-hidden rounded-xl border ${active ? 'border-emerald-300 dark:border-emerald-800' : 'border-rose-200 dark:border-rose-950/60'} bg-white shadow-sm dark:bg-slate-900">
+            <div class="flex items-start justify-between gap-2 border-b ${active ? 'border-emerald-100 dark:border-emerald-950/40' : 'border-rose-100 dark:border-rose-950/40'} px-3 py-2.5">
                 <div class="min-w-0">
-                    <p class="text-[9px] font-extrabold uppercase tracking-[.16em] text-slate-400">Certificado histórico #${index + 1}</p>
+                    <p class="text-[9px] font-extrabold uppercase tracking-[.16em] ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">Certificado histórico #${index + 1}</p>
                     <p class="truncate text-sm font-black text-slate-900 dark:text-white">${safe(cert.compania)}</p>
                 </div>
-                <span class="shrink-0 rounded-md px-2 py-1 text-[9px] font-extrabold uppercase text-white ${active ? 'bg-emerald-500' : 'bg-slate-500'}">${safe(cert.estado)}</span>
+                <span class="shrink-0 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}"><i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} mr-1"></i>${safe(estadoText)}</span>
             </div>
             <table class="w-full table-fixed border-collapse text-left"><tbody>
                 ${fila('Inicio', safe(cert.inicio))}${fila('Fin', safe(cert.fin))}
@@ -217,10 +219,12 @@ export function renderSOATDetallado(result, plate) {
 
     const desktopRows = certificados.map((cert) => {
         const active = estadoActivo(cert.estado);
+        const badgeClass = active ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+        const estadoText = String(cert.estado || '').toUpperCase() || (active ? 'ACTIVO' : 'VENCIDO');
         const values = [cert.compania, cert.inicio, cert.fin, cert.contratante, cert.uso, cert.clase, cert.ubigeo, cert.tipo];
-        return `<tr class="border-b border-slate-100 last:border-0 dark:border-slate-800">
-            ${values.map((value, i) => `<td class="px-2.5 py-2 align-top text-[10px] leading-snug ${i === 0 ? 'font-extrabold text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300'}">${safe(value)}</td>`).join('')}
-            <td class="px-2.5 py-2 align-top"><span class="rounded-md px-2 py-1 text-[9px] font-extrabold uppercase text-white ${active ? 'bg-emerald-500' : 'bg-slate-500'}">${safe(cert.estado)}</span></td>
+        return `<tr class="border-b border-slate-100 last:border-0 dark:border-slate-800 ${active ? 'bg-emerald-50/30 dark:bg-emerald-950/15' : ''}">
+            ${values.map((value, i) => `<td class="px-2.5 py-2.5 align-middle text-[10px] leading-snug ${i === 0 ? 'font-extrabold text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300'}">${safe(value)}</td>`).join('')}
+            <td class="px-2.5 py-2.5 align-middle"><span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}"><i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} text-[8px]"></i>${safe(estadoText)}</span></td>
         </tr>`;
     }).join('');
 
@@ -358,6 +362,27 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     </div>`;
 }
 
+export function renderSunarpNotFound(plate) {
+    const safePlate = escapeHTML(plate);
+    return `<div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 px-5 py-7 text-center font-poppins shadow-sm sm:px-8">
+        <div class="absolute inset-x-0 top-0 h-1 bg-slate-900"></div>
+        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
+            <img src="/assets/sunarp.jpeg" alt="SUNARP" class="h-11 w-11 object-contain" />
+        </div>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-slate-700">
+            <i class="fas fa-magnifying-glass"></i> Sin registro oficial
+        </span>
+        <h4 class="mt-4 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">La placa ${safePlate} no fue encontrada</h4>
+        <p class="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 sm:text-sm">
+            SUNARP confirmó que no existen datos registrales para la placa ingresada. Verifica cuidadosamente las letras y números antes de volver a consultar.
+        </p>
+        <div class="mx-auto mt-5 flex max-w-md items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-sm">
+            <i class="fas fa-shield-halved mt-0.5 text-slate-700"></i>
+            <p class="text-[11px] font-semibold leading-relaxed text-slate-500">Para proteger el sistema y evitar consultas innecesarias, las demás fuentes no fueron ejecutadas.</p>
+        </div>
+    </div>`;
+}
+
 export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
     const container = document.getElementById('vehiculo-card-container');
     if (!container) return;
@@ -403,15 +428,28 @@ export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
     }
 
     container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.setAttribute('data-export-title', 'Información Vehicular SUNARP');
     container.innerHTML = `
         ${cardHeaderAccordion('vehiculo', 'Información Vehicular (SUNARP)', 'REGISTRO MULTIFUENTE', 'fas fa-car-side', badgeHTML, isExpanded)}
         <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
             <div class="rounded-xl overflow-hidden">
                 ${tableRows}
             </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
+            ${hasData ? `<div class="canita-export-brand mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-800">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-2.5">
+                        <img src="/assets/logocanita.jpeg" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
+                        <div><p class="text-[9px] font-extrabold uppercase tracking-[.14em]">Consulta vehicular Cañita</p><p class="text-[8px] font-semibold text-slate-400">Información clara desde fuentes oficiales</p></div>
+                    </div><i class="fas fa-shield-halved text-emerald-500"></i>
+                </div>
+            </div>` : ''}
+            <div class="card-source-footer mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
                 <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a></span>
                 <span>Consultado: ${getFormattedTimestamp()}</span>
             </div>
+            ${hasData ? `<div class="card-share-actions no-print mt-2 flex items-center justify-end gap-1.5">
+                <button type="button" onclick="event.stopPropagation(); window.descargarSeccion('vehiculo', this)" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white"><i class="fas fa-download"></i> Descargar</button>
+                <button type="button" onclick="event.stopPropagation(); window.compartirSeccion('vehiculo', this)" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white"><i class="fab fa-whatsapp"></i> Compartir</button>
+            </div>` : ''}
         </div>`;
 }

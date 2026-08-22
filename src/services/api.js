@@ -12,6 +12,7 @@ import {
     renderGNV,
     renderSBS,
     renderSunarp,
+    renderSunarpNotFound,
     renderPlacasPE,
     renderValorVenal,
     renderOsinergmin,
@@ -217,12 +218,39 @@ export async function runFetchSOATDetallado(plate, BACKEND_URL, callbacks) {
         if (!data.success) throw new Error(data.error || 'No se pudo consultar el historial APESEG');
         const certificados = Array.isArray(data.certificados) ? data.certificados : [];
         const siniestros = Array.isArray(data.siniestros) ? data.siniestros : [];
-        const activos = certificados.filter(c => String(c.estado || '').toLowerCase() === 'activo').length;
-        const badge = siniestros.length
-            ? `<span class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"><i class="fas fa-triangle-exclamation"></i>${siniestros.length} SINIESTRO${siniestros.length === 1 ? '' : 'S'}</span>`
-            : activos
-                ? `<span class="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"><i class="fas fa-circle-check"></i>${activos} ACTIVO${activos === 1 ? '' : 'S'}</span>`
-                : `<span class="inline-flex items-center gap-1 rounded-md bg-slate-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">${certificados.length} HISTÓRICO${certificados.length === 1 ? '' : 'S'}</span>`;
+
+        let badge = '';
+        if (certificados.length === 0) {
+            badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-xmark"></i> SIN SOAT REGISTRADO</span>`;
+        } else {
+            const sortedCerts = [...certificados].sort((a, b) => {
+                const dateA = parseDateDDMMYYYY(a.fin || a.fechaFin || a.FechaFin);
+                const dateB = parseDateDDMMYYYY(b.fin || b.fechaFin || b.FechaFin);
+                return dateB.getTime() - dateA.getTime();
+            });
+
+            const activeCert = sortedCerts.find(c => {
+                const st = String(c.estado || '').toLowerCase();
+                return st === 'activo' || st === 'vigente';
+            });
+
+            const targetCert = activeCert || sortedCerts[0];
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const endDate = parseDateDDMMYYYY(targetCert.fin || targetCert.fechaFin || targetCert.FechaFin);
+            const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const isVigente = activeCert ? true : diffDays >= 0;
+
+            if (isVigente) {
+                const diasText = diffDays >= 0 ? ` (${diffDays} días)` : '';
+                badge = `<span class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"><i class="fas fa-circle-check"></i> VIGENTE${diasText}</span>`;
+            } else {
+                const diasVencido = Math.abs(diffDays);
+                const diasText = !isNaN(diasVencido) && diasVencido < 10000 ? ` (${diasVencido} ${diasVencido === 1 ? 'día' : 'días'})` : '';
+                badge = `<span class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"><i class="fas fa-circle-xmark"></i> VENCIDO${diasText}</span>`;
+            }
+        }
+
         callbacks.setCardData('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', renderSOATDetallado(data, plate), true, certificados.length > 0 || siniestros.length > 0, badge);
         return data;
     } catch (err) {
@@ -664,7 +692,6 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
 export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
-    callbacks.setCardLoading('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima');
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
     const renderTablaDetalle = (detalle) => {
@@ -710,10 +737,11 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         </div>`;
 
     try {
-        // Una primera llamada consulta las tres secciones con un solo Chromium.
+        // Una primera llamada consulta captura y depósito con un solo Chromium.
         // Si alguna queda pendiente, se reintenta únicamente esa sección. Así no
-        // repetimos capturas/deudas ya verificadas ni gastamos tres navegadores completos.
-        let cap = null, dep = null, deu = null, satLastError = null;
+        // repetimos resultados ya verificados. Deuda SAT está pausada y nunca
+        // forma parte de esta solicitud.
+        let cap = null, dep = null, satLastError = null;
         const SAT_BUDGET_MS = 150000;
         const satStart = Date.now();
 
@@ -735,7 +763,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
             const data = await requestSAT(`/sat/${plate}`);
             cap = data.captura;
             dep = data.deposito;
-            deu = data.deuda;
             satLastError = data.error || null;
         } catch (err) {
             satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || 'Error de conexión');
@@ -744,7 +771,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         const pending = [
             { path: `/sat/captura/${plate}`, key: 'captura', get: () => cap, set: value => { cap = value; } },
             { path: `/sat/deposito/${plate}`, key: 'deposito', get: () => dep, set: value => { dep = value; } },
-            { path: `/sat/deuda/${plate}`, key: 'deuda', get: () => deu, set: value => { deu = value; } },
         ];
         for (const item of pending) {
             if (item.get()?.success || SAT_BUDGET_MS - (Date.now() - satStart) < 3000) continue;
@@ -775,26 +801,11 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
             callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || satLastError || 'No se pudo consultar', plate);
         }
 
-        if (deu && deu.success) {
-            const neutralBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${t}</span>`;
-            if (deu.manual || deu.tiene_deuda === null || deu.tiene_deuda === undefined) {
-                // No se pudo determinar automáticamente → tarjeta neutra + verificación manual (link en el footer)
-                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
-                    bloque(deu.mensaje, deu.fecha, false, null), true, false, neutralBadge('VERIFICAR MANUAL'));
-            } else {
-                const conDeuda = !!deu.tiene_deuda;
-                callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
-                    bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
-            }
-        } else {
-            callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', (deu && deu.error) || satLastError || 'No se pudo consultar', plate);
-        }
-        return { success: !!(cap && cap.success) || !!(dep && dep.success) || !!(deu && deu.success), error: satLastError, captura: cap, deposito: dep, deuda: deu };
+        return { success: !!(cap && cap.success) || !!(dep && dep.success), error: satLastError, captura: cap, deposito: dep, deuda: null };
     } catch (err) {
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
-        callbacks.setCardError('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
     }
 }
@@ -916,24 +927,44 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        const datos = data.datos && typeof data.datos === 'object' ? data.datos : {};
+        const evidence = `${data.error || ''} ${datos.estado || ''} ${datos.mensaje || ''}`.toLowerCase();
+        const legacyNotFound = ['no encontrado', 'no encontrada', 'no se encontr', 'no existe', 'no se hallaron', 'no hay resultados']
+            .some(marker => evidence.includes(marker));
+        const validationStatus = data.validation_status || (legacyNotFound ? 'not_found' : null);
+
+        if (validationStatus === 'not_found' || data.vehicle_exists === false) {
+            const content = renderSunarpNotFound(plate);
+            const badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white shadow-sm uppercase tracking-wider">
+                <i class="fas fa-circle-xmark"></i> NO ENCONTRADA
+            </span>`;
+            callbacks.setCardData('sunarp', 'Información Registro SUNARP', 'Validación oficial de existencia', 'fas fa-file-contract', '', 'SUNARP', content, true, false, badge);
+            return { ...data, success: true, validation_status: 'not_found', vehicle_exists: false };
+        }
+
         if (data.success) {
-            if (data.datos && Object.keys(data.datos).length > 0) {
-                callbacks.processVehicleInfo('sunarp', data.datos);
+            const ignoredKeys = new Set(['estado', 'mensaje', 'html_raw']);
+            const hasStructuredData = Object.entries(datos).some(([key, value]) =>
+                !ignoredKeys.has(key) && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0));
+            const hasOfficialImage = Boolean(data.imagen_base64 || data.official_image_base64);
+            const explicitRegistered = ['registrado', 'encontrado'].includes(String(datos.estado || '').trim().toLowerCase());
+            const isFound = validationStatus === 'found' || data.vehicle_exists === true || explicitRegistered || hasStructuredData || hasOfficialImage;
+
+            if (!isFound) {
+                const message = 'SUNARP respondió, pero no permitió confirmar si la placa existe. Las demás fuentes continuarán normalmente.';
+                callbacks.setCardError('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', message, plate);
+                return { ...data, success: false, validation_status: 'indeterminate', vehicle_exists: null, error: message };
             }
-            const hasData = Boolean(data.datos && Object.keys(data.datos).length > 0);
-            let customBadge = '';
-            if (hasData) {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-check"></i> REGISTRADO
-                </span>`;
-            } else {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-400 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-info-circle"></i> SIN GRAVAMEN
-                </span>`;
+
+            if (hasStructuredData) {
+                callbacks.processVehicleInfo('sunarp', datos);
             }
-            const content = renderSunarp(data.datos, plate, data.imagen_base64 || data.official_image_base64);
-            callbacks.setCardData('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, hasData, customBadge);
-            return data;
+            const customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-sm uppercase tracking-wider">
+                <i class="fas fa-circle-check"></i> REGISTRADO
+            </span>`;
+            const content = renderSunarp(datos, plate, data.imagen_base64 || data.official_image_base64);
+            callbacks.setCardData('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, true, customBadge);
+            return { ...data, validation_status: 'found', vehicle_exists: true };
 
         } else {
             callbacks.setCardError('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', data.error || 'Error al consultar SUNARP', plate);
