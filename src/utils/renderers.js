@@ -3,6 +3,7 @@ export * from './renderers/index.js';
 
 export const LOGO_MAPPING = {
     soat: '/assets/apeseg.png',
+    soat_detallado: '/assets/apeseg.png',
     citv: '/assets/mtc.png',
     lunas: '/assets/logopnp.png',
     callao: '/assets/callao.png',
@@ -27,6 +28,7 @@ export const LOGO_MAPPING = {
 
 export const SOURCE_URLS = {
     soat: 'https://www.apeseg.org.pe/consultas-soat/',
+    soat_detallado: 'https://intranet.apeseg.org.pe/soat/hispla.php',
     citv: 'https://rec.mtc.gob.pe/Citv/ArConsultaCitv',
     lunas: 'https://sistemas.policia.gob.pe/consultalunas/ConsultarServicioLunas',
     // pnp_req desactivado: no incluir la URL de ConsultaPVR en el bundle.
@@ -52,6 +54,7 @@ export const SOURCE_URLS = {
 
 export const SERVICE_COLORS = {
     soat:        { bg: 'bg-blue-50 dark:bg-blue-950/20',       icon: 'text-blue-600 dark:text-blue-400',       ring: 'ring-blue-200 dark:ring-blue-900' },
+    soat_detallado: { bg: 'bg-red-50 dark:bg-red-950/20', icon: 'text-red-600 dark:text-red-400', ring: 'ring-red-200 dark:ring-red-900' },
     citv:        { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
     lunas:       { bg: 'bg-purple-50 dark:bg-purple-950/20',   icon: 'text-purple-600 dark:text-purple-400',   ring: 'ring-purple-200 dark:ring-purple-900' },
     // pnp_req desactivado mientras Requisitorias esté fuera del producto.
@@ -276,11 +279,11 @@ export function reorderCards() {
             'lima-card-container',
             'placas_pe-card-container',
             'soat-card-container',
+            'soat_detallado-card-container',
             'sbs-card-container',
             'valor_venal-card-container',
             'citv-card-container',
             'gnv-card-container',
-            'fise-card-container',
             'osinergmin-card-container',
             'sutran-card-container',
             'cinemometro-card-container',
@@ -291,8 +294,9 @@ export function reorderCards() {
             'sat_deposito-card-container',
             'atu-card-container',
             'lunas-card-container',
-            // Requisitorias PNP desactivado: no forma parte del orden visual.
-            'historial_dueños-card-container'
+            // Secciones futuras: siempre ocupan las dos últimas posiciones.
+            'historial_dueños-card-container',
+            'fise-card-container'
         ];
         const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
         return (_ia === -1 ? 999 : _ia) - (_ib === -1 ? 999 : _ib);
@@ -311,6 +315,12 @@ export function reorderCards() {
             wrapper.appendChild(lunasCard);
         }
     }
+
+    // Estas tarjetas son informativas y nunca participan en la consulta.
+    const historyCard = document.getElementById('historial_dueños-card-container');
+    const fiseCard = document.getElementById('fise-card-container');
+    if (historyCard?.parentElement === wrapper) wrapper.appendChild(historyCard);
+    if (fiseCard?.parentElement === wrapper) wrapper.appendChild(fiseCard);
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {
@@ -427,6 +437,10 @@ function _renderUnavailableCard(cardId, title, iconClass, sourceName, badgeLabel
 
 export function setCardDevelopment(cardId, title, sub, iconClass, sourceName, mensaje) {
     _renderUnavailableCard(cardId, title, iconClass, sourceName, 'En desarrollo', 'development', mensaje);
+}
+
+export function setCardComingSoon(cardId, title, sub, iconClass, sourceName, mensaje) {
+    _renderUnavailableCard(cardId, title, iconClass, sourceName, 'Próximamente', 'development', mensaje);
 }
 
 export function setCardMaintenance(cardId, title, sub, iconClass, sourceName, mensaje) {

@@ -465,6 +465,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             setCardLoading,
             setCardWaiting,
             setCardDevelopment,
+            setCardComingSoon,
             setCardMaintenance,
             setCardData,
             setCardError,
@@ -478,12 +479,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             renderGNV,
             renderSBS,
             renderSunarp,
-            renderVehicleInfoCard,
-            renderFise
+            renderVehicleInfoCard
         } from '../utils/renderers.js';
 
         import {
             runFetchSOAT,
+            runFetchSOATDetallado,
             runFetchCITV,
             runFetchLunas,
             runFetchCallao,
@@ -503,10 +504,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             fillValorVenalSoles,
             runFetchOsinergmin,
             runFetchLima,
-            runFetchFISE,
             // Requisitorias PNP permanece implementado en services/api.js,
             // pero no se importa mientras la sección esté retirada.
-            initHistorialDueñosCard,
             acquireConsultationSlot,
             waitForConsultationSlot,
             touchConsultationSlot,
@@ -1006,6 +1005,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('soat', (callbacks) => runFetchSOAT(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchSOATDetallado(plate: string) {
+            return runFetchWithRetry('soat_detallado', (callbacks) => runFetchSOATDetallado(plate, BACKEND_URL, callbacks), plate, 1, 2);
+        }
+
         async function fetchCITV(plate: string) {
             return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
         }
@@ -1095,12 +1098,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('gnv', (callbacks) => runFetchGNV(plate, BACKEND_URL, callbacks), plate);
         }
 
-        async function fetchFISE(plate: string) {
-            // El puerto 23308 de FISE es inestable: se permite un segundo intento.
-            return runExclusive('fise', () =>
-                runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 2));
-        }
-
         async function fetchSBS(plate: string) {
             return runExclusive('sbs', () =>
                 runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate));
@@ -1175,13 +1172,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             try {
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
                 else if (cardId === 'soat')        await fetchSOAT(plate);
+                else if (cardId === 'soat_detallado') await fetchSOATDetallado(plate);
                 else if (cardId === 'citv')        await fetchCITV(plate);
                 else if (cardId === 'callao')      await fetchCallao(plate);
                 else if (cardId === 'sutran')      await fetchSutran(plate);
                 else if (cardId === 'cinemometro') await fetchCinemometro(plate);
                 else if (cardId === 'municipal')   await fetchMunicipal(plate);
                 else if (cardId === 'gnv')         await fetchGNV(plate);
-                else if (cardId === 'fise')        await fetchFISE(plate);
                 else if (cardId === 'osinergmin')  await fetchOsinergmin(plate);
                 else if (cardId === 'placas_pe')   await fetchPlacasPE(plate);
                 else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
@@ -1287,7 +1284,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             // SUNARP sigue en mantenimiento → no se cachea. LUNAS sí: es la consulta
             // más lenta (captcha con reintentos), así que es justo la que más se
             // agradece servir desde caché al repetir la misma placa.
-            const cards = ['soat', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal', 'lunas'];
+            const cards = ['soat', 'soat_detallado', 'citv', 'gnv', 'callao', 'sbs', 'lima', 'sutran', 'cinemometro', 'atu', 'vehiculo', 'sat_captura', 'sat_deposito', 'sat_deuda', 'municipal', 'lunas'];
             const cacheData: any = {
                 timestamp: Date.now(),
                 vehicleData: vehicleData,
@@ -1441,7 +1438,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     </div>
                     <div class="text-left sm:text-right">
                         <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · AAP · FISE MINEM · SAT Lima · Municipalidades · OSINERGMIN</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · AAP · SAT Lima · Municipalidades · OSINERGMIN</p>
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
@@ -1451,11 +1448,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="lima-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="soat_detallado-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="fise-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -1467,21 +1464,40 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- Requisitorias PNP retirado temporalmente: sin tarjeta visible. -->
-                    <div id="historial_dueños-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="historial_dueños-card-container" data-status="development"></div>
+                    <div id="fise-card-container" data-status="development"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
                 </div>`;
             
+            // Secciones futuras: visibles, sin solicitudes al backend y siempre al final.
+            setCardComingSoon(
+                'historial_dueños',
+                'Historial de Dueño y Gravámenes',
+                'Trazabilidad registral',
+                'fas fa-clock-rotate-left',
+                'SUNARP / Registral',
+                'Estamos preparando el historial cronológico de propietarios, transferencias y gravámenes.'
+            );
+            setCardComingSoon(
+                'fise',
+                'Deuda GNV (FISE Ahorro GNV)',
+                'Programa Ahorro GNV - MINEM',
+                'fas fa-gas-pump',
+                'FISE MINEM',
+                'Esta consulta estará disponible próximamente. Por ahora no se ejecuta para evitar demoras o resultados incompletos.'
+            );
+
             if (!fromCache) {
                 setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
                 
                 // Mostrar inmediatamente las secciones iniciales
                 setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'APESEG');
+                setCardLoading('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG');
                 setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
                 setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
-                setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
                 setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
@@ -1497,7 +1513,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
                 setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
-                initHistorialDueñosCard(plate, { setCardData });
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1618,6 +1633,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         await runInBatches([
                             () => fetchSUNARP(plate),
                             () => fetchSOAT(plate),
+                            () => fetchSOATDetallado(plate),
                             () => fetchCITV(plate),
                             () => fetchGNV(plate),
                             () => fetchCallao(plate),
@@ -1649,8 +1665,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
                         setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                        setCardWaiting('fise', 'Deuda GNV (FISE)', 'Ahorro GNV MINEM', 'fas fa-gas-pump', '', 'FISE Ahorro GNV', 'En espera (Turno 5)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 6 · Final)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 5 · Final)');
 
                         // 1. SBS Siniestralidad
                         await runSectionSafely('sbs', () => fetchSBS(plate));
@@ -1668,11 +1683,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
                         await runSectionSafely('lunas', () => fetchLunas(plate));
 
-                        // 5. DEUDA GNV FISE (Ahorro GNV)
-                        setCardLoading('fise', 'Deuda GNV (FISE)', 'Consultando portal FISE MINEM...', 'fas fa-gas-pump', '', 'FISE Ahorro GNV');
-                        await runSectionSafely('fise', () => fetchFISE(plate));
-
-                        // 6. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
+                        // 5. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
                         setCardLoading('atu', 'Habilitación Taxi ATU', 'Verificando habilitación de taxi ATU...', 'fas fa-taxi', '', 'ATU');
                         await runSectionSafely('atu', () => fetchATU(plate));
 

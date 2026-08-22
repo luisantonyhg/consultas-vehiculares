@@ -34,6 +34,12 @@ export const SERVICES_DATA: ServiceSection[] = [
         logo: "/assets/apeseg.png"
       },
       {
+        id: "apeseg-soat-detallado",
+        title: "SOAT APESEG Detallado",
+        url: "https://intranet.apeseg.org.pe/soat/hispla.php",
+        logo: "/assets/apeseg.png"
+      },
+      {
         id: "mtc-citv",
         title: "Inspección Técnica Vehicular MTC",
         url: "https://rec.mtc.gob.pe/Citv/ArConsultaCitv",

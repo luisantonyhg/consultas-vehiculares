@@ -182,6 +182,72 @@ export function renderLunas(data, plate) {
     }).join('');
 }
 
+export function renderSOATDetallado(result, plate) {
+    const certificados = Array.isArray(result?.certificados) ? result.certificados : [];
+    const siniestros = Array.isArray(result?.siniestros) ? result.siniestros : [];
+    const safe = (value) => escapeHTML(value || 'No informado');
+    const estadoActivo = (value) => String(value || '').toLowerCase() === 'activo';
+
+    if (certificados.length === 0) {
+        return `<div class="flex flex-col items-center justify-center gap-2 py-7 text-center font-poppins">
+            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800"><i class="fas fa-shield-halved"></i></div>
+            <p class="text-sm font-extrabold text-slate-700 dark:text-slate-200">Sin historial detallado publicado</p>
+            <p class="max-w-md text-[11px] leading-relaxed text-slate-400">APESEG no devolvió certificados históricos para la placa <strong class="font-mono text-slate-600 dark:text-slate-300">${safe(plate)}</strong>.</p>
+        </div>`;
+    }
+
+    const mobileCards = certificados.map((cert, index) => {
+        const active = estadoActivo(cert.estado);
+        return `<article class="overflow-hidden rounded-xl border ${active ? 'border-emerald-300 dark:border-emerald-800' : 'border-slate-200 dark:border-slate-800'} bg-white shadow-sm dark:bg-slate-900">
+            <div class="flex items-start justify-between gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+                <div class="min-w-0">
+                    <p class="text-[9px] font-extrabold uppercase tracking-[.16em] text-slate-400">Certificado histórico #${index + 1}</p>
+                    <p class="truncate text-sm font-black text-slate-900 dark:text-white">${safe(cert.compania)}</p>
+                </div>
+                <span class="shrink-0 rounded-md px-2 py-1 text-[9px] font-extrabold uppercase text-white ${active ? 'bg-emerald-500' : 'bg-slate-500'}">${safe(cert.estado)}</span>
+            </div>
+            <table class="w-full table-fixed border-collapse text-left"><tbody>
+                ${fila('Inicio', safe(cert.inicio))}${fila('Fin', safe(cert.fin))}
+                ${fila('Contratante', safe(cert.contratante))}${fila('Uso', safe(cert.uso))}
+                ${fila('Clase', safe(cert.clase))}${fila('Ubigeo', safe(cert.ubigeo))}
+                ${fila('Tipo', safe(cert.tipo))}
+            </tbody></table>
+        </article>`;
+    }).join('');
+
+    const desktopRows = certificados.map((cert) => {
+        const active = estadoActivo(cert.estado);
+        const values = [cert.compania, cert.inicio, cert.fin, cert.contratante, cert.uso, cert.clase, cert.ubigeo, cert.tipo];
+        return `<tr class="border-b border-slate-100 last:border-0 dark:border-slate-800">
+            ${values.map((value, i) => `<td class="px-2.5 py-2 align-top text-[10px] leading-snug ${i === 0 ? 'font-extrabold text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300'}">${safe(value)}</td>`).join('')}
+            <td class="px-2.5 py-2 align-top"><span class="rounded-md px-2 py-1 text-[9px] font-extrabold uppercase text-white ${active ? 'bg-emerald-500' : 'bg-slate-500'}">${safe(cert.estado)}</span></td>
+        </tr>`;
+    }).join('');
+
+    const siniestrosBlock = siniestros.length ? `<section class="mt-4 overflow-hidden rounded-xl border border-rose-200 dark:border-rose-900/60">
+        <div class="flex items-center justify-between bg-rose-50 px-3 py-2.5 dark:bg-rose-950/30">
+            <div><p class="text-[9px] font-extrabold uppercase tracking-[.16em] text-rose-500">Siniestros reportados</p><p class="text-xs font-bold text-slate-700 dark:text-slate-200">${siniestros.length} registro${siniestros.length === 1 ? '' : 's'} encontrado${siniestros.length === 1 ? '' : 's'}</p></div>
+            <i class="fas fa-car-burst text-rose-500"></i>
+        </div>
+        <div class="grid gap-2 p-2.5 md:grid-cols-2">${siniestros.map((item, index) => `<article class="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900">
+            <p class="mb-2 text-[10px] font-black text-rose-600 dark:text-rose-400">SINIESTRO #${index + 1} · ${safe(item.compania)}</p>
+            <table class="w-full"><tbody>${fila('Fecha', safe(item.fecha))}${fila('Ubigeo', safe(item.ubigeo))}${fila('Causa', safe(item.causa))}${fila('Cobertura', safe(item.cobertura))}${fila('Pago', safe(item.pago))}${fila('Reserva', safe(item.reserva))}</tbody></table>
+        </article>`).join('')}</div>
+    </section>` : '';
+
+    return `<div class="font-poppins">
+        <div class="relative flex items-center justify-between gap-3 rounded-t-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 pr-14 dark:border-slate-800 dark:bg-slate-950/50">
+            <div><p class="text-[9px] font-extrabold uppercase tracking-[.16em] text-slate-400">Historial oficial APESEG</p><p class="text-sm font-black text-slate-900 dark:text-white">Placa ${safe(result?.placa || plate)} · ${certificados.length} certificado${certificados.length === 1 ? '' : 's'}</p></div>
+            <img src="/assets/apeseg.png" alt="APESEG" class="absolute right-3 top-1/2 h-8 w-8 -translate-y-1/2 rounded-md bg-white object-contain p-0.5 shadow-sm ring-1 ring-slate-200" />
+        </div>
+        <div class="grid gap-2.5 rounded-b-xl border border-t-0 border-slate-200 bg-slate-50/30 p-2.5 dark:border-slate-800 dark:bg-slate-950/20 md:hidden">${mobileCards}</div>
+        <div class="hidden overflow-x-auto rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-800 md:block">
+            <table class="min-w-[1180px] w-full border-collapse text-left"><thead><tr class="bg-slate-900 text-white">${['Compañía','Inicio','Fin','Contratante','Uso','Clase','Ubigeo','Tipo','Estado'].map(h => `<th class="px-2.5 py-2 text-[9px] font-extrabold uppercase tracking-wider">${h}</th>`).join('')}</tr></thead><tbody>${desktopRows}</tbody></table>
+        </div>
+        ${siniestrosBlock}
+    </div>`;
+}
+
 export function renderGNV(data, plate) {
     if (!data || data.length === 0) {
         return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">

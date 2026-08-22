@@ -1,6 +1,7 @@
 import {
     parseDateDDMMYYYY,
     renderSOAT,
+    renderSOATDetallado,
     renderCITV,
     renderLunas,
     renderCallao,
@@ -200,6 +201,34 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (75s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', msg, plate);
+        return { success: false, error: msg };
+    }
+}
+
+export async function runFetchSOATDetallado(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/soat-detallado/${plate}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'No se pudo consultar el historial APESEG');
+        const certificados = Array.isArray(data.certificados) ? data.certificados : [];
+        const siniestros = Array.isArray(data.siniestros) ? data.siniestros : [];
+        const activos = certificados.filter(c => String(c.estado || '').toLowerCase() === 'activo').length;
+        const badge = siniestros.length
+            ? `<span class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"><i class="fas fa-triangle-exclamation"></i>${siniestros.length} SINIESTRO${siniestros.length === 1 ? '' : 'S'}</span>`
+            : activos
+                ? `<span class="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"><i class="fas fa-circle-check"></i>${activos} ACTIVO${activos === 1 ? '' : 'S'}</span>`
+                : `<span class="inline-flex items-center gap-1 rounded-md bg-slate-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">${certificados.length} HISTÓRICO${certificados.length === 1 ? '' : 'S'}</span>`;
+        callbacks.setCardData('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', renderSOATDetallado(data, plate), true, certificados.length > 0 || siniestros.length > 0, badge);
+        return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'APESEG detallado tardó demasiado.' : (err.message || 'Error de conexión');
+        callbacks.setCardError('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', msg, plate);
         return { success: false, error: msg };
     }
 }
