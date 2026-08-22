@@ -213,7 +213,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 type="text"
                                 id="plate-search-input"
                                 placeholder="ABC-123"
-                                maxlength="9"
+                                maxlength="7"
                                 class="w-full bg-white/5 border border-white/25 rounded-xl font-archivo text-xl text-white font-bold placeholder-white/30 uppercase text-center py-2.5 focus:ring-1 focus:ring-brand-yellow focus:border-brand-yellow focus:outline-none"
                                 required
                                 aria-label="Ingresa tu placa vehicular para consultar"
@@ -765,12 +765,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         const plateInput = document.getElementById('plate-search-input') as HTMLInputElement;
         if (plateInput) {
             plateInput.addEventListener('input', () => {
-                let val = plateInput.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
-                const cleanVal = val.replace(/-/g, '');
-                if (cleanVal.length === 6 && !val.includes('-')) {
-                    val = cleanVal.slice(0, 3) + '-' + cleanVal.slice(3);
-                }
-                plateInput.value = val;
+                // Se aceptan exactamente 6 caracteres alfanuméricos. El guion
+                // es únicamente visual y no cuenta como carácter de la placa.
+                const cleanVal = plateInput.value
+                    .replace(/[^A-Za-z0-9]/g, '')
+                    .toUpperCase()
+                    .slice(0, 6);
+                plateInput.value = cleanVal.length > 3
+                    ? `${cleanVal.slice(0, 3)}-${cleanVal.slice(3)}`
+                    : cleanVal;
             });
         }
 
