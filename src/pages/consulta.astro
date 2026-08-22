@@ -562,11 +562,20 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
             const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
+            let visitorId = localStorage.getItem('canita-visitor-id');
+            if (!visitorId) {
+                visitorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+                localStorage.setItem('canita-visitor-id', visitorId);
+            }
+            const visitHeaders = {
+                'X-Client-Secret': clientSecret,
+                'X-Visitor-ID': visitorId
+            };
             try {
                 // Registrar visita atómica (POST)
                 const postRes = await fetch(`${BACKEND_URL}/visits`, { 
                     method: 'POST',
-                    headers: { 'X-Client-Secret': clientSecret }
+                    headers: visitHeaders
                 }).catch(() => null);
 
                 if (postRes && postRes.ok) {
@@ -579,17 +588,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 
                 // Fallback lectura GET
                 const res = await fetch(`${BACKEND_URL}/visits`, {
-                    headers: { 'X-Client-Secret': clientSecret }
+                    headers: visitHeaders
                 });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && typeof data.total === 'number' && counterEl) {
                         animateCount(counterEl, data.total);
                     }
+                } else if (counterEl) {
+                    counterEl.textContent = 'No disponible';
                 }
             } catch (e) {
                 console.error("Error al cargar contador de visitas:", e);
-                if (counterEl) counterEl.textContent = "—";
+                if (counterEl) counterEl.textContent = "No disponible";
             }
         }
         initVisits();
