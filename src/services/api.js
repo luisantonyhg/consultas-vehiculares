@@ -636,9 +636,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
     callbacks.setCardLoading('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
-
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
     const renderTablaDetalle = (detalle) => {
@@ -684,36 +681,53 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         </div>`;
 
     try {
-        // SAT reintenta hasta 3 veces: el OCR del captcha del SAT falla de forma
-        // probabilística (el backend hace su propio reintento interno por página).
-        // Se conservan los sub-resultados ya resueltos y solo se vuelve a consultar
-        // lo pendiente, sin mostrar error directo al primer fallo.
+        // Una primera llamada consulta las tres secciones con un solo Chromium.
+        // Si alguna queda pendiente, se reintenta únicamente esa sección. Así no
+        // repetimos capturas/deudas ya verificadas ni gastamos tres navegadores completos.
         let cap = null, dep = null, deu = null, satLastError = null;
-        const MAX_SAT_ATTEMPTS = 3;
         const SAT_BUDGET_MS = 150000;
         const satStart = Date.now();
 
-        for (let satAttempt = 1; satAttempt <= MAX_SAT_ATTEMPTS; satAttempt++) {
-            const elapsed = Date.now() - satStart;
-            if (elapsed >= SAT_BUDGET_MS) break;
-            const satCtrl = new AbortController();
-            const satTime = setTimeout(() => satCtrl.abort(), SAT_BUDGET_MS - elapsed);
+        const requestSAT = async (path) => {
+            const remaining = SAT_BUDGET_MS - (Date.now() - satStart);
+            if (remaining < 3000) throw new DOMException('Tiempo SAT agotado', 'AbortError');
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), remaining);
             try {
-                const res = await secureFetch(`${BACKEND_URL}/sat/${plate}`, { signal: satCtrl.signal });
-                clearTimeout(satTime);
+                const res = await secureFetch(`${BACKEND_URL}${path}`, { signal: ctrl.signal });
                 if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
-                const data = await res.json();
-                cap = data.captura; dep = data.deposito; deu = data.deuda;
-                satLastError = null;
-            } catch (err) {
-                clearTimeout(satTime);
-                satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || 'Error de conexión');
-                if (satAttempt >= MAX_SAT_ATTEMPTS) break;
-                await new Promise(r => setTimeout(r, 800 * satAttempt));
-                continue;
+                return await res.json();
+            } finally {
+                clearTimeout(timer);
             }
-            const allSatOk = cap && cap.success && dep && dep.success && deu && deu.success;
-            if (allSatOk || satAttempt >= MAX_SAT_ATTEMPTS) break;
+        };
+
+        try {
+            const data = await requestSAT(`/sat/${plate}`);
+            cap = data.captura;
+            dep = data.deposito;
+            deu = data.deuda;
+            satLastError = data.error || null;
+        } catch (err) {
+            satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || 'Error de conexión');
+        }
+
+        const pending = [
+            { path: `/sat/captura/${plate}`, key: 'captura', get: () => cap, set: value => { cap = value; } },
+            { path: `/sat/deposito/${plate}`, key: 'deposito', get: () => dep, set: value => { dep = value; } },
+            { path: `/sat/deuda/${plate}`, key: 'deuda', get: () => deu, set: value => { deu = value; } },
+        ];
+        for (const item of pending) {
+            if (item.get()?.success || SAT_BUDGET_MS - (Date.now() - satStart) < 3000) continue;
+            try {
+                const retryData = await requestSAT(item.path);
+                const retryResult = retryData[item.key];
+                if (retryResult) item.set(retryResult);
+                if (retryResult?.success) satLastError = null;
+                else satLastError = retryResult?.error || retryData.error || satLastError;
+            } catch (err) {
+                satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || satLastError || 'Error de conexión');
+            }
         }
 
         if (cap && cap.success) {
@@ -748,7 +762,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         }
         return { success: !!(cap && cap.success) || !!(dep && dep.success) || !!(deu && deu.success), error: satLastError, captura: cap, deposito: dep, deuda: deu };
     } catch (err) {
-        clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);

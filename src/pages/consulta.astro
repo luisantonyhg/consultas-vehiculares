@@ -915,10 +915,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const isTimeout = normalizedError.includes('tiempo de espera') ||
                         normalizedError.includes('tiempo límite') ||
                         normalizedError.includes('timeout');
-                    // No insistir automáticamente cuando el servidor ya indicó
-                    // saturación o agotó su presupuesto. El botón manual sigue
-                    // disponible para que el usuario reintente más tarde.
-                    const noRetry = is404Error || isBackpressure || isTimeout;
+                    // Lima y FISE son seguros de repetir una sola vez cuando el
+                    // portal externo corta la conexión. ATU, SAT y Lunas ya
+                    // gestionan intentos internos y no deben duplicar navegadores.
+                    const retryableTimeoutProviders = new Set(['lima', 'fise']);
+                    const noRetry = is404Error || isBackpressure ||
+                        (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
@@ -1017,10 +1019,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchLima(plate: string) {
-            // SAT Lima Papeletas (reCAPTCHA v2): el backend ejecuta 3 intentos con Chromium (85s).
-            // En frontend se ejecuta 1 sola vez para evitar reintentar 3 veces consecutivas (~4 minutos).
+            // Un segundo intento recupera fallos transitorios de navegación del portal.
             return runExclusive('lima', () =>
-                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 1));
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchSutran(plate: string) {
@@ -1093,9 +1094,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchFISE(plate: string) {
-            // FISE GNV: se ejecuta en cola serial al final con max 1 intento para evitar bloqueos
+            // El puerto 23308 de FISE es inestable: se permite un segundo intento.
             return runExclusive('fise', () =>
-                runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 1));
+                runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchSBS(plate: string) {

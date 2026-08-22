@@ -147,50 +147,36 @@ export function renderLunas(data, plate) {
     return data.map((cert, index) => {
         const certificate = escapeHTML(cert.nroCertificado || 'N/A');
         const vehiclePlate = escapeHTML(cert.placa || plate || 'N/A');
-        const detail = (label, value, icon) => `
-            <div class="group rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/80 px-3.5 py-3 shadow-sm transition-colors hover:border-amber-300 dark:hover:border-amber-700">
-                <div class="flex items-center gap-2 mb-1.5">
-                    <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
-                        <i class="${icon} text-[10px]"></i>
-                    </span>
-                    <span class="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">${label}</span>
-                </div>
-                <p class="min-h-[20px] break-words text-xs md:text-sm font-extrabold text-slate-900 dark:text-white">${escapeHTML(value || 'No informado')}</p>
-            </div>`;
-        const borderClass = index > 0 ? 'mt-5 border-t-2 border-dashed border-slate-200 dark:border-slate-800 pt-5' : '';
+        const safe = (value) => escapeHTML(value || 'No informado');
+        const borderClass = index > 0 ? 'mt-4 border-t-2 border-dashed border-slate-200 dark:border-slate-800 pt-4' : '';
         return `
         <article class="${borderClass} font-poppins">
-            <div class="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-4 md:p-5 shadow-lg">
-                <div class="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-amber-400/20 blur-3xl"></div>
-                <div class="pointer-events-none absolute -bottom-16 left-1/3 h-28 w-28 rounded-full bg-blue-500/10 blur-3xl"></div>
-
-                <div class="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div class="flex min-w-0 items-start gap-3">
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-300/30 bg-amber-400/10 text-amber-300 shadow-inner">
-                            <i class="fas fa-shield-halved text-lg"></i>
+            <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                <div class="relative flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 px-3 py-2.5 pr-14">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Autorización de lunas PNP ${data.length > 1 ? `#${index + 1}` : ''}</span>
+                            <span class="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+                                <i class="fas fa-circle-check text-[8px]"></i> Autorizado
+                            </span>
                         </div>
-                        <div class="min-w-0">
-                            <p class="text-[9px] font-extrabold uppercase tracking-[0.2em] text-amber-300/80">Permiso oficial PNP ${data.length > 1 ? `· Registro ${index + 1}` : ''}</p>
-                            <p class="mt-1 break-all text-lg md:text-xl font-black leading-tight tracking-tight text-white">${certificate}</p>
-                            <div class="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-2.5 py-1 backdrop-blur-sm">
-                                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Placa</span>
-                                <strong class="font-mono text-xs tracking-wider text-white">${vehiclePlate}</strong>
-                            </div>
+                        <div class="mt-1 flex items-baseline gap-x-4 gap-y-1 flex-wrap">
+                            <p class="text-sm md:text-base font-black leading-tight text-slate-900 dark:text-white">${certificate}</p>
+                            <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Placa: <strong class="font-mono text-xs text-slate-700 dark:text-slate-200">${vehiclePlate}</strong></p>
                         </div>
                     </div>
-                    <span class="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 shadow-sm backdrop-blur-sm">
-                        <i class="fas fa-circle-check"></i> Autorizado
-                    </span>
+                    <img src="/assets/logopnp.png" alt="Policía Nacional del Perú" class="absolute right-3 top-1/2 h-8 w-8 -translate-y-1/2 rounded-md bg-white object-contain p-0.5 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700" />
                 </div>
-            </div>
-
-            <div class="relative -mt-1 grid grid-cols-1 gap-2 rounded-b-2xl border border-t-0 border-slate-200 dark:border-slate-800 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 p-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-                ${detail('Categoría', cert.categoria, 'fas fa-layer-group')}
-                ${detail('Marca', cert.marca, 'fas fa-car-side')}
-                ${detail('Modelo', cert.modelo, 'fas fa-tag')}
-                ${detail('Color', cert.color, 'fas fa-palette')}
-                ${detail('Año', cert.anio, 'fas fa-calendar')}
-                ${detail('Fecha de emisión', cert.fechaEmision, 'fas fa-calendar-check')}
+                <table class="w-full table-fixed border-collapse text-left">
+                    <tbody>
+                        ${fila('Categoría', safe(cert.categoria))}
+                        ${fila('Marca', safe(cert.marca))}
+                        ${fila('Modelo', safe(cert.modelo))}
+                        ${fila('Color', safe(cert.color))}
+                        ${fila('Año', safe(cert.anio))}
+                        ${fila('Fecha de emisión', safe(cert.fechaEmision))}
+                    </tbody>
+                </table>
             </div>
         </article>`;
     }).join('');
