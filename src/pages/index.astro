@@ -10,26 +10,34 @@ import { SERVICES_DATA } from '../data/services';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <title>Análisis Vehicular por Placa | Luis Antony Huamani Gonzales - Ingeniero de Sistemas</title>
-    <meta name="description" content="Aplicativo de análisis vehicular en tiempo real (SOAT, CITV, papeletas, multas) creado por el Ingeniero de Sistemas Luis Antony Huamani Gonzales (Huamani Gonzales Luis Antony) para centralización de datos públicos.">
+    <link rel="icon" type="image/jpeg" href="/assets/logocanita.jpeg" />
+    <link rel="apple-touch-icon" href="/assets/logocanita.jpeg" />
+    <title>Cañita | Consulta Vehicular por Placa en Perú</title>
+    <meta name="description" content="Cañita reúne consultas vehiculares por placa: SOAT, CITV, papeletas, multas y otras fuentes públicas del Perú en un solo lugar.">
     <meta name="keywords" content="Luis Antony Huamani Gonzales, Huamani Gonzales Luis Antony, Ingeniero de Sistemas, Análisis Vehicular, Consulta por Placa, SOAT, CITV, SUNARP, SAT Lima, Callao, SUTRAN, ATU, Perú, Software Developer, Astro, Node.js">
     <meta name="author" content="Luis Antony Huamani Gonzales">
     <meta name="designer" content="Huamani Gonzales Luis Antony">
     <meta name="robots" content="index, follow">
 
-    {/* Open Graph / Facebook */}
+    {/* Open Graph / Facebook / WhatsApp */}
+    <meta property="og:site_name" content="CAÑITA - Consultas Vehiculares">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Análisis Vehicular por Placa | Luis Antony Huamani Gonzales - Ingeniero de Sistemas">
-    <meta property="og:description" content="Herramienta centralizada de consultas públicas en tiempo real desarrollada por el Ingeniero de Sistemas Luis Antony Huamani Gonzales.">
-    <meta property="og:image" content="/assets/hilux.png">
+    <meta property="og:url" content="https://consultas-vehiculares.vercel.app/">
+    <meta property="og:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
+    <meta property="og:description" content="Consulta rápida e integral de placas vehiculares en Perú: SUNARP, SOAT, CITV, SUTRAN, SAT, ATU, Lunas Polarizadas y más.">
+    <meta property="og:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta property="og:image:secure_url" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="600">
+    <meta property="og:image:height" content="600">
+    <meta property="og:image:alt" content="Logo Oficial Cañita Consultas Vehiculares">
     
-    {/* Twitter */}
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Análisis Vehicular por Placa | Luis Antony Huamani Gonzales">
-    <meta property="twitter:description" content="Aplicativo de análisis vehicular en tiempo real desarrollado por Luis Antony Huamani Gonzales.">
-    <meta property="twitter:image" content="/assets/hilux.png">
+    {/* Twitter / WhatsApp Card */}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@CanitaVehicular">
+    <meta name="twitter:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
+    <meta name="twitter:description" content="Consulta rápida e integral de placas vehiculares en Perú con datos de SUNARP, SOAT, SUTRAN, CITV, SAT y más.">
+    <meta name="twitter:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
 
     {/* Structured Data (JSON-LD) */}
     <script type="application/ld+json">
@@ -86,8 +94,8 @@ import { SERVICES_DATA } from '../data/services';
                             class="w-full h-full object-contain rounded-lg" 
                         />
                     </div>
-                    <div class="hidden xs:flex flex-col text-left">
-                        <span class="text-white font-archivo text-base md:text-xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
+                    <div class="flex flex-col text-left">
+                        <span class="text-white font-archivo text-lg md:text-2xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
                         <span class="text-brand-yellow text-[8.5px] md:text-[10px] font-extrabold tracking-widest uppercase">Consultas Vehiculares</span>
                     </div>
                 </a>
@@ -113,13 +121,12 @@ import { SERVICES_DATA } from '../data/services';
                 {/* Contenido Central */}
                 <div class="banner-content order-3 md:order-2 text-center flex-1 z-10 w-full md:w-auto -mt-2 md:mt-0 px-2">
                     <h1 class="text-brand-yellow font-archivo text-[36px] md:text-[55px] italic leading-[0.9] m-0 tracking-[-1.5px] md:tracking-[-2px] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] uppercase">
-                        HERRAMIENTA
+                        CAÑITA
                     </h1>
                     <div class="text-brand-yellow font-dancing text-[26px] md:text-[38px] -my-[3px] flex justify-center items-center gap-2">
-                        <span>para</span>
-                        <span class="text-white">análisis</span>
-                        <span class="text-white/80 font-normal font-sans text-lg md:text-2xl">de</span>
-                        <span>Vehículos</span>
+                        <span>tu</span>
+                        <span class="text-white">consulta vehicular</span>
+                        <span>inteligente</span>
                     </div>
                     
                     <p class="text-white/95 text-xs md:text-sm mt-3.5 font-medium tracking-wide">
@@ -392,11 +399,17 @@ import { SERVICES_DATA } from '../data/services';
         async function initVisits() {
             const counterEl = document.getElementById('visit-counter');
             const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
+            let visitorId = localStorage.getItem('canita-visitor-id');
+            if (!visitorId) {
+                visitorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+                localStorage.setItem('canita-visitor-id', visitorId);
+            }
+            const visitHeaders = { 'X-Client-Secret': clientSecret, 'X-Visitor-ID': visitorId };
             try {
                 // Registrar visita atómica (POST)
                 const postRes = await fetch(`${BACKEND_URL}/visits`, { 
                     method: 'POST',
-                    headers: { 'X-Client-Secret': clientSecret }
+                    headers: visitHeaders
                 }).catch(() => null);
 
                 if (postRes && postRes.ok) {
@@ -409,7 +422,7 @@ import { SERVICES_DATA } from '../data/services';
                 
                 // Fallback lectura GET
                 const res = await fetch(`${BACKEND_URL}/visits`, {
-                    headers: { 'X-Client-Secret': clientSecret }
+                    headers: visitHeaders
                 });
                 if (res.ok) {
                     const data = await res.json();

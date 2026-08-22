@@ -9,8 +9,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/jpeg" href="/assets/logocanita.jpeg" />
+    <link rel="apple-touch-icon" href="/assets/logocanita.jpeg" />
     <title>Cañita | Consulta Vehicular por Placa en Tiempo Real (SUNARP, SOAT, SUTRAN)</title>
     <meta name="description" content="Cañita: Consulta integral de placas vehiculares en tiempo real en Perú. Información oficial de SUNARP, SOAT, CITV, SUTRAN, SAT, ATU y Lunas Polarizadas.">
     <meta name="keywords" content="Cañita, Canita, Consulta vehicular Cañita, Consulta por Placa, SUNARP, SOAT, CITV, SAT, SUTRAN, ATU, Lunas PNP, Perú">
@@ -18,17 +18,25 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     <meta name="designer" content="Luis Antony Huamani Gonzales">
     <meta name="robots" content="index, follow">
 
-    {/* Open Graph / Facebook */}
+    {/* Open Graph / Facebook / WhatsApp */}
+    <meta property="og:site_name" content="CAÑITA - Consultas Vehiculares">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Cañita | Consulta Vehicular por Placa en Tiempo Real">
-    <meta property="og:description" content="Cañita: Consulta rápida de placas vehiculares en tiempo real en Perú con información de SUNARP, SOAT, CITV, SAT, SUTRAN y más.">
-    <meta property="og:image" content="/assets/logocanita.jpeg">
+    <meta property="og:url" content="https://consultas-vehiculares.vercel.app/consulta">
+    <meta property="og:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
+    <meta property="og:description" content="Consulta rápida e integral de placas vehiculares en Perú: SUNARP, SOAT, CITV, SUTRAN, SAT, ATU, Lunas Polarizadas y más.">
+    <meta property="og:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta property="og:image:secure_url" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="600">
+    <meta property="og:image:height" content="600">
+    <meta property="og:image:alt" content="Logo Oficial Cañita Consultas Vehiculares">
     
-    {/* Twitter */}
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Cañita | Consulta Vehicular por Placa en Tiempo Real">
-    <meta property="twitter:description" content="Cañita: Consulta vehicular por placa en tiempo real con datos de SUNARP, SOAT, SUTRAN, CITV y multas.">
-    <meta property="twitter:image" content="/assets/logocanita.jpeg">
+    {/* Twitter / WhatsApp Card */}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@CanitaVehicular">
+    <meta name="twitter:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
+    <meta name="twitter:description" content="Consulta rápida e integral de placas vehiculares en Perú con datos de SUNARP, SOAT, SUTRAN, CITV, SAT y más.">
+    <meta name="twitter:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
 
     {/* Structured Data (JSON-LD) */}
     <script type="application/ld+json">
@@ -162,8 +170,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             class="w-full h-full object-contain rounded-lg" 
                         />
                     </div>
-                    <div class="hidden xs:flex flex-col text-left">
-                        <span class="text-white font-archivo text-base md:text-xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
+                    <div class="flex flex-col text-left">
+                        <span class="text-white font-archivo text-lg md:text-2xl font-black tracking-tight leading-none group-hover:text-brand-yellow transition-colors">CAÑITA</span>
                         <span class="text-brand-yellow text-[8.5px] md:text-[10px] font-extrabold tracking-widest uppercase">Consultas Vehiculares</span>
                     </div>
                 </a>
@@ -188,11 +196,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 {/* Contenido Central */}
                 <div class="banner-content order-2 text-center flex-1 z-10 w-full md:w-auto -mt-2 md:mt-0 px-2">
                     <h1 class="text-brand-yellow font-archivo text-[36px] md:text-[55px] italic leading-[0.9] m-0 tracking-[-1.5px] md:tracking-[-2px] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] uppercase">
-                        CONSULTA
+                        CAÑITA
                     </h1>
                     <div class="text-brand-yellow font-dancing text-[26px] md:text-[38px] -my-[3px] flex justify-center items-center gap-2">
-                        <span>de tu</span>
-                        <span class="text-white">Vehículo</span>
+                        <span>consulta</span>
+                        <span class="text-white">tu Vehículo</span>
                         <span class="text-white/80 font-normal font-sans text-lg md:text-2xl">por</span>
                         <span>Placa</span>
                     </div>
@@ -500,8 +508,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchOsinergmin,
             runFetchLima,
             runFetchFISE,
-            runFetchPNP,
-            initHistorialDueñosCard
+            // Requisitorias PNP permanece implementado en services/api.js,
+            // pero no se importa mientras la sección esté retirada.
+            initHistorialDueñosCard,
+            acquireConsultationSlot,
+            waitForConsultationSlot,
+            touchConsultationSlot,
+            waitForHeavyPhase,
+            releaseConsultationSlot,
+            setConsultationTicket
         } from '../services/api.js';
 
         // ====================================================
@@ -514,6 +529,16 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 ? 'http://localhost:8000/api/v1'
                 : 'https://backend-consultarvehiculos-production.up.railway.app/api/v1'
         );
+        let activeConsultationTicket: string | null = null;
+        let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+        // Liberación best-effort si el usuario cierra o abandona la página. Si
+        // el navegador no alcanza a enviarla, el lease expira en el backend.
+        window.addEventListener('pagehide', () => {
+            if (activeConsultationTicket) {
+                void releaseConsultationSlot(BACKEND_URL, activeConsultationTicket, true);
+            }
+        });
 
         function animateCount(el, target) {
             let start = 0;
@@ -831,7 +856,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             fetchCall: (callbacks: any) => Promise<any>, 
             plate: string, 
             attempt: number = 1,
-            maxAttempts: number = 3
+            // Los servicios ya tienen reintentos internos. Repetir por defecto
+            // desde el navegador multiplicaba la carga durante una saturación.
+            maxAttempts: number = 1
         ): Promise<any> {
             if (attempt === 1) {
                 queryAttempts[cardId] = 1;
@@ -869,7 +896,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                     // Solo errores 404 (sección inexistente) se eximen de reintento.
                     // El resto (incluyendo SUNARP, FISE, SBS, SAT, ATU, LUNAS) reintenta automáticamente.
-                    const noRetry = is404Error;
+                    const normalizedError = (errorMessage || '').toLowerCase();
+                    const isBackpressure = normalizedError.includes('429') ||
+                        normalizedError.includes('503') ||
+                        normalizedError.includes('demasiadas consultas') ||
+                        normalizedError.includes('servidor ocupado') ||
+                        normalizedError.includes('alta demanda');
+                    const isTimeout = normalizedError.includes('tiempo de espera') ||
+                        normalizedError.includes('tiempo límite') ||
+                        normalizedError.includes('timeout');
+                    // No insistir automáticamente cuando el servidor ya indicó
+                    // saturación o agotó su presupuesto. El botón manual sigue
+                    // disponible para que el usuario reintente más tarde.
+                    const noRetry = is404Error || isBackpressure || isTimeout;
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
                         setCardError(id, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate);
@@ -922,6 +961,30 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return promise;
         }
 
+        async function runInBatches(
+            jobs: Array<() => Promise<any>>,
+            batchSize: number = 4
+        ): Promise<any[]> {
+            const results: any[] = [];
+            for (let index = 0; index < jobs.length; index += batchSize) {
+                const batch = jobs.slice(index, index + batchSize);
+                const settled = await Promise.allSettled(batch.map((job) => job()));
+                results.push(...settled);
+            }
+            return results;
+        }
+
+        async function runSectionSafely(sectionId: string, job: () => Promise<any>): Promise<any> {
+            try {
+                return await job();
+            } catch (error) {
+                // Una fuente externa defectuosa nunca debe impedir que las
+                // secciones posteriores continúen su turno.
+                console.error(`[SECCION ${sectionId}] Falló sin detener el informe:`, error);
+                return { success: false, error: (error as any)?.message || 'Error inesperado' };
+            }
+        }
+
         // ====================================================
         // PETICIONES INDEPENDIENTES
         // ====================================================
@@ -937,12 +1000,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             // En frontend solo reintentamos max 2 veces para evitar bloquear la interfaz 4 minutos.
             return runExclusive('lunas', () =>
                 runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks), plate, 1, 2));
-        }
-
-        async function fetchPNP(plate: string) {
-            // Requisitorias Policiales PNP (Captura Vehicular)
-            return runExclusive('pnp', () =>
-                runFetchWithRetry('pnp_req', (callbacks) => runFetchPNP(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchCallao(plate: string) {
@@ -1123,7 +1180,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'sat')         await fetchSAT(plate);
                 else if (cardId === 'lima')        await fetchLima(plate);
                 else if (cardId === 'lunas')       await fetchLunas(plate);
-                else if (cardId === 'pnp_req')     await fetchPNP(plate);
+                // Requisitorias PNP desactivado: no admite reintento manual.
             } catch (e) {
                 console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
             } finally {
@@ -1371,7 +1428,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     </div>
                     <div class="text-left sm:text-right">
                         <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Fuentes consultadas</p>
-                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · PNP Tránsito · AAP · FISE MINEM · SAT Lima · Municipalidades · OSINERGMIN</p>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-xl">APESEG · MTC · SUNARP · Infogas · Mun. Callao · SBS · SUTRAN · ATU · Cinemómetro · AAP · FISE MINEM · SAT Lima · Municipalidades · OSINERGMIN</p>
                     </div>
                 </div>
                 <div id="results-cards-wrapper" class="flex flex-col gap-3 md:gap-4 w-full">
@@ -1396,7 +1453,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="pnp_req-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <!-- Requisitorias PNP retirado temporalmente: sin tarjeta visible. -->
                     <div id="historial_dueños-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
@@ -1426,8 +1483,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 3)');
                 setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
-                setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 5)');
-                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 6 · final)');
+                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 5 · final)');
                 initHistorialDueñosCard(plate, { setCardData });
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
@@ -1505,7 +1561,32 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // Fase 2: Servicios pesados (Chromium) → secuencial
                 // ====================================================
                 (async () => {
+                    let queueError = false;
                     try {
+                        // Un turno representa a la persona y protege el fan-out
+                        // de las 17+ secciones. Solo las consultas admitidas
+                        // comienzan a consumir endpoints y portales externos.
+                        queryStatus.innerHTML = '<i class="fas fa-ticket mr-1"></i> Reservando turno de consulta...';
+                        let admission = await acquireConsultationSlot(BACKEND_URL);
+                        if (admission.supported) {
+                            activeConsultationTicket = admission.ticket_id;
+                            admission = await waitForConsultationSlot(BACKEND_URL, admission, (state: any) => {
+                                if (state.status === 'queued') {
+                                    const wait = Math.max(1, Math.round((state.estimated_wait_seconds || 0) / 60));
+                                    queryStatus.innerHTML = `<span class="text-amber-600 font-bold"><i class="fas fa-hourglass-half mr-1"></i> Alta demanda: estás en la posición ${state.position}. Espera estimada: ${wait} min. Tu consulta iniciará automáticamente.</span>`;
+                                } else {
+                                    const modeLabel = state.load_mode === 'fast' ? 'Modo rápido' : state.load_mode === 'balanced' ? 'Modo balanceado' : 'Modo protegido';
+                                    queryStatus.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fas fa-bolt mr-1"></i> Turno confirmado · ${modeLabel}. Iniciando consulta...</span>`;
+                                }
+                            });
+                            setConsultationTicket(activeConsultationTicket);
+                            consultationHeartbeat = setInterval(() => {
+                                if (activeConsultationTicket) {
+                                    void touchConsultationSlot(BACKEND_URL, activeConsultationTicket);
+                                }
+                            }, 30000);
+                        }
+
                         // Verificación rápida de disponibilidad del backend (Health endpoint está en raíz /health)
                         try {
                             const baseUrl = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
@@ -1517,20 +1598,35 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                         // FASE 1: Servicios ligeros en paralelo (HTTP directo y consultas rápidas)
                         queryStatus.textContent = 'Fase 1: Consultando servicios rápidos...';
-                        await Promise.all([
-                            fetchSUNARP(plate),
-                            fetchSOAT(plate),
-                            fetchCITV(plate),
-                            fetchGNV(plate),
-                            fetchCallao(plate),
-                            fetchSutran(plate),
-                            fetchCinemometro(plate),
-                            fetchMunicipal(plate),
-                            fetchEstadoPlacaYValor(plate),
-                            fetchOsinergmin(plate),
-                        ]);
+                        // Máximo cuatro solicitudes simultáneas por usuario.
+                        // Con 50 usuarios esto reduce el pico teórico de 500 a
+                        // 200 requests y permite que el backend aplique cola y
+                        // backpressure sin una avalancha instantánea.
+                        await runInBatches([
+                            () => fetchSUNARP(plate),
+                            () => fetchSOAT(plate),
+                            () => fetchCITV(plate),
+                            () => fetchGNV(plate),
+                            () => fetchCallao(plate),
+                            () => fetchSutran(plate),
+                            () => fetchCinemometro(plate),
+                            () => fetchMunicipal(plate),
+                            () => fetchEstadoPlacaYValor(plate),
+                            () => fetchOsinergmin(plate),
+                        ], 2);
 
                         // FASE 2: Servicios avanzados secuencial
+                        if (activeConsultationTicket) {
+                            await waitForHeavyPhase(BACKEND_URL, activeConsultationTicket, (state: any) => {
+                                if (state.heavy_status === 'queued') {
+                                    const minutes = Math.max(1, Math.ceil((state.heavy_estimated_wait_seconds || 0) / 60));
+                                    queryStatus.innerHTML = `<span class="text-amber-600 font-bold"><i class="fas fa-list-ol mr-1"></i> Resultados rápidos listos. Secciones avanzadas en posición ${state.heavy_position}; espera estimada ${minutes} min.</span>`;
+                                } else {
+                                    const modeLabel = state.load_mode === 'fast' ? 'capacidad rápida' : state.load_mode === 'balanced' ? 'capacidad balanceada' : 'capacidad protegida';
+                                    queryStatus.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fas fa-gears mr-1"></i> Iniciando secciones avanzadas con ${modeLabel}...</span>`;
+                                }
+                            });
+                        }
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola secuencial
@@ -1539,43 +1635,55 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima', 'En espera (Turno 2)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
-                        setCardWaiting('pnp_req', 'Requisitorias Policiales (PNP)', 'Captura vehicular', 'fas fa-shield-halved', '', 'PNP Tránsito', 'En espera (Turno 4)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 5)');
-                        setCardWaiting('fise', 'Deuda GNV (FISE)', 'Ahorro GNV MINEM', 'fas fa-gas-pump', '', 'FISE Ahorro GNV', 'En espera (Turno 6)');
-                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 7 · Final)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                        setCardWaiting('fise', 'Deuda GNV (FISE)', 'Ahorro GNV MINEM', 'fas fa-gas-pump', '', 'FISE Ahorro GNV', 'En espera (Turno 5)');
+                        setCardWaiting('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', 'En espera (Turno 6 · Final)');
 
                         // 1. SBS Siniestralidad
-                        await fetchSBS(plate);
+                        await runSectionSafely('sbs', () => fetchSBS(plate));
 
                         // 2. SAT (orden de captura + internamiento + deuda) — navegador compartido
-                        await fetchSAT(plate);
+                        await runSectionSafely('sat', () => fetchSAT(plate));
 
                         // 3. SAT LIMA (Papeletas reCAPTCHA v2 - VirtualSAT)
                         setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
-                        await fetchLima(plate);
+                        await runSectionSafely('lima', () => fetchLima(plate));
 
-                        // 4. PNP REQUISITORIAS (Captura Vehicular)
-                        setCardLoading('pnp_req', 'Requisitorias Policiales (PNP)', 'Consultando órdenes de captura PNP...', 'fas fa-shield-halved', '', 'PNP Tránsito');
-                        await fetchPNP(plate);
+                        // Requisitorias PNP desactivado: no se programa ni se llama al backend.
 
-                        // 5. LUNAS (PNP BotDetect Captcha)
+                        // 4. LUNAS (PNP BotDetect Captcha)
                         setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
-                        await fetchLunas(plate);
+                        await runSectionSafely('lunas', () => fetchLunas(plate));
 
-                        // 6. DEUDA GNV FISE (Ahorro GNV)
+                        // 5. DEUDA GNV FISE (Ahorro GNV)
                         setCardLoading('fise', 'Deuda GNV (FISE)', 'Consultando portal FISE MINEM...', 'fas fa-gas-pump', '', 'FISE Ahorro GNV');
-                        await fetchFISE(plate);
+                        await runSectionSafely('fise', () => fetchFISE(plate));
 
-                        // 7. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
+                        // 6. ATU (Habilitación Taxi - al final para no hacer esperar al usuario)
                         setCardLoading('atu', 'Habilitación Taxi ATU', 'Verificando habilitación de taxi ATU...', 'fas fa-taxi', '', 'ATU');
-                        await fetchATU(plate);
+                        await runSectionSafely('atu', () => fetchATU(plate));
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
+                        queueError = (err as any)?.name?.startsWith('ConsultationQueue') || false;
+                        if (queueError) {
+                            queryStatus.innerHTML = `<span class="text-rose-600 font-bold"><i class="fas fa-users mr-1"></i> ${(err as any).message || 'Estamos atendiendo muchas consultas. Inténtalo nuevamente en unos segundos.'}</span>`;
+                            queryStatus.classList.remove('opacity-0');
+                        }
                     } finally {
-                        queryStatus.classList.add('opacity-0');
+                        if (activeConsultationTicket) {
+                            const ticketToRelease = activeConsultationTicket;
+                            activeConsultationTicket = null;
+                            await releaseConsultationSlot(BACKEND_URL, ticketToRelease);
+                            setConsultationTicket(null);
+                        }
+                        if (consultationHeartbeat) {
+                            clearInterval(consultationHeartbeat);
+                            consultationHeartbeat = null;
+                        }
+                        if (!queueError) queryStatus.classList.add('opacity-0');
                         if (submitBtn) {
                             let cooldown = 10;
                             const interval = setInterval(() => {

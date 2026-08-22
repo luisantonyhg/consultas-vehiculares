@@ -21,7 +21,7 @@ export const LOGO_MAPPING = {
     valor_venal: '/assets/apeseg.png',
     osinergmin: '/assets/osinergmin.png',
     fise: '/assets/fise.png',
-    pnp_req: '/assets/logopnp.png',
+    // pnp_req desactivado junto con su tarjeta.
     historial_dueños: '/assets/sunarp.jpeg'
 };
 
@@ -29,7 +29,7 @@ export const SOURCE_URLS = {
     soat: 'https://www.apeseg.org.pe/consultas-soat/',
     citv: 'https://rec.mtc.gob.pe/Citv/ArConsultaCitv',
     lunas: 'https://sistemas.policia.gob.pe/consultalunas/ConsultarServicioLunas',
-    pnp_req: 'https://sistemas1.policia.gob.pe/ConsultaPVR/ConsultarServicio',
+    // pnp_req desactivado: no incluir la URL de ConsultaPVR en el bundle.
     historial_dueños: 'https://www.sunarp.gob.pe/',
     callao: 'https://pagopapeletascallao.pe/',
     lima: 'https://www.sat.gob.pe/',
@@ -54,7 +54,7 @@ export const SERVICE_COLORS = {
     soat:        { bg: 'bg-blue-50 dark:bg-blue-950/20',       icon: 'text-blue-600 dark:text-blue-400',       ring: 'ring-blue-200 dark:ring-blue-900' },
     citv:        { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
     lunas:       { bg: 'bg-purple-50 dark:bg-purple-950/20',   icon: 'text-purple-600 dark:text-purple-400',   ring: 'ring-purple-200 dark:ring-purple-900' },
-    pnp_req:     { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
+    // pnp_req desactivado mientras Requisitorias esté fuera del producto.
     historial_dueños: { bg: 'bg-indigo-50 dark:bg-indigo-950/20', icon: 'text-indigo-600 dark:text-indigo-400', ring: 'ring-indigo-200 dark:ring-indigo-900' },
     callao:      { bg: 'bg-red-50 dark:bg-red-950/20',         icon: 'text-red-600 dark:text-red-400',         ring: 'ring-red-200 dark:ring-red-900' },
     lima:        { bg: 'bg-amber-50 dark:bg-amber-950/20',     icon: 'text-amber-600 dark:text-amber-400',     ring: 'ring-amber-200 dark:ring-amber-900' },
@@ -291,13 +291,26 @@ export function reorderCards() {
             'sat_deposito-card-container',
             'atu-card-container',
             'lunas-card-container',
-            'pnp_req-card-container',
+            // Requisitorias PNP desactivado: no forma parte del orden visual.
             'historial_dueños-card-container'
         ];
         const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
         return (_ia === -1 ? 999 : _ia) - (_ib === -1 ? 999 : _ib);
     });
     cards.forEach(card => wrapper.appendChild(card));
+
+    // Lunas se consulta al final por ser una fuente pesada. Cuando la fuente ya
+    // respondió correctamente, se presenta junto a Papeletas Lima SAT; mientras
+    // siga pendiente o falle, permanece al final sin alterar las demás tarjetas.
+    const lunasCard = document.getElementById('lunas-card-container');
+    const limaCard = document.getElementById('lima-card-container');
+    if (lunasCard?.parentElement === wrapper) {
+        if (lunasCard.getAttribute('data-status') === 'funciona' && limaCard?.parentElement === wrapper) {
+            limaCard.insertAdjacentElement('afterend', lunasCard);
+        } else {
+            wrapper.appendChild(lunasCard);
+        }
+    }
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {
