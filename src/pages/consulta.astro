@@ -915,11 +915,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const isTimeout = normalizedError.includes('tiempo de espera') ||
                         normalizedError.includes('tiempo límite') ||
                         normalizedError.includes('timeout');
+                    const isPermanentProxyConfig = normalizedError.includes('configure fise_proxy') ||
+                        normalizedError.includes('no permite connect al puerto 23308');
                     // Lima y FISE son seguros de repetir una sola vez cuando el
                     // portal externo corta la conexión. ATU, SAT y Lunas ya
                     // gestionan intentos internos y no deben duplicar navegadores.
                     const retryableTimeoutProviders = new Set(['lima', 'fise']);
-                    const noRetry = is404Error || isBackpressure ||
+                    const noRetry = is404Error || isBackpressure || isPermanentProxyConfig ||
                         (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
