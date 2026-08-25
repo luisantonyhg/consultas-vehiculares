@@ -30,5 +30,10 @@
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "typescript": "6.0.2"
+  },
+  "overrides": {
+    "@astrojs/tailwind": {
+      "astro": "$astro"
+    }
   }
 }
