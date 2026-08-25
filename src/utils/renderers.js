@@ -1,5 +1,36 @@
 // Mappings, Core UI Component Builders and Renderers Coordinator
+import DOMPurify from 'dompurify';
+
 export * from './renderers/index.js';
+
+function decodeActionValue(value) {
+    try { return decodeURIComponent(value || ''); } catch { return ''; }
+}
+
+// Un único listener conserva las acciones de los botones sin insertar código
+// ejecutable en las respuestas HTML de proveedores externos.
+if (typeof document !== 'undefined' && !window.__canitaResultActionsInstalled) {
+    window.__canitaResultActionsInstalled = true;
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-canita-action]');
+        if (!button) return;
+        const action = button.dataset.canitaAction;
+        if (action === 'callao-document') {
+            window.abrirModalPapeleta?.(decodeActionValue(button.dataset.url));
+        } else if (action === 'sat-document') {
+            window.openSatTicketModal?.(
+                decodeActionValue(button.dataset.url),
+                decodeActionValue(button.dataset.document)
+            );
+        } else if (action === 'cinemometro-photo') {
+            window.abrirModalFotoCinemometro?.(
+                decodeActionValue(button.dataset.document),
+                decodeActionValue(button.dataset.target),
+                decodeActionValue(button.dataset.plate)
+            );
+        }
+    });
+}
 
 export const LOGO_MAPPING = {
     soat: '/assets/apeseg.png',
@@ -104,10 +135,12 @@ export function parseDateDDMMYYYY(dateStr) {
 }
 
 export function fila(label, value) {
-    if (!value || value === 'null' || value === 'undefined' || value.trim() === '') return '';
+    if (value === null || value === undefined || value === 'null' || value === 'undefined' || String(value).trim() === '') return '';
+    const safeLabel = escapeHTML(label);
+    const safeValue = escapeHTML(value);
     return `<tr class="border-b border-slate-100 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 group font-poppins">
-        <td class="py-1.5 px-2 md:py-2 md:px-4 text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/30 dark:bg-slate-900/10 border-r border-slate-150 dark:border-slate-800/40 w-[38%] align-middle font-poppins">${label}</td>
-        <td class="py-1.5 px-2 md:py-2 md:px-4 text-[11px] md:text-xs font-bold text-slate-850 dark:text-slate-200 leading-tight w-auto align-middle font-poppins">${value}</td>
+        <td class="py-1.5 px-2 md:py-2 md:px-4 text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/30 dark:bg-slate-900/10 border-r border-slate-150 dark:border-slate-800/40 w-[38%] align-middle font-poppins">${safeLabel}</td>
+        <td class="py-1.5 px-2 md:py-2 md:px-4 text-[11px] md:text-xs font-bold text-slate-850 dark:text-slate-200 leading-tight w-auto align-middle font-poppins">${safeValue}</td>
     </tr>`;
 }
 
@@ -276,6 +309,7 @@ export function reorderCards() {
 
         const defaultOrder = [
             'sunarp-card-container',
+            'historial_dueños-card-container',
             'lima-card-container',
             'placas_pe-card-container',
             'soat-card-container',
@@ -293,7 +327,6 @@ export function reorderCards() {
             'sat_deposito-card-container',
             'lunas-card-container',
             // Secciones futuras: siempre ocupan las últimas posiciones.
-            'historial_dueños-card-container',
             'atu-card-container',
             'sat_deuda-card-container',
             'fise-card-container'
@@ -317,11 +350,9 @@ export function reorderCards() {
     }
 
     // Estas tarjetas son informativas y nunca participan en la consulta.
-    const historyCard = document.getElementById('historial_dueños-card-container');
     const atuCard = document.getElementById('atu-card-container');
     const satDebtCard = document.getElementById('sat_deuda-card-container');
     const fiseCard = document.getElementById('fise-card-container');
-    if (historyCard?.parentElement === wrapper) wrapper.appendChild(historyCard);
     if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
     if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
     if (fiseCard?.parentElement === wrapper) wrapper.appendChild(fiseCard);
@@ -459,7 +490,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
     if (isSuccess) {
         container.setAttribute('data-status', 'funciona');
         if (customBadge) {
-            badgeHTML = customBadge;
+            badgeHTML = DOMPurify.sanitize(String(customBadge));
         } else if (hasData) {
             if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') {
                 const text = cardId === 'cinemometro' ? 'CON INFRACCIONES' : 'CON PAPELETAS';
@@ -514,9 +545,13 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
     const verifyLink = sourceUrl 
         ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
         : '';
+    // Los proveedores externos controlan parte de los textos mostrados. Aunque
+    // los renderizadores escapan campos simples, esta barrera central evita que
+    // una respuesta manipulada pueda inyectar scripts o manejadores HTML.
+    const safeHtmlContent = DOMPurify.sanitize(String(htmlContent || ''));
     const finalContent = `
         <div class="flex flex-col h-full justify-between">
-            <div class="flex-1">${htmlContent}</div>
+            <div class="flex-1">${safeHtmlContent}</div>
             <div class="canita-export-brand mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-800">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
@@ -558,6 +593,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
 export function setCardError(cardId, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
+    const safeErrorMessage = escapeHTML(errorMessage || '');
     const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento") || (errorMessage || "").toLowerCase().includes("desarrollo");
     let badgeHTML = '';
     let rightContent = '';
@@ -575,7 +611,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                 </div>
                 <div>
                     <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Desarrollo</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">${errorMessage}</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">${safeErrorMessage}</p>
                 </div>
                 <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
                     class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
@@ -602,7 +638,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                 </div>
                 <div>
                     <p class="text-sm font-bold text-slate-700 dark:text-slate-300 leading-tight">No se pudo obtener respuesta</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[340px] mx-auto leading-relaxed">${errorMessage || 'El portal oficial no respondió a tiempo. Puedes pulsar Reintentar o verificar directamente en su portal.'}</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[340px] mx-auto leading-relaxed">${safeErrorMessage || 'El portal oficial no respondió a tiempo. Puedes pulsar Reintentar o verificar directamente en su portal.'}</p>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-2">
                     <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"

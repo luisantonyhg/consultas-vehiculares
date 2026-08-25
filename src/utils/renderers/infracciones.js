@@ -28,7 +28,7 @@ export function renderCallao(data, plate, total) {
             <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-red-655 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${p.total || '0'}</td>
             <td class="py-1.5 px-1.5 text-center">
                 ${p.detalleUrl ? `
-                    <button onclick="window.abrirModalPapeleta('${p.detalleUrl}')"
+                    <button data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(p.detalleUrl))}"
                         class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900 transition-all active:scale-95 shadow-sm"
                         title="Ver papeleta">
                         <i class="fas fa-file-image text-[10px]"></i>
@@ -118,7 +118,7 @@ export function renderLima(plate, message, directUrl, data, totalDeudaParam) {
                     </div>
                     ${fotoUrl ? `
                     <button type="button" 
-                            onclick="window.openSatTicketModal('${fotoUrl}', '${numDoc}')"
+                            data-canita-action="sat-document" data-url="${escapeHTML(encodeURIComponent(fotoUrl))}" data-document="${escapeHTML(encodeURIComponent(numDoc))}"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] uppercase tracking-wide transition-all shadow-xs active:scale-95 cursor-pointer">
                         <i class="fas fa-file-image"></i> Ver Copia Acta
                     </button>` : `
@@ -154,7 +154,7 @@ export function renderLima(plate, message, directUrl, data, totalDeudaParam) {
                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
                     ${fotoUrl ? `
                     <button type="button" 
-                            onclick="window.openSatTicketModal('${fotoUrl}', '${numDoc}')"
+                            data-canita-action="sat-document" data-url="${escapeHTML(encodeURIComponent(fotoUrl))}" data-document="${escapeHTML(encodeURIComponent(numDoc))}"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-600 hover:text-white border border-blue-200 dark:border-blue-800 text-[10px] font-bold transition-all shadow-xs cursor-pointer"
                             title="Ver copia oficial de la papeleta en modal">
                         <i class="fas fa-file-image"></i> Ver Acta
@@ -363,7 +363,7 @@ export function renderCinemometro(data, plate, infoReporte) {
 
                 <div class="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                     <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">SUTRAN Cinemómetro</span>
-                    <button onclick="window.abrirModalFotoCinemometro('${nroDoc}', '${fotoTarget}', '${plate}')"
+                    <button data-canita-action="cinemometro-photo" data-document="${escapeHTML(encodeURIComponent(nroDoc))}" data-target="${escapeHTML(encodeURIComponent(fotoTarget))}" data-plate="${escapeHTML(encodeURIComponent(plate))}"
                         class="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer">
                         <i class="fas fa-camera text-xs"></i> Ver Foto Probatoria
                     </button>

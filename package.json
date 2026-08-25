@@ -1,11 +1,15 @@
 {
   "name": "visaprime",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "check": "astro check",
+    "lint": "eslint src/services src/ui src/utils",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -13,8 +17,18 @@
   "description": "",
   "dependencies": {
     "@astrojs/tailwind": "^6.0.2",
-    "astro": "^5.18.1",
+    "astro": "7.2.6",
+    "dompurify": "3.4.14",
     "html-to-image": "^1.11.13",
+    "sharp": "0.35.0",
+    "svgo": "4.0.2",
     "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0",
+    "typescript": "6.0.2"
   }
 }

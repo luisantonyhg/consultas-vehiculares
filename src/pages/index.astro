@@ -364,6 +364,8 @@ import { SERVICES_DATA } from '../data/services';
 
     {/* Lógica Cliente */}
     <script>
+        import { initVisits } from '../ui/visits.js';
+
         // En local usa localhost; en producción (Vercel HTTPS) usa el hostname HTTPS del VPS.
         // Esto evita "mixed content" (una página HTTPS NO puede llamar a un backend HTTP).
         const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || (
@@ -372,72 +374,12 @@ import { SERVICES_DATA } from '../data/services';
                 : 'https://backend-consultarvehiculos-production.up.railway.app/api/v1'
         );
 
-        function animateCount(el, target) {
-            let start = 0;
-            const duration = 1200;
-            const startTime = performance.now();
-            function update(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                const current = Math.floor(easeOut * target);
-                el.textContent = current.toLocaleString();
-                if (progress < 1) {
-                    requestAnimationFrame(update);
-                } else {
-                    el.textContent = target.toLocaleString();
-                }
-            }
-            requestAnimationFrame(update);
-        }
-
-        async function initVisits() {
-            const counterEl = document.getElementById('visit-counter');
-            const clientSecret = import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026';
-            let visitorId = localStorage.getItem('canita-visitor-id');
-            if (!visitorId) {
-                visitorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-                localStorage.setItem('canita-visitor-id', visitorId);
-            }
-            const visitHeaders = { 'X-Client-Secret': clientSecret, 'X-Visitor-ID': visitorId };
-            try {
-                // Registrar visita atómica (POST)
-                const postRes = await fetch(`${BACKEND_URL}/visits`, { 
-                    method: 'POST',
-                    headers: visitHeaders
-                }).catch(() => null);
-
-                if (postRes && postRes.ok) {
-                    const data = await postRes.json();
-                    if (data.success && typeof data.total === 'number' && counterEl) {
-                        animateCount(counterEl, data.total);
-                        return;
-                    }
-                }
-                
-                // Fallback lectura GET
-                const res = await fetch(`${BACKEND_URL}/visits`, {
-                    headers: visitHeaders
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && typeof data.total === 'number' && counterEl) {
-                        animateCount(counterEl, data.total);
-                    }
-                } else if (counterEl) {
-                    counterEl.textContent = 'No disponible';
-                }
-            } catch (e) {
-                console.error("Error al cargar contador de visitas:", e);
-                if (counterEl) counterEl.textContent = "No disponible";
-            }
-        }
-
-        // Ejecutar al cargar la página
-        initVisits();
-
+        initVisits(
+            BACKEND_URL,
+            import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026'
+        );
         // --- 1. Lógica del Sistema de Favoritos (LocalStorage) ---
-        function getFavorites() {
+        function getFavorites(): string[] {
             try {
                 return JSON.parse(localStorage.getItem('vehicle_favorites') || '[]');
             } catch (e) {
@@ -445,15 +387,15 @@ import { SERVICES_DATA } from '../data/services';
             }
         }
 
-        function saveFavorites(favs) {
+        function saveFavorites(favs: string[]) {
             localStorage.setItem('vehicle_favorites', JSON.stringify(favs));
         }
 
-        function isFavorite(id) {
+        function isFavorite(id: string) {
             return getFavorites().includes(id);
         }
 
-        function toggleFavorite(id) {
+        function toggleFavorite(id: string) {
             let favs = getFavorites();
             if (favs.includes(id)) {
                 favs = favs.filter(fId => fId !== id);

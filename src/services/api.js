@@ -1,694 +1,34 @@
 import {
-    parseDateDDMMYYYY,
-    renderSOAT,
-    renderSOATDetallado,
-    renderCITV,
-    renderLunas,
-    renderCallao,
     renderLima,
-    renderSutran,
-    renderCinemometro,
-    renderAtu,
-    renderGNV,
-    renderSBS,
     renderSunarp,
     renderSunarpNotFound,
     renderPlacasPE,
     renderValorVenal,
     renderOsinergmin,
-    renderFise,
     renderPNPRequisitorias,
-    renderHistorialDueños
+    renderHistorialDuenos,
+    initHistorialDuenosEvents
 } from '../utils/renderers.js';
+import { secureFetch } from './transport.js';
+export { setConsultationTicket } from './transport.js';
+export {
+    acquireConsultationSlot,
+    waitForConsultationSlot,
+    touchConsultationSlot,
+    waitForHeavyPhase,
+    releaseConsultationSlot,
+} from './consultation_queue.js';
 
-let activeConsultationTicket = null;
-
-export function setConsultationTicket(ticketId) {
-    activeConsultationTicket = ticketId || null;
-}
-
-async function secureFetch(url, options = {}) {
-    // El secreto SOLO se lee de la variable de entorno del build.
-    // NUNCA se hardcodea un fallback aquí: acabaría en el bundle público.
-    const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET) 
-        ? import.meta.env.PUBLIC_CLIENT_SECRET 
-        : "VehicularPESecretSecure2026";
-    // En desarrollo local o sin secret configurado, el backend opera normalmente con DEBUG=True.
-    const headers = {
-        ...options.headers,
-        ...(clientSecret ? {"X-Client-Secret": clientSecret} : {}),
-        ...(activeConsultationTicket ? {"X-Consultation-Ticket": activeConsultationTicket} : {})
-    };
-    const res = await fetch(url, { ...options, headers });
-    // Traducir el 429 del rate limiter (10/min por IP) a un mensaje claro. El wrapper
-    // runFetchWithRetry ya reintenta con backoff, aquí solo se mejora el aviso.
-    if (res.status === 429) {
-        const e = new Error('Demasiadas consultas en poco tiempo (límite 10/min por IP). Reintentando...');
-        e.name = 'RateLimited';
-        throw e;
-    }
-    return res;
-}
-
-// ---------------------------------------------------------------------------
-// Admisión por consulta completa. Es aditiva: si se despliega el frontend antes
-// que el backend nuevo y la ruta aún no existe, se opera en modo compatible.
-// ---------------------------------------------------------------------------
-export async function acquireConsultationSlot(BACKEND_URL) {
-    const res = await secureFetch(`${BACKEND_URL}/consultations`, { method: 'POST' });
-    if (res.status === 404) return { supported: false, status: 'active' };
-    if (!res.ok) {
-        const retryAfter = Number(res.headers.get('Retry-After') || 30);
-        const err = new Error(
-            res.status === 503
-                ? `Estamos atendiendo muchas consultas. Inténtalo nuevamente en ${retryAfter} segundos.`
-                : `No se pudo reservar un turno (HTTP ${res.status}).`
-        );
-        err.name = res.status === 503 ? 'ConsultationQueueFull' : 'ConsultationQueueError';
-        err.status = res.status;
-        err.retryAfter = retryAfter;
-        throw err;
-    }
-    return { supported: true, ...(await res.json()) };
-}
-
-export async function waitForConsultationSlot(BACKEND_URL, initialState, onUpdate) {
-    if (!initialState?.supported || initialState.status === 'active') return initialState;
-    let state = initialState;
-    const deadline = Date.now() + 210000;
-    while (state.status === 'queued') {
-        if (Date.now() >= deadline) {
-            const err = new Error('La espera está tomando más de lo previsto. Inténtalo nuevamente en unos segundos.');
-            err.name = 'ConsultationQueueTimeout';
-            throw err;
-        }
-        if (onUpdate) onUpdate(state);
-        await new Promise(resolve => setTimeout(resolve, Math.max(750, state.poll_after_ms || 1500)));
-        const res = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(state.ticket_id)}`);
-        if (res.status === 404) {
-            const err = new Error('Tu turno expiró antes de comenzar. Inténtalo nuevamente.');
-            err.name = 'ConsultationQueueExpired';
-            throw err;
-        }
-        if (!res.ok) throw new Error(`Error consultando el turno (HTTP ${res.status}).`);
-        state = { supported: true, ...(await res.json()) };
-    }
-    if (onUpdate) onUpdate(state);
-    return state;
-}
-
-export async function touchConsultationSlot(BACKEND_URL, ticketId) {
-    if (!ticketId) return null;
-    const res = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}`);
-    if (!res.ok) return null;
-    return await res.json();
-}
-
-export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
-    const reserve = await secureFetch(
-        `${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/heavy-phase`,
-        { method: 'POST' }
-    );
-    if (!reserve.ok) throw new Error(`No se pudo reservar la fase avanzada (HTTP ${reserve.status}).`);
-    let state = await reserve.json();
-    const deadline = Date.now() + 12 * 60 * 1000;
-    while (state.heavy_status === 'queued') {
-        if (onUpdate) onUpdate(state);
-        if (Date.now() >= deadline) {
-            const err = new Error('La fase avanzada está tomando más de lo previsto. Los resultados rápidos permanecen disponibles.');
-            err.name = 'ConsultationQueueTimeout';
-            throw err;
-        }
-        await new Promise(resolve => setTimeout(resolve, Math.max(1000, state.poll_after_ms || 1500)));
-        const current = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}`);
-        if (!current.ok) throw new Error(`El turno de la fase avanzada expiró (HTTP ${current.status}).`);
-        state = await current.json();
-    }
-    if (onUpdate) onUpdate(state);
-    return state;
-}
-
-export async function releaseConsultationSlot(BACKEND_URL, ticketId, keepalive = false) {
-    if (!ticketId) return;
-    try {
-        await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/complete`, {
-            method: 'POST',
-            keepalive,
-        });
-    } catch (_err) {
-        // El lease del backend libera automáticamente reservas abandonadas.
-    }
-}
-
-export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 75000);
-    try {
-        let rawData = null;
-
-        const res = await secureFetch(`${BACKEND_URL}/soat/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-            rawData = data.data;
-        } else if (!data.success) {
-            throw new Error(data.error || 'Error al consultar SOAT');
-        }
-
-        if (rawData && Array.isArray(rawData) && rawData.length > 0) {
-            rawData.sort((a, b) => {
-                const dateA = parseDateDDMMYYYY(a.FechaFin || a.FechaFinS);
-                const dateB = parseDateDDMMYYYY(b.FechaFin || b.FechaFinS);
-                return dateB.getTime() - dateA.getTime();
-            });
-
-            callbacks.processVehicleInfo('soat', rawData);
-
-            const latestSOAT = rawData[0];
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            const endDate = parseDateDDMMYYYY(latestSOAT.FechaFin);
-            const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            const isVigente = diffDays >= 0;
-
-            let customBadge = '';
-            if (isVigente) {
-                latestSOAT.Estado = 'VIGENTE';
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-check"></i> VIGENTE (${diffDays} días)
-                </span>`;
-            } else {
-                latestSOAT.Estado = 'VENCIDO';
-                const diasVencido = Math.abs(diffDays);
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-xmark"></i> VENCIDO (${diasVencido} ${diasVencido === 1 ? 'día' : 'días'})
-                </span>`;
-            }
-
-            const content = renderSOAT(rawData, plate);
-            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', content, true, true, customBadge);
-            return { success: true, data: rawData };
-        } else {
-            const emptyBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
-                <i class="fas fa-circle-xmark"></i> SIN SOAT REGISTRADO
-            </span>`;
-            const content = renderSOAT([], plate);
-            callbacks.setCardData('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', content, true, false, emptyBadge);
-            return { success: true, data: [] };
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (75s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('soat', 'SOAT', '', 'fas fa-shield-halved', '', 'SBS Reporte SOAT', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchSOATDetallado(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/soat-detallado/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'No se pudo consultar el historial APESEG');
-        const certificados = Array.isArray(data.certificados) ? data.certificados : [];
-        const siniestros = Array.isArray(data.siniestros) ? data.siniestros : [];
-
-        let badge = '';
-        if (certificados.length === 0) {
-            badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-xmark"></i> SIN SOAT REGISTRADO</span>`;
-        } else {
-            const sortedCerts = [...certificados].sort((a, b) => {
-                const dateA = parseDateDDMMYYYY(a.fin || a.fechaFin || a.FechaFin);
-                const dateB = parseDateDDMMYYYY(b.fin || b.fechaFin || b.FechaFin);
-                return dateB.getTime() - dateA.getTime();
-            });
-
-            const activeCert = sortedCerts.find(c => {
-                const st = String(c.estado || '').toLowerCase();
-                return st === 'activo' || st === 'vigente';
-            });
-
-            const targetCert = activeCert || sortedCerts[0];
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            const endDate = parseDateDDMMYYYY(targetCert.fin || targetCert.fechaFin || targetCert.FechaFin);
-            const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            const isVigente = activeCert ? true : diffDays >= 0;
-
-            if (isVigente) {
-                const diasText = diffDays >= 0 ? ` (${diffDays} días)` : '';
-                badge = `<span class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"><i class="fas fa-circle-check"></i> VIGENTE${diasText}</span>`;
-            } else {
-                const diasVencido = Math.abs(diffDays);
-                const diasText = !isNaN(diasVencido) && diasVencido < 10000 ? ` (${diasVencido} ${diasVencido === 1 ? 'día' : 'días'})` : '';
-                badge = `<span class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"><i class="fas fa-circle-xmark"></i> VENCIDO${diasText}</span>`;
-            }
-        }
-
-        callbacks.setCardData('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', renderSOATDetallado(data, plate), true, certificados.length > 0 || siniestros.length > 0, badge);
-        return data;
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'APESEG detallado tardó demasiado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchCITV(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 130000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/citv/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            callbacks.processVehicleInfo('citv', data.data);
-
-            if (Array.isArray(data.data)) {
-                data.data.sort((a, b) => {
-                    const dateA = parseDateDDMMYYYY(a.fechaVencimiento || a.fechaInspeccion);
-                    const dateB = parseDateDDMMYYYY(b.fechaVencimiento || b.fechaInspeccion);
-                    return dateB.getTime() - dateA.getTime();
-                });
-            }
-
-            let customBadge = '';
-            if (data.data && data.data.length > 0) {
-                const latestCITV = data.data[0];
-                const estado = (latestCITV.estado || latestCITV.resultado || '').toUpperCase().trim();
-                const now = new Date();
-                now.setHours(0,0,0,0);
-                const vencimientoDate = parseDateDDMMYYYY(latestCITV.fechaVencimiento);
-                const isExpiredByDate = vencimientoDate < now;
-                const isVigente = (estado === 'VIGENTE' || estado === 'APROBADO' || estado === 'APROBADA') && !isExpiredByDate;
-                if (isVigente) {
-                    customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-check"></i> VIGENTE
-                    </span>`;
-                } else {
-                    customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-xmark"></i> VENCIDO
-                    </span>`;
-                }
-            }
-
-            const content = renderCITV(data.data, plate);
-            callbacks.setCardData('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0, customBadge);
-            return data;
-        } else {
-            callbacks.setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (130s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchLunas(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 165000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const content = renderLunas(data.data, plate);
-            callbacks.setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, true, data.data && data.data.length > 0);
-            return data;
-        } else {
-            callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', data.error || 'Error en consulta de lunas PNP', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (165s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 165000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const content = renderCallao(data.data, plate, data.total);
-            callbacks.setCardData('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', content, true, data.data?.length > 0);
-            return data;
-        } else {
-            callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || 'Error al consultar papeletas', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const content = renderSutran(data.data, plate, data.info_reporte || '');
-            callbacks.setCardData('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', content, true, data.data?.length > 0);
-            return data;
-        } else {
-            callbacks.setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', data.error || 'Error al consultar SUTRAN', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 65000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/cinemometro/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const content = renderCinemometro(data.data, plate, data.info_reporte || '');
-            callbacks.setCardData('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', content, true, data.data?.length > 0);
-            return data;
-        } else {
-            callbacks.setCardError('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', data.error || 'Error al consultar Cinemómetro', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchATU(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU');
-    const controller = new AbortController();
-    // 160s: ATU comparte el navegador con SBS (1 a la vez). Margen para que, sin importar
-    // cuál tome el navegador primero, el segundo en cola tenga tiempo de ejecutarse.
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/atu/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            callbacks.processVehicleInfo('atu', data.data);
-            const content = renderAtu(data.data, plate);
-            const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
-            callbacks.setCardData('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
-            return data;
-        } else {
-            callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (160s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS');
-    const controller = new AbortController();
-    // 160s: SBS comparte el navegador con ATU (1 a la vez). Si ATU lo usa primero,
-    // SBS espera; este margen evita el timeout cuando se ejecutan en serie.
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}?tipos=SOAT,Vehicular,CAT`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const sbsData = { soat: data.soat, vehicular: data.vehicular, cat: data.cat };
-            const sbsTipos = [data.soat, data.vehicular, data.cat].filter(Boolean);
-            // Usa el resumen oficial "N.° de accidentes coberturados" del portal SBS cuando existe;
-            // si no, cae al conteo de pólizas devueltas.
-            const totalSiniestros = sbsTipos.reduce(
-                (acc, t) => acc + (typeof t.total_accidentes === 'number' ? t.total_accidentes : (t.data || []).length),
-                0
-            );
-            let customBadge = '';
-            if (totalSiniestros > 0) {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-triangle-exclamation"></i> ${totalSiniestros} SINIESTRO${totalSiniestros > 1 ? 'S' : ''}
-                </span>`;
-            } else {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-check"></i> SIN SINIESTROS
-                </span>`;
-            }
-            const content = renderSBS(sbsData, plate);
-            callbacks.setCardData('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', content, true, totalSiniestros > 0, customBadge);
-            return data;
-        } else {
-            callbacks.setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', data.error || 'Error al consultar SBS', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/gnv/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const content = renderGNV(data.data, plate);
-            const hasData = Array.isArray(data.data) && data.data.length > 0;
-            let customBadge = '';
-            if (hasData) {
-                const cert = data.data[0];
-                const habilitado = (cert.vehiculoHabilitado || '').toLowerCase();
-                const esHabilitado = habilitado === 'sí' || habilitado === 'si';
-                customBadge = esHabilitado
-                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-check"></i> HABILITADO
-                       </span>`
-                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
-                        <i class="fas fa-circle-xmark"></i> NO HABILITADO
-                       </span>`;
-            }
-            callbacks.setCardData('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas', content, true, hasData, customBadge);
-            return data;
-        } else {
-            callbacks.setCardError('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas', data.error || 'Error al consultar GNV', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (120s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/fise/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.success) {
-            const hasData = Boolean(data.data && data.data.tiene_financiamiento);
-            const content = renderFise(data.data, plate);
-            let customBadge = '';
-            if (hasData) {
-                const pend = data.data.montoPendiente;
-                const deudaVencida = Number(data.data.montoDeudaVencido || 0) > 0;
-                customBadge = deudaVencida
-                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> DEUDA VENCIDA: S/ ${Number(data.data.montoDeudaVencido).toFixed(2)}</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-coins"></i> SALDO: S/ ${Number(pend || 0).toFixed(2)}</span>`;
-            } else {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN DEUDA FISE</span>`;
-            }
-            callbacks.setCardData('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', content, true, hasData, customBadge);
-            return data;
-        } else {
-            callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', data.error || 'Error al consultar FISE', plate);
-            return data;
-        }
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (45s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
-export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 40000);
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
-        const data = await res.json();
-        const items = Array.isArray(data.data) ? data.data : [];
-        // Portal oficial de cada municipalidad para verificación manual
-        const MUNI_URLS = {
-            'Huánuco': 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php',
-            'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
-            'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
-            'Cajamarca': 'https://www.satcajamarca.gob.pe/#/',
-            'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/buscar_placa_',
-            'Cusco': 'https://cusco.gob.pe/informatica/index.php/',
-            'Ica': 'https://m.satica.gob.pe/consultapapeletas.php',
-            'Piura': 'https://www.munipiura.gob.pe/',
-            'Tacna': 'https://www.munitacna.gob.pe/',
-            'Tarapoto': 'https://www.mpsm.gob.pe/'
-        };
-        const rows = items.map(m => {
-            const err = !m.success;
-            const con = !!m.tiene_papeletas;
-            const cls = err ? 'text-slate-400 dark:text-slate-500' : (con ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-emerald-600 dark:text-emerald-400 font-bold');
-            const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation animate-pulse' : 'fa-circle-check');
-            const estado = err ? 'No disponible' : (con ? `${m.total || 1} papeleta(s) registrada(s)` : 'Sin papeletas');
-            const url = m.url || MUNI_URLS[m.municipio] || '';
-            const verBtn = url
-                ? `<a href="${url}" target="_blank" rel="noopener" title="Verificar en el portal oficial de ${m.municipio}"
-                     class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-all shadow-xs border border-slate-200/80 dark:border-slate-700 shrink-0">
-                     <i class="fas fa-arrow-up-right-from-square text-[9px] text-brand-red"></i> Portal</a>`
-                : '';
-
-            // Detalle completo y responsivo de todas las papeletas de la municipalidad
-            let detalleHTML = '';
-            if (con && Array.isArray(m.data) && m.data.length > 0) {
-                const totalCount = m.data.length;
-                const pendientesCount = m.data.filter(d => (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
-                const canceladasCount = totalCount - pendientesCount;
-
-                const itemCards = m.data.map((d, idx) => {
-                    const esPendiente = (d['Situación'] || '').toUpperCase().includes('PENDIENTE');
-                    const badgeSit = esPendiente
-                        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-rose-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-clock"></i> ${d['Situación']}</span>`
-                        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-check-double"></i> ${d['Situación']}</span>`;
-
-                    return `
-                        <div class="p-2.5 rounded-xl border ${esPendiente ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80'} shadow-xs font-poppins transition-all">
-                            <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-1.5 flex-wrap">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] font-black flex items-center justify-center">${idx + 1}</span>
-                                    <span class="text-xs font-black text-slate-900 dark:text-white font-mono">${d['Papeleta'] || 'S/N'}</span>
-                                    <span class="px-1.5 py-0.5 rounded bg-brand-red/10 text-brand-red text-[9px] font-bold">${d['Infracción'] || ''}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    ${badgeSit}
-                                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-semibold">${d['Estado'] || ''}</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 text-[10px] text-slate-600 dark:text-slate-300">
-                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Fecha Infracción:</strong> ${d['Fecha'] || '—'}</div>
-                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Conductor:</strong> <span class="uppercase font-semibold">${d['Conductor'] || '—'}</span></div>
-                                <div class="sm:col-span-2 md:col-span-1"><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Lugar:</strong> <span class="capitalize">${d['Lugar'] || '—'}</span></div>
-                            </div>
-                        </div>`;
-                }).join('');
-
-                detalleHTML = `
-                    <div class="mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800">
-                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap text-[11px] font-bold">
-                            <span class="text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                                <i class="fas fa-list-check text-brand-red"></i> Detalle de las ${totalCount} infracciones registradas:
-                            </span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-rose-600 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded-full text-[10px]">${pendientesCount} pendientes</span>
-                                <span class="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full text-[10px]">${canceladasCount} canceladas</span>
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
-                            ${itemCards}
-                        </div>
-                    </div>`;
-            }
-
-            return `<div class="flex flex-col py-3 px-2 border-b border-slate-100 dark:border-slate-800/80 last:border-0 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                <div class="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                    <div class="min-w-0">
-                        <p class="text-[13px] md:text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight flex items-center gap-1.5">
-                            <i class="fas fa-city text-[11px] text-slate-400"></i> ${m.municipio || ''}
-                        </p>
-                        <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold mt-0.5">${m.provincia || ''} · ${m.fuente || 'Gobierno Local'}</p>
-                    </div>
-                    <div class="flex items-center gap-2.5 shrink-0">
-                        <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs ${cls}">
-                            <i class="fas ${icon}"></i> ${estado}
-                        </span>
-                        ${verBtn}
-                    </div>
-                </div>
-                ${m.mensaje && m.mensaje !== 'Sin papeletas registradas.' && !con ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">${m.mensaje}</p>` : ''}
-                ${detalleHTML}
-            </div>`;
-        }).join('');
-        const content = `<div class="p-3 md:p-4">
-            <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-3 md:px-4 divide-y divide-slate-100 dark:divide-slate-800">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 flex items-center gap-1.5 px-1"><i class="fas fa-circle-info text-blue-500"></i> Cobertura en vivo: Huánuco, Chachapoyas, Arequipa, Cajamarca, Chiclayo, Cusco, Ica, Piura, Tacna, Tarapoto y Trujillo.</p>
-        </div>`;
-        const conPapeletas = items.some(m => m.tiene_papeletas);
-        let badge = conPapeletas
-            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
-            : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN PAPELETAS</span>`;
-        callbacks.setCardData('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', content, true, conPapeletas, badge);
-        return data;
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado.' : (err.message || 'Error de conexión');
-        callbacks.setCardError('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', msg, plate);
-        return { success: false, error: msg };
-    }
-}
-
+export { runFetchSOAT, runFetchSOATDetallado, runFetchCITV } from './providers/insurance.js';
+export {
+    runFetchLunas,
+    runFetchCallao,
+    runFetchSutran,
+    runFetchCinemometro,
+    runFetchATU,
+    runFetchSBS,
+} from './providers/official_portals.js';
+export { runFetchGNV, runFetchFISE, runFetchMunicipal } from './providers/energy_municipal.js';
 export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
@@ -1182,10 +522,54 @@ export async function runFetchPNP(plate, BACKEND_URL, callbacks) {
     }
 }
 
-export function initHistorialDueñosCard(plate, callbacks) {
-    const content = renderHistorialDueños(plate);
-    const badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30 uppercase tracking-wider"><i class="fas fa-wrench text-[9px]"></i> PRÓXIMAMENTE</span>`;
-    callbacks.setCardData('historial_dueños', 'Historial de Dueño y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, false, badge);
+export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina = '') {
+    const TIT = 'Historial de Dueños y Gravámenes';
+    callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    try {
+        const queryParam = oficina ? `?oficina=${encodeURIComponent(oficina)}` : '';
+        const res = await secureFetch(`${BACKEND_URL}/sunarp/historial/${plate}${queryParam}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            let detail = '';
+            try { detail = (await res.json())?.detail || ''; } catch (_) { /* respuesta no JSON */ }
+            throw new Error(detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+
+        if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
+            const content = renderHistorialDuenos(data, plate);
+            const totalAsientos = data.resumen?.total_asientos || data.timeline?.length || 0;
+            const gravamenes = data.resumen?.gravamenes_vigentes || 0;
+            const gravamenesVerificados = data.metadata?.gravamenes_verificados === true;
+            const badge = !gravamenesVerificados
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm uppercase tracking-wider"><i class="fas fa-clock"></i> CARGAS POR VERIFICAR</span>`
+                : gravamenes > 0
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${totalAsientos} ASIENTOS</span>`;
+
+            callbacks.setCardData('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, true, badge);
+
+            if (typeof window !== 'undefined') setTimeout(initHistorialDuenosEvents, 50);
+            return data;
+        } else {
+            callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', data.message || 'Sin registros en SPRL', plate);
+            return data;
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (60s).' : (err.message || 'Error de conexión');
+        callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', msg, plate);
+        return { success: false, error: msg };
+    }
 }
 
-
+export function initHistorialDueñosCard(plate, callbacks, BACKEND_URL, oficina = '') {
+    if (BACKEND_URL) {
+        return runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina);
+    }
+    const content = renderHistorialDuenos(null, plate);
+    const badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30 uppercase tracking-wider"><i class="fas fa-clock-rotate-left text-[9px]"></i> EN ESPERA</span>`;
+    callbacks.setCardData('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, false, badge);
+}
