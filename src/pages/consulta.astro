@@ -760,7 +760,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     // Lima y FISE son seguros de repetir una sola vez cuando el
                     // portal externo corta la conexión. ATU, SAT y Lunas ya
                     // gestionan intentos internos y no deben duplicar navegadores.
-                    const retryableTimeoutProviders = new Set(['lima', 'fise']);
+                    const retryableTimeoutProviders = new Set(['lima', 'fise', 'callao']);
                     const noRetry = is404Error || isBackpressure || isPermanentProxyConfig ||
                         (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
@@ -874,7 +874,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchCallao(plate: string) {
-            return runFetchWithRetry('callao', (callbacks) => runFetchCallao(plate, BACKEND_URL, callbacks), plate);
+            return runFetchWithRetry('callao', (callbacks) => runFetchCallao(plate, BACKEND_URL, callbacks), plate, 1, 2);
         }
 
         async function fetchLima(plate: string) {
