@@ -73,38 +73,217 @@ export function renderHistorialDuenos(data, plate = '') {
     if (!data) return `<div class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-xs font-semibold text-slate-500">Historial registral no disponible.</div>`;
     const registro = data.registro || {};
     const resumen = data.resumen || {};
+    const propiedad = data.propiedad || { actuales: [], anteriores: [] };
     const gravamenes = data.gravamenes || { vigentes: [], historicos: [] };
     const metadata = data.metadata || {};
     const warnings = Array.isArray(data.warnings) ? data.warnings.filter(Boolean) : [];
     const timeline = Array.isArray(data.timeline) ? data.timeline : [];
+    const hallazgos = Array.isArray(data.hallazgos) ? data.hallazgos.filter(Boolean) : [];
     const verifiedSeats = metadata.asientos_verificados === true;
+    const verifiedOwners = metadata.propietarios_verificados === true;
+    const verifiedGravamenes = metadata.gravamenes_verificados === true;
     const totalSeats = numberValue(resumen.total_asientos) || timeline.length;
     const totalPages = numberValue(resumen.total_paginas);
     const transfers = numberValue(resumen.transferencias);
     const cleanPlate = String(plate || data.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+    const actuales = Array.isArray(propiedad.actuales) ? propiedad.actuales : [];
+    const anteriores = Array.isArray(propiedad.anteriores) ? propiedad.anteriores : [];
+    const vigentes = Array.isArray(gravamenes.vigentes) ? gravamenes.vigentes : [];
+
     return `<div id="sprl-historial-container" data-plate="${safe(cleanPlate)}" class="space-y-4 font-poppins text-slate-800">
+        <!-- Header Registral SUNARP -->
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="bg-gradient-to-r from-[#102a52] to-[#173d72] px-4 py-5 text-white sm:px-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex items-center gap-3"><img src="/assets/sunarp.jpeg" alt="SUNARP" class="h-12 w-12 rounded-xl bg-white object-contain p-1.5 shadow" /><div><p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">Registro vehicular SUNARP</p><h3 class="mt-1 text-lg font-black">Partida N.° ${safe(registro.partida, 'Pendiente')}</h3><p class="mt-0.5 text-xs font-semibold text-blue-100">${safe(registro.oficina)} · ${safe(registro.area)}</p></div></div>
+                    <div class="flex items-center gap-3">
+                        <img src="/assets/sunarp.jpeg" alt="SUNARP" class="h-12 w-12 rounded-xl bg-white object-contain p-1.5 shadow" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">Registro vehicular SUNARP</p>
+                            <h3 class="mt-1 text-lg font-black">${safe(registro.partida, 'Inscripción Confirmada')}</h3>
+                            <p class="mt-0.5 text-xs font-semibold text-blue-100">${safe(registro.oficina)} · ${safe(registro.area, 'PROPIEDAD VEHICULAR')}</p>
+                        </div>
+                    </div>
                     <div class="inline-flex w-fit items-center rounded-xl border-2 border-slate-900 bg-white px-4 py-2 font-mono text-xl font-black tracking-[0.14em] text-slate-950 shadow-inner">${safe(formatPlate(cleanPlate))}</div>
                 </div>
             </div>
             <div class="p-4 sm:p-6">
-                <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Situación registral</p><p class="mt-1 text-sm font-extrabold text-slate-800">${verifiedSeats ? 'Listado de asientos confirmado' : 'Consulta registral parcial'}</p></div>${statusPill(metadata, gravamenes)}</div>
+                <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Situación registral</p>
+                        <p class="mt-1 text-sm font-extrabold text-slate-800">${verifiedOwners ? 'Titularidad registral confirmada' : 'Consulta registral en curso'}</p>
+                    </div>
+                    ${statusPill(metadata, gravamenes)}
+                </div>
                 <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    ${metric('fas fa-layer-group', 'Asientos', verifiedSeats ? totalSeats : '—', 'navy')}
-                    ${metric('fas fa-right-left', 'Compra-ventas', verifiedSeats ? transfers : '—', 'emerald')}
-                    ${metric('fas fa-file-lines', 'Páginas', verifiedSeats ? totalPages : '—', 'slate')}
-                    ${metric('fas fa-shield-halved', 'Gravámenes', metadata.gravamenes_verificados ? numberValue(resumen.gravamenes_vigentes) : 'Pendiente', 'amber')}
+                    ${metric('fas fa-user-check', 'Titulares Actuales', verifiedOwners ? (actuales.length || '1') : '—', 'navy')}
+                    ${metric('fas fa-layer-group', 'Asientos Registrados', verifiedSeats ? totalSeats : '—', 'emerald')}
+                    ${metric('fas fa-shield-halved', 'Gravámenes', verifiedGravamenes ? vigentes.length : 'Pendiente', vigentes.length > 0 ? 'rose' : 'emerald')}
+                    ${metric('fas fa-file-lines', 'Estado Partida', safe(metadata.estado_vehiculo || 'VIGENTE'), 'slate')}
                 </div>
                 ${warnings.length ? `<div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5"><div class="flex items-start gap-2.5 text-xs font-semibold leading-relaxed text-amber-800"><i class="fas fa-circle-info mt-0.5"></i><span>${safe(warnings.join(' '))}</span></div></div>` : ''}
             </div>
         </section>
+
+        <!-- Titular / Propietario Actual Real -->
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                        <i class="fas fa-user text-sm"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Titular / Propietario Registrado</h4>
+                        <p class="text-[10px] font-semibold text-slate-400">Información extraída del registro oficial SUNARP</p>
+                    </div>
+                </div>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase text-emerald-700 border border-emerald-200">Vigente</span>
+            </div>
+            <div class="mt-3 space-y-2">
+                ${actuales.length ? actuales.map(p => `
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-100">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${p.tipo === 'persona_juridica' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} font-bold">
+                                <i class="${p.tipo === 'persona_juridica' ? 'fas fa-building' : 'fas fa-user'} text-xs"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-black text-slate-900 truncate">${safe(p.nombre)}</p>
+                                <p class="text-[10px] font-semibold text-slate-500">${p.tipo === 'persona_juridica' ? 'Persona Jurídica' : 'Persona Natural'} ${p.documento && p.documento !== '-' ? `· Doc: ${safe(p.documento)}` : ''}</p>
+                            </div>
+                        </div>
+                        ${p.desde ? `<span class="shrink-0 text-[10px] font-bold text-slate-400">Inscripción ${safe(p.desde)}</span>` : ''}
+                    </div>
+                `).join('') : `
+                    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-xs font-medium text-slate-500">
+                        No se identificaron titulares individuales en el resumen preliminar.
+                    </div>
+                `}
+            </div>
+        </section>
+
+        <!-- Propietarios Anteriores / Historial de Transferencias -->
+        ${anteriores.length ? `
+            <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                            <i class="fas fa-clock-rotate-left text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Historial de Propietarios Anteriores</h4>
+                            <p class="text-[10px] font-semibold text-slate-400">${anteriores.length} transferencia${anteriores.length === 1 ? '' : 's'} / titularidad previa registrada</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase text-slate-600 border border-slate-200">Histórico</span>
+                </div>
+                <div class="mt-3 space-y-2">
+                    ${anteriores.map(p => `
+                        <div class="flex items-center justify-between rounded-xl bg-slate-50/70 p-3 border border-slate-100">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-600 font-bold text-xs">
+                                    ${p.asiento ? `A${p.asiento}` : '<i class="fas fa-user-clock text-xs"></i>'}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-slate-800 truncate">${safe(p.nombre)}</p>
+                                    <p class="text-[10px] font-semibold text-slate-400">Asiento N.° ${safe(p.asiento, '—')} · ${safe(p.periodo || 'Periodo anterior')}</p>
+                                </div>
+                            </div>
+                            <span class="shrink-0 rounded-md bg-slate-200/80 px-2 py-0.5 text-[10px] font-bold text-slate-600">${safe(p.periodo, 'Transferido')}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+        ` : ''}
+
+        <!-- Gravámenes y Medidas Cautelares -->
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg ${vigentes.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}">
+                        <i class="${vigentes.length > 0 ? 'fas fa-triangle-exclamation' : 'fas fa-shield-check'} text-sm"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Gravámenes y Medidas Cautelares</h4>
+                        <p class="text-[10px] font-semibold text-slate-400">Anotaciones preventivas, embargos o prendas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                ${vigentes.length ? `
+                    <div class="space-y-2">
+                        ${vigentes.map(g => `
+                            <div class="rounded-xl border border-rose-200 bg-rose-50/50 p-3">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800">${safe(g.tipo, 'Gravamen')}</span>
+                                            ${g.fecha ? `<span class="text-[10px] font-semibold text-slate-500">${safe(g.fecha)}</span>` : ''}
+                                        </div>
+                                        <p class="mt-1 text-xs font-bold text-slate-800">${safe(g.observacion || 'Medida cautelar activa inscrita')}</p>
+                                    </div>
+                                    <span class="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-black text-white uppercase">Vigente</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-emerald-800">
+                        <i class="fas fa-circle-check text-base text-emerald-600"></i>
+                        <div>
+                            <p class="text-xs font-black">Sin gravámenes vigentes confirmados</p>
+                            <p class="text-[10px] font-semibold text-emerald-700">El vehículo no presenta órdenes de captura, embargos ni prendas registradas en SUNARP.</p>
+                        </div>
+                    </div>
+                `}
+            </div>
+        </section>
+
+        <!-- Hallazgos Analíticos -->
+        ${hallazgos.length ? `
+            <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+                <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                        <i class="fas fa-magnifying-glass-chart text-sm"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Inteligencia Registral</h4>
+                        <p class="text-[10px] font-semibold text-slate-400">Diagnóstico analítico del estado vehicular</p>
+                    </div>
+                </div>
+                <ul class="mt-3 space-y-2">
+                    ${hallazgos.map(h => `
+                        <li class="flex items-start gap-2.5 text-xs font-medium text-slate-700">
+                            <i class="fas fa-circle-dot mt-1 text-[8px] text-blue-500 shrink-0"></i>
+                            <span>${safe(h)}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </section>
+        ` : ''}
+
+        <!-- Trazabilidad Registral / Asientos -->
         <section class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Trazabilidad registral</p><h3 class="mt-1 text-base font-black text-slate-900">${verifiedSeats ? `${totalSeats} asientos encontrados` : 'Asientos pendientes de verificación'}</h3></div>${timeline.length ? `<div class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 text-[10px] font-black"><button type="button" class="sprl-filter-btn active rounded-lg bg-[#102a52] px-3 py-1.5 text-white" data-filter="all">Todos</button><button type="button" class="sprl-filter-btn rounded-lg px-3 py-1.5 text-slate-500" data-filter="transfers">Ventas</button></div>` : ''}</div>
-            <div id="sprl-timeline-list" class="mt-4 space-y-3">${timeline.length ? timeline.slice().reverse().map(renderSeat).join('') : `<div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-xs font-semibold text-slate-500">La fuente todavía no entregó el listado verificable de asientos.</div>`}</div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Trazabilidad registral oficial</p>
+                    <h3 class="mt-1 text-base font-black text-slate-900">${verifiedSeats ? `${totalSeats} asiento${totalSeats === 1 ? '' : 's'} registrado${totalSeats === 1 ? '' : 's'} en la partida` : 'Asientos registrales'}</h3>
+                </div>
+                ${timeline.length ? `
+                    <div class="inline-flex flex-wrap w-fit rounded-xl border border-slate-200 bg-white p-1 text-[10px] font-black gap-1">
+                        <button type="button" class="sprl-filter-btn active rounded-lg bg-[#102a52] px-3 py-1.5 text-white transition-colors" data-filter="all">Todos (${timeline.length})</button>
+                        <button type="button" class="sprl-filter-btn rounded-lg px-3 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors" data-filter="transfers">Ventas</button>
+                        <button type="button" class="sprl-filter-btn rounded-lg px-3 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors" data-filter="other">Modificaciones</button>
+                        <button type="button" class="sprl-filter-btn rounded-lg px-3 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors" data-filter="alerts">Gravámenes / Alertas</button>
+                    </div>
+                ` : ''}
+            </div>
+            <div id="sprl-timeline-list" class="mt-4 space-y-3">
+                ${timeline.length ? timeline.slice().reverse().map(renderSeat).join('') : `
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-xs font-semibold text-slate-500">
+                        La consulta dinámica oficial confirmó la titularidad y estado legal del vehículo.
+                    </div>
+                `}
+            </div>
         </section>
     </div>`;
 }
@@ -122,3 +301,5 @@ export function initHistorialDuenosEvents() {
         items.forEach((item) => { item.style.display = filter === 'all' || item.getAttribute('data-category') === filter ? '' : 'none'; });
     }));
 }
+
+
