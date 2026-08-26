@@ -984,6 +984,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             queryAttempts[cardId] = 0;
 
             try {
+                // Asegurar que el reintento cuente con un ticket de consulta válido (evita HTTP 403)
+                if (!activeConsultationTicket) {
+                    try {
+                        const admission = await acquireConsultationSlot(BACKEND_URL);
+                        if (admission && admission.ticket_id) {
+                            activeConsultationTicket = admission.ticket_id;
+                            setConsultationTicket(activeConsultationTicket);
+                        }
+                    } catch (tErr) {
+                        console.warn('[RETRY] No se pudo obtener nuevo ticket para reintento:', tErr);
+                    }
+                }
+
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
                 else if (cardId === 'historial_dueños') await fetchHistorialDuenos(plate, (vehicleData?.sede || ''));
                 else if (cardId === 'soat')        await fetchSOAT(plate);
