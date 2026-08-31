@@ -36,6 +36,10 @@ export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.success) {
+            if (data.mantenimiento) {
+                callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.mensaje || 'El portal oficial de la Municipalidad del Callao se encuentra temporalmente en mantenimiento.', plate);
+                return data;
+            }
             const content = renderCallao(data.data, plate, data.total);
             callbacks.setCardData('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', content, true, data.data?.length > 0);
             return data;
@@ -144,6 +148,7 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
         if (data.success) {
             const sbsData = { soat: data.soat, vehicular: data.vehicular, cat: data.cat };
             const sbsTipos = [data.soat, data.vehicular, data.cat].filter(Boolean);
+            const tiposConError = sbsTipos.filter((tipo) => tipo.error);
             // Usa el resumen oficial "N.° de accidentes coberturados" del portal SBS cuando existe;
             // si no, cae al conteo de pólizas devueltas.
             const totalSiniestros = sbsTipos.reduce(
@@ -151,7 +156,11 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
                 0
             );
             let customBadge = '';
-            if (totalSiniestros > 0) {
+            if (tiposConError.length > 0) {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-exclamation"></i> PARCIAL · ${tiposConError.length} SIN VERIFICAR
+                </span>`;
+            } else if (totalSiniestros > 0) {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-triangle-exclamation"></i> ${totalSiniestros} SINIESTRO${totalSiniestros > 1 ? 'S' : ''}
                 </span>`;
@@ -174,5 +183,4 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
         return { success: false, error: msg };
     }
 }
-
 

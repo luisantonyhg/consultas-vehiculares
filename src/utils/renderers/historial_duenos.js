@@ -4,19 +4,28 @@ import { escapeHTML } from '../renderers.js';
 const safe = (value, fallback = '—') => escapeHTML(
     value === null || value === undefined || value === '' ? fallback : String(value)
 );
-const numberValue = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
-
 function formatPlate(value) {
     const clean = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     return clean.length === 6 ? `${clean.slice(0, 3)}-${clean.slice(3)}` : clean;
 }
 
-function statusPill(metadata, gravamenes) {
-    const verified = metadata.gravamenes_verificados === true;
+function statusPill(metadata = {}, gravamenes = {}, verification = {}) {
+    const status = gravamenes.status || verification.encumbrances_history || (metadata.gravamenes_verificados ? 'VERIFIED_NONE' : 'NOT_VERIFIED');
     const active = Array.isArray(gravamenes.vigentes) ? gravamenes.vigentes.length : 0;
-    if (!verified) return `<span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-amber-700"><i class="fas fa-clock"></i> Gravámenes por verificar</span>`;
-    if (active > 0) return `<span class="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-rose-700"><i class="fas fa-triangle-exclamation"></i> ${active} gravamen${active === 1 ? '' : 'es'} vigente${active === 1 ? '' : 's'}</span>`;
-    return `<span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-emerald-700"><i class="fas fa-circle-check"></i> Sin gravámenes vigentes</span>`;
+    if (status === 'FOUND' || active > 0) {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-rose-700"><i class="fas fa-triangle-exclamation"></i> ${active || 1} gravamen${active === 1 ? '' : 'es'}</span>`;
+    }
+    if (status === 'PARTIAL') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-amber-700"><i class="fas fa-clock"></i> Parcial</span>`;
+    }
+    if (status === 'FAILED') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-slate-700"><i class="fas fa-circle-question"></i> No disponible</span>`;
+    }
+    if (status === 'VERIFIED_NONE' || status === 'VERIFIED') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-emerald-700"><i class="fas fa-circle-check"></i> Sin gravámenes vigentes</span>`;
+    }
+    // NOT_VERIFIED
+    return `<span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-amber-700"><i class="fas fa-clock"></i> Pendiente</span>`;
 }
 
 function metric(icon, label, value, tone = 'slate') {
@@ -25,182 +34,360 @@ function metric(icon, label, value, tone = 'slate') {
         emerald: 'border-emerald-200 bg-emerald-50/80 text-emerald-700',
         amber: 'border-amber-200 bg-amber-50/80 text-amber-700',
         slate: 'border-slate-200 bg-slate-50/80 text-slate-800',
+        rose: 'border-rose-200 bg-rose-50/80 text-rose-700',
+        blue: 'border-blue-200 bg-blue-50/80 text-blue-700',
+        violet: 'border-violet-200 bg-violet-50/80 text-violet-700',
+        cyan: 'border-cyan-200 bg-cyan-50/80 text-cyan-700',
     };
-    return `<div class="rounded-xl border ${tones[tone] || tones.slate} p-2.5 sm:p-3.5"><div class="flex items-center justify-between gap-1"><span class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] opacity-70 truncate">${safe(label)}</span><i class="${safe(icon)} text-xs opacity-70 shrink-0"></i></div><div class="mt-1 text-xl sm:text-2xl font-black leading-none">${safe(value)}</div></div>`;
+    return `<div class="rounded-xl border ${tones[tone] || tones.slate} p-2.5 sm:p-3.5"><div class="flex items-start justify-between gap-1"><span class="min-w-0 text-[9px] sm:text-[10px] font-black uppercase leading-tight tracking-[0.1em] opacity-70 break-words">${safe(label)}</span><i class="${safe(icon)} mt-0.5 text-xs opacity-70 shrink-0"></i></div><div class="mt-1 text-xl sm:text-2xl font-black leading-none">${safe(value)}</div></div>`;
 }
 
 function seatType(event) {
     const type = String(event.tipo || '').toUpperCase();
-    if (type === 'TRANSFERENCIA') return { label: 'Compra · Venta', color: 'blue', category: 'transfers' };
-    if (type === 'PRIMERA_INSCRIPCION') return { label: 'Primera inscripción', color: 'emerald', category: 'other' };
-    if (type.includes('ROBO') || type === 'REMATE' || type === 'GRAVAMEN') return { label: event.acto || event.subtitulo || type, color: 'rose', category: 'alerts' };
-    return { label: event.acto || event.subtitulo || 'Acto registral', color: 'slate', category: 'other' };
+    const family = String(event.family || event.classification?.family || '').toUpperCase();
+    const legalEffect = String(event.legal_effect || event.classification?.legal_effect || '').toUpperCase();
+    const lifecycle = String(event.lifecycle_status || event.classification?.lifecycle_status || '').toUpperCase();
+    const ownershipEffect = String(event.ownership_effect || event.classification?.ownership_effect || '').toUpperCase();
+    const actoLower = String(event.acto || event.acto_raw || '').toLowerCase();
+
+    if (ownershipEffect === 'INITIAL' || actoLower.includes('primera inscrip')) {
+        return {
+            title: 'Primera inscripción de dominio',
+            badgeText: 'Inicio de titularidad',
+            badgeIcon: 'fas fa-circle-check',
+            badgeClass: 'bg-blue-50 text-blue-700 border-blue-200/60',
+            iconClass: 'bg-blue-600 text-white',
+            icon: 'fas fa-flag',
+            effectBadge: 'bg-blue-100 text-blue-800',
+            effectLabel: 'Inicio de titularidad',
+            category: 'other'
+        };
+    }
+    if (family === 'OWNERSHIP' || ownershipEffect === 'TRANSFER' || actoLower.includes('compra') || actoLower.includes('venta') || actoLower.includes('transferencia')) {
+        return {
+            title: 'Compra - Venta',
+            badgeText: 'Cambia titularidad',
+            badgeIcon: 'fas fa-user',
+            badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+            iconClass: 'bg-emerald-600 text-white',
+            icon: 'fas fa-users',
+            effectBadge: 'bg-emerald-100 text-emerald-800',
+            effectLabel: 'Implica cambio de propietario',
+            category: 'transfers'
+        };
+    }
+    if (family === 'CHARACTERISTICS' || actoLower.includes('caracteristica') || actoLower.includes('características') || actoLower.includes('cambio de motor') || actoLower.includes('color')) {
+        return {
+            title: event.acto || 'Cambio de características',
+            badgeText: 'Actualización técnica',
+            badgeIcon: 'fas fa-wrench',
+            badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/60',
+            iconClass: 'bg-amber-500 text-white',
+            icon: 'fas fa-wrench',
+            effectBadge: 'bg-slate-100 text-slate-700',
+            effectLabel: 'No cambia titularidad',
+            category: 'other'
+        };
+    }
+    if (family === 'LEGAL_RESTRICTION' || legalEffect !== 'NONE' || actoLower.includes('embargo') || actoLower.includes('robo') || actoLower.includes('cautelar')) {
+        const isClosed = ['CLOSED', 'MODIFIED', 'EXECUTED'].includes(lifecycle)
+            || ['CANCEL', 'LIFT'].includes(legalEffect);
+        const isOpen = lifecycle === 'OPEN' || (legalEffect === 'CREATE' && lifecycle !== 'UNRESOLVED');
+        if (isClosed) {
+            return {
+                title: event.acto || 'Cancelación de afectación',
+                badgeText: 'Antecedente cancelado',
+                badgeIcon: 'fas fa-shield-halved',
+                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/60',
+                iconClass: 'bg-rose-600 text-white',
+                icon: 'fas fa-shield-halved',
+                effectBadge: 'bg-rose-100 text-rose-800',
+                effectLabel: 'Afectación cerrada o cancelada',
+                category: 'alerts'
+            };
+        }
+        return {
+            title: event.acto || 'Afectación registral',
+            badgeText: isOpen ? 'Afectación vigente' : 'Pendiente de verificación',
+            badgeIcon: 'fas fa-triangle-exclamation',
+            badgeClass: isOpen ? 'bg-rose-50 text-rose-700 border-rose-200/60' : 'bg-amber-50 text-amber-700 border-amber-200/60',
+            iconClass: isOpen ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white',
+            icon: 'fas fa-triangle-exclamation',
+            effectBadge: 'bg-rose-100 text-rose-800',
+            effectLabel: 'Afectación legal',
+            category: 'alerts'
+        };
+    }
+    return {
+        title: event.acto || 'Acto registral',
+        badgeText: 'Acto registral',
+        badgeIcon: 'fas fa-file-lines',
+        badgeClass: 'bg-slate-50 text-slate-700 border-slate-200/60',
+        iconClass: 'bg-slate-600 text-white',
+        icon: 'fas fa-file-contract',
+        effectBadge: 'bg-slate-100 text-slate-700',
+        effectLabel: 'Acto administrativo',
+        category: 'other'
+    };
 }
 
 function renderSeat(event) {
     const type = seatType(event);
-    const colors = {
-        blue: 'border-blue-200 bg-blue-50 text-blue-700',
-        emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        rose: 'border-rose-200 bg-rose-50 text-rose-700',
-        slate: 'border-slate-200 bg-slate-50 text-slate-700',
-    };
     const pages = Array.isArray(event.paginas) && event.paginas.length ? event.paginas.join(', ') : '1';
     const participantsNat = (Array.isArray(event.participantes_naturales) ? event.participantes_naturales : []).filter(Boolean);
     const participantsJur = (Array.isArray(event.participantes_juridicos) ? event.participantes_juridicos : []).filter(Boolean);
-    const allParticipants = [...participantsNat, ...participantsJur];
+    const allParticipants = [...new Set([...participantsNat, ...participantsJur])];
+    const seatNumber = event.asiento ?? event.numero ?? event.numero_raw ?? '—';
+    const year = event.anio || '—';
+    const titleNumber = event.titulo || event.titulo_raw || '—';
+    const rubroCode = event.rubro_codigo || event.codigo_rubro || event.rubro_code || '—';
 
-    const inscripcionStr = safe(event.inscripcion || event.fecha || '—');
-    const presentacionStr = safe(event.presentacion || '—');
-    const rubroStr = safe(event.rubro || event.subtitulo || 'PROPIEDAD VEHICULAR');
-    const actoStr = safe(event.acto || event.titulo_registro || 'ACTO REGISTRAL');
-    const natStr = safe(participantsNat.join(' - ') || '—');
-    const jurStr = safe(participantsJur.join(' - ') || '—');
+    const rubroStr = safe(event.rubro_raw || event.rubro || (type.category === 'transfers' ? 'TRANSFERENCIA DE PROPIEDAD' : (type.title.includes('características') ? 'REGISTRO DE PROPIEDAD VEHICULAR' : 'PROPIEDAD VEHICULAR')));
+    const actoStr = safe(event.acto_raw || event.acto || type.title.toUpperCase());
+    const natStr = participantsNat.length ? safe(participantsNat.join(', ')) : 'Sin participantes identificados';
+    const jurStr = participantsJur.length ? safe(participantsJur.join(', ')) : 'Sin participantes identificados';
+    const fechaInsc = safe(event.inscripcion_raw || event.inscripcion || (event.anio ? String(event.anio) : '—'));
+    const fechaPres = safe(event.presentacion_raw || event.presentacion || '—');
+    const tone = type.category === 'alerts'
+        ? { border: 'border-rose-200', panel: 'bg-rose-50/45 border-rose-200/80', accent: 'text-rose-800', people: 'border-rose-100 bg-white/80' }
+        : type.category === 'transfers'
+            ? { border: 'border-emerald-200', panel: 'bg-emerald-50/40 border-emerald-200/80', accent: 'text-emerald-900', people: 'border-emerald-100 bg-white/80' }
+            : { border: 'border-slate-200', panel: 'bg-slate-50/70 border-slate-200', accent: 'text-slate-800', people: 'border-slate-200 bg-white' };
+    const linkedPeople = allParticipants.length
+        ? allParticipants.map(name => `<span class="inline-flex items-center gap-1.5 rounded-lg border ${tone.people} px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-slate-800"><i class="fas fa-user text-[10px] opacity-60"></i>${safe(name)}</span>`).join('')
+        : '<span class="text-[11px] font-medium text-slate-500">Sin participantes identificados en el detalle gratuito del asiento.</span>';
+    const eventSentence = type.category === 'transfers'
+        ? (allParticipants.length
+            ? `<strong>${safe(allParticipants.join(', '))}</strong> figura vinculado a la transferencia inscrita el <strong>${fechaInsc}</strong>.`
+            : `La transferencia de propiedad fue inscrita el <strong>${fechaInsc}</strong>.`)
+        : type.category === 'alerts'
+            ? `SUNARP registró <strong>${actoStr}</strong> el <strong>${fechaInsc}</strong>. ${String(type.effectLabel).toLowerCase().includes('cerrada') ? 'Este asiento corresponde a un antecedente cerrado o cancelado.' : 'La vigencia se determina con la cadena completa de asientos.'}`
+            : `SUNARP registró <strong>${actoStr}</strong> el <strong>${fechaInsc}</strong>.`;
 
-    return `<article class="sprl-timeline-item overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-md" data-category="${type.category}">
-        <div class="p-3.5 sm:p-5">
-            <div class="flex items-start gap-2.5 sm:gap-3.5">
-                <div class="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-[#102a52] text-sm sm:text-base font-black text-white shadow-sm">${safe(event.asiento)}</div>
-                <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center justify-between gap-1.5">
-                        <div class="flex flex-wrap items-center gap-1.5">
-                            <span class="rounded-full border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wide ${colors[type.color]}">${safe(type.label)}</span>
-                            ${event.anio ? `<span class="text-[9px] sm:text-[10px] font-black text-slate-400">AÑO ${safe(event.anio)}</span>` : ''}
-                        </div>
-                        <button type="button" class="sprl-modal-trigger inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-100 transition-colors"
-                            data-asiento="${safe(event.asiento)}"
-                            data-inscripcion="${inscripcionStr}"
-                            data-presentacion="${presentacionStr}"
-                            data-rubro="${rubroStr}"
-                            data-acto="${actoStr}"
-                            data-nat="${natStr}"
-                            data-jur="${jurStr}"
-                            data-paginas="${safe(pages)}"
-                            title="Ver detalles oficiales del asiento">
-                            <svg viewBox="0 0 1024 1024" width="13" height="13" fill="currentColor" class="shrink-0"><path d="M926 164H94c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V196c0-17.7-14.3-32-32-32zm-40 632H134V236h752v560zm-658.9-82.3c3.1 3.1 8.2 3.1 11.3 0l172.5-172.5 114.4 114.5c3.1 3.1 8.2 3.1 11.3 0l297-297.2c3.1-3.1 3.1-8.2 0-11.3l-36.8-36.8a8.03 8.03 0 00-11.3 0L531 565 416.6 450.5a8.03 8.03 0 00-11.3 0l-214.9 215a8.03 8.03 0 000 11.3l36.7 36.9z"></path></svg>
-                            <span>Detalles</span>
-                        </button>
-                    </div>
-                    <h4 class="mt-1.5 text-xs sm:text-sm font-black leading-snug text-slate-900 break-words">${safe(event.titulo_registro || event.titulo || `Asiento ${event.asiento}`)}</h4>
-                    <p class="mt-0.5 text-[11px] sm:text-xs font-semibold leading-relaxed text-slate-500 break-words">${rubroStr} · ${actoStr}</p>
-                    
-                    <div class="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2 text-[10px] sm:text-[11px]">
-                        <div class="rounded-lg bg-slate-50 p-2 border border-slate-100/80"><span class="block font-bold uppercase text-slate-400 text-[8px] sm:text-[9px]">Asiento</span><strong class="text-slate-800 truncate block">N.° ${safe(event.asiento)}</strong></div>
-                        <div class="rounded-lg bg-slate-50 p-2 border border-slate-100/80"><span class="block font-bold uppercase text-slate-400 text-[8px] sm:text-[9px]">Páginas</span><strong class="text-slate-800 truncate block">${safe(pages)}</strong></div>
-                        <div class="rounded-lg bg-slate-50 p-2 border border-slate-100/80"><span class="block font-bold uppercase text-slate-400 text-[8px] sm:text-[9px]">Inscripción</span><strong class="text-slate-800 truncate block">${inscripcionStr}</strong></div>
-                        <div class="rounded-lg bg-slate-50 p-2 border border-slate-100/80"><span class="block font-bold uppercase text-slate-400 text-[8px] sm:text-[9px]">Presentación</span><strong class="text-slate-800 truncate block">${presentacionStr}</strong></div>
-                    </div>
-                    ${allParticipants.length ? `<div class="mt-2.5 rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 text-[10px] sm:text-xs text-slate-600 break-words"><span class="mr-1 font-black uppercase text-slate-400">Participantes:</span>${safe(allParticipants.join(' · '))}</div>` : ''}
-                </div>
+    return `<article class="sprl-timeline-item rounded-2xl border ${tone.border} bg-white p-3.5 sm:p-5 shadow-xs" data-category="${type.category}">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex min-w-0 items-start gap-3">
+                <div class="shrink-0 text-center"><div class="text-sm font-black ${tone.accent}">${safe(year)}</div><div class="mt-0.5 rounded-md bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600">Asiento N.° ${safe(seatNumber)}</div></div>
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${type.iconClass}"><i class="${type.icon} text-sm"></i></div>
+                <div class="min-w-0"><h4 class="text-sm font-black uppercase leading-snug ${tone.accent}">${actoStr}</h4><p class="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${rubroStr}</p></div>
             </div>
+            <span class="inline-flex self-start items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase ${type.badgeClass}"><i class="${type.badgeIcon}"></i>${safe(type.badgeText)}</span>
+        </div>
+        <div class="mt-3 rounded-xl border ${tone.people} p-3">
+            <p class="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500"><i class="fas fa-users mr-1.5"></i>Personas vinculadas</p><div class="flex flex-wrap gap-1.5">${linkedPeople}</div>
+        </div>
+        <p class="mt-3 rounded-xl border ${tone.panel} px-3 py-2.5 text-[11px] leading-relaxed text-slate-700">${eventSentence}</p>
+        <div class="mt-3 rounded-xl border ${tone.panel} p-3 sm:p-4">
+            <p class="mb-3 text-[9px] font-black uppercase tracking-[0.15em] ${tone.accent}">Información registral SUNARP</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-5 text-[11px] sm:text-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">N.° de Título SUNARP</span><span class="text-slate-900 font-mono font-bold break-words">${safe(titleNumber)}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">N.° de Asiento</span><span class="text-slate-900 font-bold">${safe(seatNumber)}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Año</span><span class="text-slate-900 font-bold">${safe(year)}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Código de Rubro</span><span class="text-slate-900 font-bold">${safe(rubroCode)}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Fecha de Presentación</span><span class="text-slate-900 font-medium break-words">${fechaPres}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Fecha de Inscripción</span><span class="text-slate-900 font-bold break-words">${fechaInsc}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Rubro</span><span class="text-slate-900 font-medium break-words">${rubroStr}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Acto</span><span class="font-bold break-words ${tone.accent}">${actoStr}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Participantes Naturales</span><span class="text-slate-900 font-medium break-words">${natStr}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Participantes Jurídicos</span><span class="text-slate-900 font-medium break-words">${jurStr}</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2"><span class="font-bold text-slate-500 sm:w-36 shrink-0">Páginas</span><span class="text-slate-900 font-medium">${safe(pages)}</span></div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2"><span class="font-bold text-slate-500 sm:w-36 shrink-0">Efecto registral</span><span class="inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${type.effectBadge}">${safe(type.effectLabel)}</span></div>
+                </div>
         </div>
     </article>`;
+}
+
+function buildAnalyticalNarrative(data, timeline, resumen, gravamenes) {
+    const verifiedSeats = data.metadata?.asientos_verificados === true || data.verification?.seat_list === 'VERIFIED';
+    const totalSeats = (resumen.total_asientos !== null && resumen.total_asientos !== undefined)
+        ? resumen.total_asientos
+        : (verifiedSeats && timeline.length ? timeline.length : null);
+    const transfers = resumen.transferencias ?? null;
+    const holders = resumen.propietarios_unicos_historicos ?? data.ownership_history?.unique_holders ?? null;
+    const vigentes = Array.isArray(gravamenes.vigentes) ? gravamenes.vigentes.length : 0;
+    const historicos = Array.isArray(gravamenes.historicos) ? gravamenes.historicos.length : 0;
+    const alertasCanceladas = (Array.isArray(data.alertas) ? data.alertas : []).filter(alerta => {
+        const state = String(alerta.lifecycle_status || alerta.estado || alerta.tipo || '').toUpperCase();
+        return state.includes('CLOSED') || state.includes('CANCEL');
+    }).length;
+    const antecedentes = historicos + alertasCanceladas;
+    const encumbrancesVerified = ['VERIFIED', 'VERIFIED_NONE'].includes(String(gravamenes.status || data.verification?.encumbrances_history || '').toUpperCase());
+    const normalized = timeline.map(event => ({
+        ...event,
+        act: String(event.acto || event.acto_raw || '').toUpperCase(),
+        date: event.inscripcion_raw || event.inscripcion || event.presentacion_raw || event.presentacion || event.anio || 'fecha no disponible',
+    }));
+    const isCancellation = event => {
+        const effect = String(event.legal_effect || event.classification?.legal_effect || '').toUpperCase();
+        if (effect === 'CREATE') return false;
+        if (['CANCEL', 'LIFT'].includes(effect)) return true;
+        return /CANCEL|LEVANTA|CIERRE|EXTINC/.test(event.act)
+            || ['CLOSED', 'MODIFIED', 'EXECUTED'].includes(String(event.lifecycle_status || event.classification?.lifecycle_status || '').toUpperCase());
+    };
+    const theftOpen = normalized.filter(event => event.act.includes('ROBO') && !isCancellation(event));
+    const theftClosed = normalized.filter(event => event.act.includes('ROBO') && isCancellation(event));
+    const embargoOpen = normalized.filter(event => /EMBARGO|CAUTELAR/.test(event.act) && !isCancellation(event));
+    const embargoClosed = normalized.filter(event => /EMBARGO|CAUTELAR/.test(event.act) && isCancellation(event));
+    const latestTransfer = normalized
+        .filter(event => seatType(event).category === 'transfers')
+        .sort((a, b) => Number(b.asiento ?? b.numero ?? 0) - Number(a.asiento ?? a.numero ?? 0))[0];
+    const latestPeople = latestTransfer
+        ? [...new Set([...(latestTransfer.participantes_naturales || []), ...(latestTransfer.participantes_juridicos || [])].filter(Boolean))]
+        : [];
+    const paragraphs = [];
+    if (totalSeats !== null || transfers !== null || holders !== null) {
+        paragraphs.push(`Se revisaron ${totalSeats === null ? 'los asientos disponibles' : `<strong>${safe(totalSeats)} asientos oficiales</strong>`}. La cadena contiene ${transfers === null ? 'transferencias aún por cuantificar' : `<strong>${safe(transfers)} transferencias de dominio</strong>`} y permite identificar ${holders === null ? 'los titulares visibles en cada asiento' : `<strong>${safe(holders)} titulares o personas vinculadas</strong>`}.`);
+    } else {
+        paragraphs.push('La cantidad total de asientos y transferencias todavía está pendiente de verificación.');
+    }
+    if (latestTransfer) {
+        paragraphs.push(`El último cambio de titularidad visible se inscribió el <strong>${safe(latestTransfer.date)}</strong>${latestPeople.length ? ` y vincula a <strong>${safe(latestPeople.join(', '))}</strong>` : ''} (asiento N.° ${safe(latestTransfer.asiento ?? latestTransfer.numero ?? '—')}).`);
+    }
+    if (theftOpen.length || theftClosed.length) {
+        const first = theftOpen[0];
+        const closed = theftClosed[theftClosed.length - 1];
+        paragraphs.push(first && closed
+            ? `Existe un antecedente de <strong class="text-rose-700">anotación de robo</strong> registrado el <strong>${safe(first.date)}</strong> y posteriormente cancelado el <strong>${safe(closed.date)}</strong>. Se muestra en rojo por su importancia, pero la cadena lo identifica como antecedente cerrado.`
+            : theftOpen.length
+                ? `Se detectó una <strong class="text-rose-700">anotación de robo</strong> en la cadena. Su estado debe contrastarse con los asientos posteriores y la sección de afectaciones vigentes.`
+                : `La cadena contiene una cancelación relacionada con robo; el asiento se conserva como antecedente registral cerrado.`);
+    }
+    if (embargoOpen.length || embargoClosed.length) {
+        paragraphs.push(embargoOpen.length && embargoClosed.length
+            ? `También se observa un embargo o medida cautelar y su levantamiento/cancelación posterior; ambos permanecen visibles como parte de la historia legal del vehículo.`
+            : `Se encontró un antecedente de embargo o medida cautelar en la partida registral.`);
+    }
+    let legal = 'El estado de afectaciones aún está pendiente de verificación.';
+    if (vigentes > 0) {
+        legal = `<strong class="text-rose-700">Atención:</strong> se identificaron <strong>${safe(vigentes)} afectaciones vigentes</strong>; revise el bloque de afectaciones antes de continuar.`;
+    } else if (encumbrancesVerified) {
+        legal = '<strong class="text-emerald-700">Diagnóstico actual:</strong> no se identificaron afectaciones registrales abiertas en los asientos verificados.';
+    }
+    if (antecedentes) legal += ` La partida conserva <strong>${safe(antecedentes)} antecedente${antecedentes === 1 ? '' : 's'} cancelado${antecedentes === 1 ? '' : 's'}</strong> para trazabilidad.`;
+    paragraphs.push(legal);
+    return `<div class="space-y-2">${paragraphs.map((paragraph, index) => `<p class="${index === paragraphs.length - 1 ? 'rounded-lg border border-slate-200 bg-white/80 p-2.5' : ''}">${paragraph}</p>`).join('')}</div>`;
 }
 
 export function renderHistorialDuenos(data, plate = '') {
     if (!data) return `<div class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-xs font-semibold text-slate-500">Historial registral no disponible.</div>`;
     const registro = data.registro || {};
     const resumen = data.resumen || {};
-    const propiedad = data.propiedad || { actuales: [], anteriores: [] };
-    const gravamenes = data.gravamenes || { vigentes: [], historicos: [] };
+    const ownership = data.ownership_history || {};
+    const legacyPropiedad = data.propiedad || { actuales: [], anteriores: [] };
+    const gravamenes = data.gravamenes || { vigentes: [], historicos: [], events: [] };
     const metadata = data.metadata || {};
     const warnings = Array.isArray(data.warnings) ? data.warnings.filter(Boolean) : [];
-    const timeline = Array.isArray(data.timeline) ? data.timeline : [];
-    const hallazgos = Array.isArray(data.hallazgos) ? data.hallazgos.filter(Boolean) : [];
-    const verifiedSeats = metadata.asientos_verificados === true;
-    const verifiedOwners = metadata.propietarios_verificados === true;
-    const verifiedGravamenes = metadata.gravamenes_verificados === true;
-    const totalSeats = numberValue(resumen.total_asientos) || timeline.length;
-    const cleanPlate = String(plate || data.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-    const actuales = Array.isArray(propiedad.actuales) ? propiedad.actuales : [];
-    const anteriores = Array.isArray(propiedad.anteriores) ? propiedad.anteriores : [];
+    const reconciliation = ownership.current_owner_reconciliation || 'UNCHECKED';
+    const reconciliationWarning = reconciliation === 'MISMATCH'
+        ? 'Existe diferencia entre la titularidad identificada en SPRL y la Consulta Vehicular SUNARP.'
+        : '';
+    const timeline = Array.isArray(data.asientos) ? data.asientos : (Array.isArray(data.timeline) ? data.timeline : []);
+    const verifiedSeats = metadata.asientos_verificados === true || data.verification?.seat_list === 'VERIFIED';
+    const encumbrancesStatus = gravamenes.status || data.verification?.encumbrances_history || 'NOT_VERIFIED';
+    const ownershipVerified = ownership.status === 'VERIFIED' || data.verification?.ownership_history === 'VERIFIED';
+    const encumbrancesVerified = ['VERIFIED', 'VERIFIED_NONE'].includes(String(encumbrancesStatus).toUpperCase());
+    const anteriores = Array.isArray(ownership.previous)
+        ? ownership.previous
+        : (Array.isArray(legacyPropiedad.anteriores) ? legacyPropiedad.anteriores : []);
     const vigentes = Array.isArray(gravamenes.vigentes) ? gravamenes.vigentes : [];
 
-    return `<div id="sprl-historial-container" data-plate="${safe(cleanPlate)}" class="space-y-3 sm:space-y-4 font-poppins text-slate-800 w-full overflow-hidden">
-        <!-- Header Registral SUNARP -->
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="bg-gradient-to-r from-[#102a52] to-[#173d72] p-4 sm:p-6 text-white">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex items-center gap-3">
-                        <img src="/assets/sunarp.jpeg" alt="SUNARP" class="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white object-contain p-1 shadow shrink-0" />
-                        <div class="min-w-0">
-                            <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-blue-200">Registro vehicular SUNARP</p>
-                            <h3 class="mt-0.5 text-base sm:text-lg font-black truncate">${safe(registro.partida, 'Inscripción Confirmada')}</h3>
-                            <p class="text-[11px] sm:text-xs font-semibold text-blue-100 truncate">${safe(registro.oficina)} · ${safe(registro.area, 'PROPIEDAD VEHICULAR')}</p>
-                        </div>
-                    </div>
-                    <div class="inline-flex w-fit items-center rounded-xl border-2 border-slate-900 bg-white px-3 py-1.5 sm:px-4 sm:py-2 font-mono text-lg sm:text-xl font-black tracking-[0.14em] text-slate-950 shadow-inner">${safe(formatPlate(cleanPlate))}</div>
-                </div>
-            </div>
-            <div class="p-3.5 sm:p-6">
-                <div class="flex flex-col gap-2.5 border-b border-slate-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Situación registral</p>
-                        <p class="mt-0.5 text-xs sm:text-sm font-extrabold text-slate-800">${verifiedOwners ? 'Titularidad registral confirmada' : 'Consulta registral en curso'}</p>
-                    </div>
-                    ${statusPill(metadata, gravamenes)}
-                </div>
-                <div class="mt-3 sm:mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                    ${metric('fas fa-user-check', 'Titulares Actuales', verifiedOwners ? (actuales.length || '1') : '—', 'navy')}
-                    ${metric('fas fa-layer-group', 'Asientos Registrados', verifiedSeats ? totalSeats : '—', 'emerald')}
-                    ${metric('fas fa-shield-halved', 'Gravámenes', verifiedGravamenes ? vigentes.length : 'Pendiente', vigentes.length > 0 ? 'rose' : 'emerald')}
-                    ${metric('fas fa-file-lines', 'Estado Partida', safe(metadata.estado_vehiculo || 'VIGENTE'), 'slate')}
-                </div>
-                ${warnings.length ? `<div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3"><div class="flex items-start gap-2 text-xs font-semibold leading-relaxed text-amber-800"><i class="fas fa-circle-info mt-0.5 shrink-0"></i><span class="break-words">${safe(warnings.join(' '))}</span></div></div>` : ''}
-            </div>
-        </section>
+    const totalSeats = (resumen.total_asientos !== null && resumen.total_asientos !== undefined)
+        ? resumen.total_asientos
+        : (verifiedSeats && timeline.length ? timeline.length : '—');
+    const etapasTitularidad = (resumen.etapas_titularidad !== null && resumen.etapas_titularidad !== undefined)
+        ? resumen.etapas_titularidad
+        : (ownershipVerified ? (ownership.stage_count ?? ownership.stages?.length ?? '—') : '—');
+    const totalTransferencias = (resumen.transferencias !== null && resumen.transferencias !== undefined)
+        ? resumen.transferencias
+        : (ownershipVerified ? (ownership.transfer_count ?? '—') : '—');
+    const affectationMetric = encumbrancesStatus === 'FOUND'
+        ? `${vigentes.length || 1} vigentes`
+        : (encumbrancesStatus === 'PARTIAL' ? 'En verificación' : (encumbrancesVerified ? '0 vigentes' : 'Pendiente'));
+    const cleanPlate = String(plate || data.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-        <!-- Titular / Propietario Actual Real -->
-        <section class="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shrink-0">
-                        <i class="fas fa-user text-xs sm:text-sm"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-900">Titular / Propietario Registrado</h4>
-                        <p class="text-[9px] sm:text-[10px] font-semibold text-slate-400">Información extraída del registro oficial SUNARP</p>
+    const partidaNum = registro.partida || data.vehiculo?.partida || data.partida;
+    const partidaText = partidaNum ? `Partida N.° ${partidaNum}` : 'Partida registral oficial';
+
+    return `<div id="sprl-historial-container" data-plate="${safe(cleanPlate)}" class="flex flex-col gap-3 font-poppins text-slate-800 w-full overflow-hidden">
+        <style>#sprl-historial-container .sprl-timeline-item{min-width:0}#sprl-historial-container .seat-details{animation:sprl-open .2s ease-out}@keyframes sprl-open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}</style>
+
+        <!-- Header Registral SUNARP (Compacto y estilizado) -->
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-xs">
+            <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 shrink-0"><i class="fas fa-car text-base sm:text-lg"></i></div>
+                    <div class="min-w-0">
+                        <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">${safe(data.vehiculo?.marca)} ${safe(data.vehiculo?.modelo)}</h3>
+                        <p class="text-[11px] font-medium text-slate-500 truncate mt-0.5">${partidaText} · ${safe(registro.oficina || 'LIMA')}</p>
                     </div>
                 </div>
-                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase text-emerald-700 border border-emerald-200">Vigente</span>
+                <div class="flex items-center gap-2 self-start sm:self-auto">
+                    <div class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-bold text-slate-800 tracking-wider">${safe(formatPlate(cleanPlate))}</div>
+                    <span class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><i class="fas fa-circle-check text-[9px]"></i>${safe(data.vehiculo?.estado || 'En circulación')}</span>
+                </div>
             </div>
-            <div class="mt-2.5 space-y-2">
-                ${actuales.length ? actuales.map(p => `
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 rounded-xl bg-slate-50 p-2.5 sm:p-3 border border-slate-100">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${p.tipo === 'persona_juridica' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} font-bold">
-                                <i class="${p.tipo === 'persona_juridica' ? 'fas fa-building' : 'fas fa-user'} text-xs"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-xs font-black text-slate-900 break-words">${safe(p.nombre)}</p>
-                                <p class="text-[10px] font-semibold text-slate-500">${p.tipo === 'persona_juridica' ? 'Persona Jurídica' : 'Persona Natural'} ${p.documento && p.documento !== '-' ? `· Doc: ${safe(p.documento)}` : ''}</p>
-                            </div>
-                        </div>
-                        ${p.desde ? `<span class="shrink-0 text-[10px] font-bold text-slate-400 self-end sm:self-auto">Inscripción ${safe(p.desde)}</span>` : ''}
-                    </div>
-                `).join('') : `
-                    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-3 text-center text-xs font-medium text-slate-500">
-                        No se identificaron titulares individuales en el resumen preliminar.
-                    </div>
-                `}
+
+            <!-- Diseño compacto original; métricas exclusivamente verificadas -->
+            <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/70 p-1 sm:p-1.5 text-left">
+                <div class="px-2.5 py-1.5 min-w-0">
+                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Total Asientos</span>
+                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(totalSeats)}</strong>
+                </div>
+                <div class="px-2.5 py-1.5 min-w-0">
+                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Etapas de titularidad</span>
+                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(etapasTitularidad)}</strong>
+                </div>
+                <div class="px-2.5 py-1.5 min-w-0">
+                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Transferencias</span>
+                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(totalTransferencias)}</strong>
+                </div>
+                <div class="px-2.5 py-1.5 min-w-0">
+                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Afectaciones</span>
+                    <strong class="block text-xs sm:text-sm font-bold ${encumbrancesStatus === 'FOUND' ? 'text-rose-600' : (encumbrancesVerified ? 'text-emerald-700' : 'text-amber-600')}">${safe(affectationMetric)}</strong>
+                </div>
             </div>
+            ${(() => {
+                const userWarnings = [...warnings, reconciliationWarning]
+                    .filter(Boolean)
+                    .filter(w => !['SPRL_SEAT_DETAILS_INCOMPLETE', 'SPRL_OWNERSHIP_PARTICIPANT_MISSING', 'SPRL_CURRENT_OWNER_MISMATCH', 'SPRL_ENCUMBRANCE_UNMAPPED_ACT', 'SPRL_OWNERSHIP_CHRONOLOGY_WARNING', 'SPRL_SEARCH_TIMEOUT', 'SPRL_AUTH_FAILED'].includes(w) && !w.toLowerCase().includes('sprl_') && !w.toLowerCase().includes('timeout'));
+                return userWarnings.length ? `<div class="mt-2.5 rounded-lg border border-amber-200 bg-amber-50/80 p-2 text-[11px] font-medium leading-relaxed text-amber-800 flex items-start gap-1.5"><i class="fas fa-circle-info mt-0.5 text-xs shrink-0"></i><span class="break-words">${safe(userWarnings.join(' '))}</span></div>` : '';
+            })()}
         </section>
 
         <!-- Propietarios Anteriores / Historial de Transferencias -->
         ${anteriores.length ? `
-            <section class="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-sm">
+            <section class="order-3 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-xs">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <div class="flex items-center gap-2">
                         <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 shrink-0">
                             <i class="fas fa-clock-rotate-left text-xs sm:text-sm"></i>
                         </div>
                         <div>
-                            <h4 class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-900">Historial de Propietarios Anteriores</h4>
-                            <p class="text-[9px] sm:text-[10px] font-semibold text-slate-400">${anteriores.length} transferencia${anteriores.length === 1 ? '' : 's'} registrada${anteriores.length === 1 ? '' : 's'}</p>
+                            <h4 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-900">Propietarios anteriores identificados</h4>
+                            <p class="text-[9px] sm:text-[10px] font-medium text-slate-400">${anteriores.length} titular${anteriores.length === 1 ? '' : 'es'} anterior${anteriores.length === 1 ? '' : 'es'} identificado${anteriores.length === 1 ? '' : 's'}</p>
                         </div>
                     </div>
-                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase text-slate-600 border border-slate-200">Histórico</span>
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase text-slate-600 border border-slate-200">Histórico</span>
                 </div>
                 <div class="mt-2.5 space-y-2">
                     ${anteriores.map(p => `
@@ -211,7 +398,7 @@ export function renderHistorialDuenos(data, plate = '') {
                                 </div>
                                 <div class="min-w-0">
                                     <p class="text-xs font-bold text-slate-800 break-words">${safe(p.nombre)}</p>
-                                    <p class="text-[10px] font-semibold text-slate-400">Asiento N.° ${safe(p.asiento, '—')} · ${safe(p.periodo || 'Periodo anterior')}</p>
+                                    <p class="text-[10px] font-medium text-slate-500">${p.desde ? `Adquirió o figura desde ${safe(p.desde)}` : 'Fecha de adquisición no precisada'}${p.asiento ? ` · Asiento N.° ${safe(p.asiento)}` : ''}</p>
                                 </div>
                             </div>
                             <span class="shrink-0 rounded-md bg-slate-200/80 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-slate-600 self-end sm:self-auto">${safe(p.periodo, 'Transferido')}</span>
@@ -222,15 +409,15 @@ export function renderHistorialDuenos(data, plate = '') {
         ` : ''}
 
         <!-- Gravámenes y Medidas Cautelares -->
-        <section class="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-sm">
+        <section class="order-4 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-xs">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div class="flex items-center gap-2">
-                    <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg ${vigentes.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} shrink-0">
-                        <i class="${vigentes.length > 0 ? 'fas fa-triangle-exclamation' : 'fas fa-shield-check'} text-xs sm:text-sm"></i>
+                    <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg ${encumbrancesStatus === 'FOUND' ? 'bg-rose-50 text-rose-600' : ((encumbrancesStatus === 'VERIFIED_NONE' || encumbrancesStatus === 'VERIFIED') ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')} shrink-0">
+                        <i class="${encumbrancesStatus === 'FOUND' ? 'fas fa-triangle-exclamation' : ((encumbrancesStatus === 'VERIFIED_NONE' || encumbrancesStatus === 'VERIFIED') ? 'fas fa-shield-check' : 'fas fa-clock')} text-xs sm:text-sm"></i>
                     </div>
                     <div>
-                        <h4 class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-900">Gravámenes y Medidas Cautelares</h4>
-                        <p class="text-[9px] sm:text-[10px] font-semibold text-slate-400">Anotaciones preventivas, embargos o prendas</p>
+                        <h4 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-900">Afectaciones registrales</h4>
+                        <p class="text-[9px] sm:text-[10px] font-medium text-slate-400">Resultado verificado en partida y asientos SPRL</p>
                     </div>
                 </div>
             </div>
@@ -242,110 +429,76 @@ export function renderHistorialDuenos(data, plate = '') {
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-2">
-                                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wide text-rose-800">${safe(g.tipo, 'Gravamen')}</span>
-                                            ${g.fecha ? `<span class="text-[9px] sm:text-[10px] font-semibold text-slate-500">${safe(g.fecha)}</span>` : ''}
+                                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[8px] sm:text-[9px] font-bold uppercase tracking-wide text-rose-800">${safe(g.tipo, 'Gravamen')}</span>
+                                            ${g.fecha ? `<span class="text-[9px] sm:text-[10px] font-medium text-slate-500">${safe(g.fecha)}</span>` : ''}
                                         </div>
-                                        <p class="mt-1 text-xs font-bold text-slate-800 break-words">${safe(g.observacion || 'Medida cautelar activa inscrita')}</p>
+                                        <p class="mt-1 text-xs font-bold text-slate-800 break-words">${safe(g.observacion || g.raw || 'Medida cautelar o carga detectada')}</p>
                                     </div>
-                                    <span class="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[8px] sm:text-[9px] font-black text-white uppercase">Vigente</span>
+                                    <span class="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[8px] sm:text-[9px] font-bold text-white uppercase">${safe(g.estado, 'Detectado')}</span>
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                ` : `
+                ` : ((encumbrancesStatus === 'PARTIAL') ? `
+                    <div class="flex items-center gap-2.5 sm:gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-amber-800">
+                        <i class="fas fa-circle-info text-sm sm:text-base text-amber-600 shrink-0"></i>
+                        <div>
+                            <p class="text-xs font-bold">Verificación parcial de gravámenes</p>
+                            <p class="text-[10px] font-medium text-amber-700 leading-snug">Se verificó la titularidad registral básica. Las anotaciones detalladas requieren inspección de títulos archivados.</p>
+                        </div>
+                    </div>
+                ` : (encumbrancesVerified ? `
                     <div class="flex items-center gap-2.5 sm:gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-emerald-800">
                         <i class="fas fa-circle-check text-sm sm:text-base text-emerald-600 shrink-0"></i>
                         <div>
-                            <p class="text-xs font-black">Sin gravámenes vigentes confirmados</p>
-                            <p class="text-[10px] font-semibold text-emerald-700 leading-snug">El vehículo no presenta órdenes de captura, embargos ni prendas registradas en SUNARP.</p>
+                            <p class="text-xs font-bold">No se identificaron afectaciones abiertas</p>
+                            <p class="text-[10px] font-medium text-emerald-700 leading-snug">El vehículo no registra medidas cautelares, embargos ni prendas vehiculares activas.</p>
                         </div>
                     </div>
-                `}
+                ` : `
+                    <div class="flex items-center gap-2.5 sm:gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-amber-800">
+                        <i class="fas fa-clock text-sm sm:text-base text-amber-600 shrink-0"></i>
+                        <div><p class="text-xs font-bold">Afectaciones pendientes de verificación</p><p class="text-[10px] font-medium text-amber-700 leading-snug">No se mostrará cero hasta completar la revisión de todos los asientos registrales.</p></div>
+                    </div>
+                `))}
             </div>
         </section>
 
-        <!-- Hallazgos Analíticos -->
-        ${hallazgos.length ? `
-            <section class="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-sm">
-                <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                    <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
-                        <i class="fas fa-magnifying-glass-chart text-xs sm:text-sm"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-900">Inteligencia Registral</h4>
-                        <p class="text-[9px] sm:text-[10px] font-semibold text-slate-400">Diagnóstico analítico del estado vehicular</p>
-                    </div>
-                </div>
-                <ul class="mt-2.5 space-y-1.5 sm:space-y-2">
-                    ${hallazgos.map(h => `
-                        <li class="flex items-start gap-2 text-xs font-medium text-slate-700">
-                            <i class="fas fa-circle-dot mt-1 text-[7px] text-blue-500 shrink-0"></i>
-                            <span class="break-words">${safe(h)}</span>
-                        </li>
-                    `).join('')}
-                </ul>
-            </section>
-        ` : ''}
-
         <!-- Trazabilidad Registral / Asientos -->
-        <section class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 sm:p-5">
+        <section class="order-2 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-xs">
             <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Trazabilidad registral oficial</p>
-                    <h3 class="mt-0.5 text-sm sm:text-base font-black text-slate-900">${verifiedSeats ? `${totalSeats} asiento${totalSeats === 1 ? '' : 's'} registrado${totalSeats === 1 ? '' : 's'} en la partida` : 'Asientos registrales'}</h3>
+                    <p class="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Trazabilidad registral oficial</p>
+                    <h3 class="mt-0.5 text-sm sm:text-base font-bold text-slate-900">Línea de tiempo del historial registral del vehículo</h3>
+                    <p class="mt-1 text-[10px] sm:text-[11px] font-medium text-slate-500">Qué ocurrió, cuándo fue registrado y qué personas aparecen vinculadas en cada asiento. Del más reciente al más antiguo.</p>
                 </div>
-                ${timeline.length ? `
-                    <div class="flex flex-wrap gap-1 w-full sm:w-fit rounded-xl border border-slate-200 bg-white p-1 text-[9px] sm:text-[10px] font-black">
-                        <button type="button" class="sprl-filter-btn active flex-1 sm:flex-initial rounded-lg bg-[#102a52] px-2.5 py-1.5 text-white transition-colors text-center" data-filter="all">Todos (${timeline.length})</button>
-                        <button type="button" class="sprl-filter-btn flex-1 sm:flex-initial rounded-lg px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors text-center" data-filter="transfers">Ventas</button>
-                        <button type="button" class="sprl-filter-btn flex-1 sm:flex-initial rounded-lg px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors text-center" data-filter="other">Modificaciones</button>
-                        <button type="button" class="sprl-filter-btn flex-1 sm:flex-initial rounded-lg px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 transition-colors text-center" data-filter="alerts">Gravámenes / Alertas</button>
-                    </div>
-                ` : ''}
             </div>
-            <div id="sprl-timeline-list" class="mt-3.5 space-y-2.5 sm:space-y-3">
+            <div id="sprl-timeline-list" class="mt-3.5 space-y-3">
                 ${timeline.length ? timeline.slice().reverse().map(renderSeat).join('') : `
                     <div class="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-xs font-semibold text-slate-500">
                         La consulta dinámica oficial confirmó la titularidad y estado legal del vehículo.
                     </div>
                 `}
             </div>
-        </section>
-    </div>
 
-    <!-- Modal Oficial de Detalles SPRL -->
-    <div id="sprl-details-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 backdrop-blur-sm bg-slate-900/60 transition-opacity">
-        <div class="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-100 transform transition-transform animate-card max-h-[90vh] overflow-y-auto">
-            <div class="flex items-start gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <svg viewBox="64 64 896 896" focusable="false" fill="currentColor" width="22" height="22"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z"></path><path d="M464 336a48 48 0 1096 0 48 48 0 10-96 0zm72 112h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V456c0-4.4-3.6-8-8-8z"></path></svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-base sm:text-lg font-black text-slate-900">Detalles del Asiento</h3>
-                        <button type="button" id="sprl-modal-close-x" class="text-slate-400 hover:text-slate-700 p-1 text-lg font-bold">✕</button>
+            <!-- Resumen y Diagnóstico Registral Dinámico (Delgado, con marco elegante) -->
+            <div class="mt-4 rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/50 via-white to-slate-50/50 p-3 sm:p-4 shadow-xs">
+                <div class="flex items-start gap-2.5">
+                    <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-blue-600 text-white shrink-0 shadow-xs">
+                        <i class="fas fa-file-shield text-xs sm:text-sm"></i>
                     </div>
-                    <div class="mt-3 overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <tbody class="divide-y divide-slate-100">
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500 w-32 shrink-0">Inscripción:</td><td id="sprl-m-inscripcion" class="py-2 font-black text-slate-900">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500">Presentación:</td><td id="sprl-m-presentacion" class="py-2 font-semibold text-slate-800">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500">Rubro:</td><td id="sprl-m-rubro" class="py-2 font-black text-blue-700 uppercase">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500">Acto:</td><td id="sprl-m-acto" class="py-2 font-extrabold text-slate-900 uppercase">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500 align-top">Participantes Naturales:</td><td id="sprl-m-nat" class="py-2 font-medium text-slate-700 break-words leading-relaxed">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500 align-top">Participantes Jurídicos:</td><td id="sprl-m-jur" class="py-2 font-medium text-slate-700 break-words leading-relaxed">—</td></tr>
-                                <tr class="py-2"><td class="py-2 pr-3 font-bold text-slate-500">Páginas:</td><td id="sprl-m-paginas" class="py-2 font-bold text-slate-800">[ 1 ]</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <h4 class="text-xs sm:text-sm font-bold text-slate-900">Resumen y Diagnóstico Registral</h4>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wide"><i class="fas fa-chart-simple text-[8px]"></i> Inteligencia Registral</span>
+                        </div>
+                        <div class="mt-2 text-[11px] sm:text-xs text-slate-600 leading-relaxed font-normal">
+                            ${buildAnalyticalNarrative(data, timeline, resumen, gravamenes)}
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="mt-5 flex justify-end">
-                <button type="button" id="sprl-modal-accept" class="rounded-xl bg-[#102a52] hover:bg-[#173d72] px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95">
-                    Aceptar
-                </button>
-            </div>
-        </div>
+        </section>
     </div>`;
 }
 
@@ -353,59 +506,25 @@ export function initHistorialDuenosEvents() {
     const container = document.getElementById('sprl-historial-container');
     if (!container) return;
 
-    // Filtros de pestañas
-    const buttons = container.querySelectorAll('.sprl-filter-btn');
-    const items = container.querySelectorAll('.sprl-timeline-item');
-    buttons.forEach((button) => button.addEventListener('click', () => {
-        buttons.forEach((item) => { item.classList.remove('active', 'bg-[#102a52]', 'text-white'); item.classList.add('text-slate-500'); });
-        button.classList.add('active', 'bg-[#102a52]', 'text-white');
-        button.classList.remove('text-slate-500');
-        const filter = button.getAttribute('data-filter');
-        items.forEach((item) => { item.style.display = filter === 'all' || item.getAttribute('data-category') === filter ? '' : 'none'; });
+    let openSeat = null;
+    container.querySelectorAll('.sprl-seat-toggle').forEach((button) => button.addEventListener('click', () => {
+        const details = document.getElementById(button.getAttribute('aria-controls'));
+        if (!details) return;
+        const opening = details.classList.contains('hidden');
+        if (openSeat && openSeat !== details) {
+            openSeat.classList.add('hidden');
+            openSeat.setAttribute('aria-hidden', 'true');
+            const prevChevron = openSeat.parentElement?.querySelector('.sprl-seat-chevron');
+            if (prevChevron) prevChevron.classList.remove('rotate-180');
+            openSeat.parentElement?.querySelector('.sprl-seat-toggle')?.setAttribute('aria-expanded', 'false');
+        }
+        details.classList.toggle('hidden', !opening);
+        details.setAttribute('aria-hidden', String(!opening));
+        button.setAttribute('aria-expanded', String(opening));
+        const chevron = button.querySelector('.sprl-seat-chevron');
+        if (chevron) {
+            chevron.classList.toggle('rotate-180', opening);
+        }
+        openSeat = opening ? details : null;
     }));
-
-    // Modal de Detalles SPRL
-    const modal = document.getElementById('sprl-details-modal');
-    if (modal) {
-        const closeX = document.getElementById('sprl-modal-close-x');
-        const closeBtn = document.getElementById('sprl-modal-accept');
-        const mInscripcion = document.getElementById('sprl-m-inscripcion');
-        const mPresentacion = document.getElementById('sprl-m-presentacion');
-        const mRubro = document.getElementById('sprl-m-rubro');
-        const mActo = document.getElementById('sprl-m-acto');
-        const mNat = document.getElementById('sprl-m-nat');
-        const mJur = document.getElementById('sprl-m-jur');
-        const mPaginas = document.getElementById('sprl-m-paginas');
-
-        const closeModal = () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-
-        if (closeX) closeX.addEventListener('click', closeModal);
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-
-        const triggers = container.querySelectorAll('.sprl-modal-trigger');
-        triggers.forEach((trigger) => {
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (mInscripcion) mInscripcion.textContent = trigger.getAttribute('data-inscripcion') || '—';
-                if (mPresentacion) mPresentacion.textContent = trigger.getAttribute('data-presentacion') || '—';
-                if (mRubro) mRubro.textContent = trigger.getAttribute('data-rubro') || '—';
-                if (mActo) mActo.textContent = trigger.getAttribute('data-acto') || '—';
-                if (mNat) mNat.textContent = trigger.getAttribute('data-nat') || '—';
-                if (mJur) mJur.textContent = trigger.getAttribute('data-jur') || '—';
-                if (mPaginas) mPaginas.textContent = trigger.getAttribute('data-paginas') ? `[ ${trigger.getAttribute('data-paginas')} ]` : '[ 1 ]';
-
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            });
-        });
-    }
 }
-
-
-

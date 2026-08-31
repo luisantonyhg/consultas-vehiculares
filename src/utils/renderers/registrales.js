@@ -301,7 +301,7 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     if (!datos && !imageBase64) {
         return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
             <i class="fas fa-circle-exclamation text-slate-300 dark:text-slate-600 text-2xl mb-1"></i>
-            <p class="text-xs text-slate-400 dark:text-slate-500">Sin registros de gravamen o datos para <strong>${escapeHTML(plate)}</strong> en SUNARP</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron datos vehiculares para <strong>${escapeHTML(plate)}</strong> en la Consulta Vehicular SUNARP</p>
         </div>`;
     }
 
@@ -334,14 +334,30 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
         </div>`;
     }
 
+    const canonicalSunarpFields = [
+        { label: 'N° Placa', get: d => d['Nº Placa'] || d['N° Placa'] || d.placa || plate },
+        { label: 'N° Serie', get: d => d['Nº Serie'] || d['N° Serie'] || d.serie },
+        { label: 'N° VIN', get: d => d['Nº Vin'] || d['N° Vin'] || d.vin },
+        { label: 'N° Motor', get: d => d['Nº Motor'] || d['N° Motor'] || d.motor },
+        { label: 'Color', get: d => d['Color'] || d.color },
+        { label: 'Marca', get: d => d['Marca'] || d.marca },
+        { label: 'Modelo', get: d => d['Modelo'] || d.modelo },
+        { label: 'Placa Vigente', get: d => d['Placa Vigente'] || d.placa_vigente || d['Nº Placa'] || d['N° Placa'] || d.placa || plate },
+        { label: 'Placa Anterior', get: d => d['Placa Anterior'] || d.placa_anterior },
+        { label: 'Estado', get: d => d['Estado'] || d.estado || 'EN CIRCULACION' },
+        { label: 'Anotaciones', get: d => d['Anotaciones'] || d.anotaciones || 'NINGUNA' },
+        { label: 'Sede', get: d => d['Sede'] || d.sede || 'LIMA' },
+        { label: 'Año Modelo', get: d => d['Año Modelo'] || d['Año de Modelo'] || d.anio_modelo || d.anio },
+        { label: 'Propietarios', get: d => d['Propietarios'] || d.propietarios || d.propietario }
+    ];
+
     let rowsHtml = '';
-    if (datos && typeof datos === 'object') {
-        for (const [key, val] of Object.entries(datos)) {
-            if (['imagen_base64', 'official_image_base64', 'imagen'].includes(key)) continue;
-            if (val && String(val).trim() && String(val) !== 'null') {
-                rowsHtml += fila(key, String(val));
-            }
-        }
+    const dObj = (datos && typeof datos === 'object') ? datos : {};
+
+    for (const f of canonicalSunarpFields) {
+        const rawVal = f.get(dObj);
+        const cleanVal = (rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '' && String(rawVal).trim() !== 'null') ? String(rawVal).trim() : '—';
+        rowsHtml += fila(f.label, cleanVal);
     }
 
     let tableHtml = '';

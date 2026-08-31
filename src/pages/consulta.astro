@@ -560,6 +560,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { setupCaptcha } from '../ui/captcha.js';
         import { setupSatTicketModal } from '../ui/sat_ticket_modal.js';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
+        import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER } from '../services/execution_plan.js';
+        import { runOrderedWithConcurrency } from '../services/execution_scheduler.js';
 
         // ====================================================
         // CONFIG
@@ -757,11 +759,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         normalizedError.includes('timeout');
                     const isPermanentProxyConfig = normalizedError.includes('configure fise_proxy') ||
                         normalizedError.includes('no permite connect al puerto 23308');
-                    // Lima y FISE son seguros de repetir una sola vez cuando el
-                    // portal externo corta la conexión. ATU, SAT y Lunas ya
-                    // gestionan intentos internos y no deben duplicar navegadores.
-                    const retryableTimeoutProviders = new Set(['lima', 'fise', 'callao']);
-                    const noRetry = is404Error || isBackpressure || isPermanentProxyConfig ||
+                    const isMantenimiento = (errorMessage || '').toLowerCase().includes('mantenimiento') || (errorMessage || '').toLowerCase().includes('desarrollo');
+                    const retryableTimeoutProviders = new Set(['lima', 'fise']);
+                    const noRetry = is404Error || isBackpressure || isPermanentProxyConfig || isMantenimiento ||
                         (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
@@ -817,22 +817,34 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             jobs: Array<() => Promise<any>>,
             batchSize: number = 4
         ): Promise<any[]> {
-            const results: any[] = [];
-            for (let index = 0; index < jobs.length; index += batchSize) {
-                const batch = jobs.slice(index, index + batchSize);
-                const settled = await Promise.allSettled(batch.map((job) => job()));
-                results.push(...settled);
-            }
-            return results;
+            return runOrderedWithConcurrency(jobs, batchSize, {
+                onStart: ({ index, queue_wait_ms }) => console.info(
+                    `[COLA-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} inicia tras ${Math.round(queue_wait_ms)}ms`
+                ),
+                onFinish: ({ index, processing_ms, status }) => console.info(
+                    `[PROCESO-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} ${status} en ${Math.round(processing_ms)}ms`
+                ),
+            });
         }
 
         async function runSectionSafely(sectionId: string, job: () => Promise<any>): Promise<any> {
+            const startedAt = performance.now();
+            console.info(`[SECCION-INICIO] ${sectionId}`);
             try {
-                return await job();
+                const result = await job();
+                console.info(`[SECCION-FIN] ${sectionId}`, {
+                    processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+                    success: result?.success !== false,
+                });
+                return result;
             } catch (error) {
                 // Una fuente externa defectuosa nunca debe impedir que las
                 // secciones posteriores continúen su turno.
                 console.error(`[SECCION ${sectionId}] Falló sin detener el informe:`, error);
+                console.info(`[SECCION-FIN] ${sectionId}`, {
+                    processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+                    success: false,
+                });
                 return { success: false, error: (error as any)?.message || 'Error inesperado' };
             }
         }
@@ -963,6 +975,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         const isRetryingCard: Record<string, boolean> = {};
 
+        function showRetryNotice(html: string) {
+            const status = document.getElementById('query-status');
+            if (!status) return;
+            status.innerHTML = html;
+            status.classList.remove('opacity-0');
+        }
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
             if (isRetryingCard[cardId]) {
                 console.warn(`[RETRY-UI] Ya se está procesando el reintento para ${cardId}`);
@@ -982,23 +1001,43 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
             isRetryingCard[cardId] = true;
             queryAttempts[cardId] = 0;
+            let ownsRetryTicket = false;
 
             try {
-                // Asegurar que el reintento cuente con un ticket de consulta válido (evita HTTP 403)
+                // Un ticket completado ya no autoriza llamadas. Reservar uno nuevo
+                // con una prueba anti-bot válida y no continuar jamás si falla la
+                // admisión (antes se ignoraba el 422 y la fuente recibía un 403).
                 if (!activeConsultationTicket) {
-                    try {
-                        const admission = await acquireConsultationSlot(BACKEND_URL);
-                        if (admission && admission.ticket_id) {
-                            activeConsultationTicket = admission.ticket_id;
-                            setConsultationTicket(activeConsultationTicket);
-                        }
-                    } catch (tErr) {
-                        console.warn('[RETRY] No se pudo obtener nuevo ticket para reintento:', tErr);
+                    const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
+                    const retryProof = captcha.getProof(retryCaptchaInput?.value || '');
+                    if (!retryProof.valid) {
+                        showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Para reintentar una sección, completa nuevamente la verificación anti-bots.</span>');
+                        document.getElementById('query-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return;
                     }
+
+                    let admission = await acquireConsultationSlot(BACKEND_URL, retryProof);
+                    void drawCaptcha();
+                    admission = await waitForConsultationSlot(BACKEND_URL, admission, (state: any) => {
+                        if (state.status === 'queued') {
+                            showRetryNotice(`<span class="text-amber-600 font-bold"><i class="fas fa-hourglass-half mr-1"></i>Reintento en cola · posición ${state.position || 1}.</span>`);
+                        }
+                    });
+                    if (!admission?.ticket_id || (admission.supported && admission.status !== 'active')) {
+                        throw new Error('No se pudo activar un turno válido para el reintento.');
+                    }
+                    activeConsultationTicket = admission.ticket_id;
+                    ownsRetryTicket = true;
+                    setConsultationTicket(activeConsultationTicket);
                 }
 
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
-                else if (cardId === 'historial_dueños') await fetchHistorialDuenos(plate, (vehicleData?.sede || ''));
+                else if (cardId === 'historial_dueños') {
+                    const rawRetryOffice = (vehicleData?.Sede || vehicleData?.sede || sunarpResult?.Sede || sunarpResult?.sede || sunarpResult?.datos?.Sede || vehicleData?.datos?.Sede || 'LIMA');
+                    const sedecaptadodelaseccionsunarp = String(rawRetryOffice).toUpperCase().trim();
+                    console.log('sedecaptadodelaseccionsunarp =', sedecaptadodelaseccionsunarp);
+                    await fetchHistorialDuenos(plate, sedecaptadodelaseccionsunarp);
+                }
                 else if (cardId === 'soat')        await fetchSOAT(plate);
                 else if (cardId === 'soat_detallado') await fetchSOATDetallado(plate);
                 else if (cardId === 'citv')        await fetchCITV(plate);
@@ -1018,7 +1057,25 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'lunas')       await fetchLunas(plate);
             } catch (e) {
                 console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
+                showRetryNotice(`<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>${(e as any)?.message || 'No se pudo reintentar la sección.'}</span>`);
             } finally {
+                if (ownsRetryTicket && activeConsultationTicket) {
+                    const retryTicket = activeConsultationTicket;
+                    activeConsultationTicket = null;
+                    await releaseConsultationSlot(BACKEND_URL, retryTicket);
+                    setConsultationTicket(null);
+                }
+                // Si salimos antes de volver a renderizar la tarjeta (por ejemplo,
+                // falta de CAPTCHA), restaurar sus botones para permitir otro clic.
+                if (container?.isConnected) {
+                    container.querySelectorAll('button[data-prev-html]').forEach((button) => {
+                        const btn = button as HTMLButtonElement;
+                        btn.innerHTML = btn.getAttribute('data-prev-html') || 'Reintentar';
+                        btn.removeAttribute('data-prev-html');
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    });
+                }
                 isRetryingCard[cardId] = false;
             }
         };
@@ -1330,10 +1387,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
 
                 setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 1)');
-                setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
-                setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
-                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
-                setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 2)');
+                setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 3)');
+                setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno final)');
+                setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno final)');
 
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
@@ -1584,14 +1641,30 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             ? 'Placa confirmada. Completando las demás secciones...'
                             : 'SUNARP no pudo confirmar temporalmente. Continuando con las demás fuentes...';
 
-                        // FASE 1: una vez validada SUNARP, ejecutar servicios rápidos.
-                        // El fan-out se adapta a la carga global: 4 con poca demanda,
-                        // 2 en modo balanceado y 1 cuando hay 25+ consultas activas.
+                        // Detectar sede registral confirmada para el historial (Siempre en Mayúsculas para selector SPRL)
+                        const rawOffice = (
+                            sunarpResult?.datos?.Sede ||
+                            sunarpResult?.datos?.sede ||
+                            sunarpResult?.datos?.Oficina ||
+                            sunarpResult?.datos?.oficina ||
+                            sunarpResult?.Sede ||
+                            sunarpResult?.sede ||
+                            vehicleData?.Sede ||
+                            vehicleData?.sede ||
+                            'LIMA'
+                        );
+                        const sedecaptadodelaseccionsunarp = String(rawOffice).toUpperCase().trim();
+                        console.log('sedecaptadodelaseccionsunarp =', sedecaptadodelaseccionsunarp);
+                        const detectedOffice = sedecaptadodelaseccionsunarp;
+
+                        // Estado visual para historial de dueños en espera de fase avanzada
+                        setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Fase avanzada)');
+
+                        // FASE 1: una vez validada SUNARP, ejecutar servicios rápidos (0.3s - 15s)
                         const fastBatchSize = admission?.load_mode === 'protected'
                             ? 1
                             : admission?.load_mode === 'balanced' ? 2 : 4;
                         await runInBatches([
-                            () => runSectionSafely('historial_dueños', () => fetchHistorialDuenos(plate, (vehicleData?.sede || sunarpResult?.sede || ''))),
                             () => runSectionSafely('soat', () => fetchSOAT(plate)),
                             () => runSectionSafely('soat_detallado', () => fetchSOATDetallado(plate)),
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
@@ -1604,7 +1677,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('osinergmin', () => fetchOsinergmin(plate)),
                         ], fastBatchSize);
 
-                        // FASE 2: Servicios avanzados secuencial
+                        // FASE 2: servicios avanzados secuenciales. SAT captura/depósito
+                        // queda absolutamente al final para que su presupuesto de 170s
+                        // no bloquee Lima, Lunas ni el historial registral.
                         if (activeConsultationTicket) {
                             await waitForHeavyPhase(BACKEND_URL, activeConsultationTicket, (state: any) => {
                                 if (state.heavy_status === 'queued') {
@@ -1619,25 +1694,37 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola secuencial
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En turno (Iniciando...)');
-                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 2)');
-                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 2)');
-                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 3)');
+                        setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Turno 3)');
+                        setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 1)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
                         setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
+                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno final)');
+                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno final)');
 
-                        // 1. SBS Siniestralidad
-                        await runSectionSafely('sbs', () => fetchSBS(plate));
-
-                        // 2. SAT (orden de captura + internamiento) — navegador compartido
-                        await runSectionSafely('sat', () => fetchSAT(plate));
-
-                        // 3. SAT LIMA (Papeletas reCAPTCHA v2 - VirtualSAT)
-                        setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
-                        await runSectionSafely('lima', () => fetchLima(plate));
-
-                        // 4. LUNAS (PNP BotDetect Captcha)
-                        setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
-                        await runSectionSafely('lunas', () => fetchLunas(plate));
+                        console.info('[ORDEN-CONSULTA] 18 secciones:', ENABLED_EXECUTION_ORDER);
+                        const advancedJobs: Record<string, () => Promise<any>> = {
+                            sbs: () => fetchSBS(plate),
+                            lima: () => {
+                                setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
+                                return fetchLima(plate);
+                            },
+                            lunas: () => {
+                                setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
+                                return fetchLunas(plate);
+                            },
+                            historial_dueños: () => {
+                                queryStatus.textContent = 'Analizando historial de dueños y asientos registrales...';
+                                setCardLoading('historial_dueños', 'Historial de Dueños y Gravámenes', 'Analizando asientos y transferencias oficiales...', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
+                                return fetchHistorialDuenos(plate, detectedOffice);
+                            },
+                            sat: () => fetchSAT(plate),
+                        };
+                        for (const sectionId of ADVANCED_EXECUTION_ORDER) {
+                            const startedAt = performance.now();
+                            console.info(`[ORDEN-CONSULTA] Inicio ${sectionId}`);
+                            await runSectionSafely(sectionId, advancedJobs[sectionId]);
+                            console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
+                        }
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);

@@ -77,12 +77,13 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         </div>`;
 
     try {
-        // Una primera llamada consulta captura y depósito con un solo Chromium.
-        // Si alguna queda pendiente, se reintenta únicamente esa sección. Así no
-        // repetimos resultados ya verificados. Deuda SAT está pausada y nunca
-        // forma parte de esta solicitud.
+        // Una única llamada consulta captura y depósito con un solo Chromium.
+        // El backend ya hace los reintentos de CAPTCHA. No iniciar aquí otra
+        // consulta larga: si el AbortController vence, el Chromium del servidor
+        // no puede cancelarse de forma fiable y terminaría compitiendo con Lima
+        // y Lunas aunque el frontend ya hubiera avanzado de fase.
         let cap = null, dep = null, satLastError = null;
-        const SAT_BUDGET_MS = 150000;
+        const SAT_BUDGET_MS = 170000;
         const satStart = Date.now();
 
         const requestSAT = async (path) => {
@@ -106,23 +107,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
             satLastError = data.error || null;
         } catch (err) {
             satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || 'Error de conexión');
-        }
-
-        const pending = [
-            { path: `/sat/captura/${plate}`, key: 'captura', get: () => cap, set: value => { cap = value; } },
-            { path: `/sat/deposito/${plate}`, key: 'deposito', get: () => dep, set: value => { dep = value; } },
-        ];
-        for (const item of pending) {
-            if (item.get()?.success || SAT_BUDGET_MS - (Date.now() - satStart) < 3000) continue;
-            try {
-                const retryData = await requestSAT(item.path);
-                const retryResult = retryData[item.key];
-                if (retryResult) item.set(retryResult);
-                if (retryResult?.success) satLastError = null;
-                else satLastError = retryResult?.error || retryData.error || satLastError;
-            } catch (err) {
-                satLastError = err.name === 'AbortError' ? 'Tiempo de espera agotado (SAT).' : (err.message || satLastError || 'Error de conexión');
-            }
         }
 
         if (cap && cap.success) {
@@ -526,7 +510,9 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
     const TIT = 'Historial de Dueños y Gravámenes';
     callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    // SPRL puede consumir hasta 180-210s en partidas con más de 12 asientos.
+    const timeoutMs = 240000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const queryParam = oficina ? `?oficina=${encodeURIComponent(oficina)}` : '';
         const res = await secureFetch(`${BACKEND_URL}/sunarp/historial/${plate}${queryParam}`, { signal: controller.signal });
@@ -538,16 +524,30 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
         const data = await res.json();
 
+        // Registrar cada paso del proceso SPRL comunicado por el backend
+        const debugSteps = data.metadata?.debug_steps || data.debug_steps || [];
+        if (Array.isArray(debugSteps) && debugSteps.length > 0) {
+            debugSteps.forEach(step => console.log(`[SPRL-PROCESO] ${step}`));
+        }
+
         if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
             const content = renderHistorialDuenos(data, plate);
-            const totalAsientos = data.resumen?.total_asientos || data.timeline?.length || 0;
-            const gravamenes = data.resumen?.gravamenes_vigentes || 0;
-            const gravamenesVerificados = data.metadata?.gravamenes_verificados === true;
-            const badge = !gravamenesVerificados
-                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm uppercase tracking-wider"><i class="fas fa-clock"></i> CARGAS POR VERIFICAR</span>`
-                : gravamenes > 0
-                ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`
-                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${totalAsientos} ASIENTOS</span>`;
+            const encumbrancesStatus = data.gravamenes?.status || data.verification?.encumbrances_history || 'NOT_VERIFIED';
+            const ownershipStatus = data.verification?.ownership_history || (data.ownership_history?.actual_identified?.length ? 'VERIFIED' : 'NOT_VERIFIED');
+            const gravamenes = data.resumen?.gravamenes_vigentes;
+            const totalAsientos = data.resumen?.total_asientos || (Array.isArray(data.asientos) && data.asientos.length ? data.asientos.length : null);
+            let badge = '';
+            if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes > 0)) {
+                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`;
+            } else if (encumbrancesStatus === 'PARTIAL') {
+                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-clock"></i> VERIFICACIÓN PARCIAL</span>`;
+            } else if (encumbrancesStatus === 'VERIFIED_NONE' || encumbrancesStatus === 'VERIFIED' || totalAsientos !== null) {
+                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${totalAsientos ? `${totalAsientos} ASIENTOS` : 'CADENA DOMINIAL VERIFICADA'}</span>`;
+            } else if (data.vehiculo?.estado || data.verification?.public_current_owner === 'VERIFIED' || data.titularidad_publica?.titulares_identificados?.length) {
+                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> REGISTRO SUNARP VERIFICADO</span>`;
+            } else {
+                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> REGISTRO VERIFICADO</span>`;
+            }
 
             callbacks.setCardData('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, true, badge);
 
@@ -559,7 +559,7 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (60s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (195s). Pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', msg, plate);
         return { success: false, error: msg };
     }
