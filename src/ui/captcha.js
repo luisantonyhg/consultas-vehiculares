@@ -51,9 +51,35 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
                 theme: 'light',
                 size: 'flexible',
                 language: 'es',
-                callback: (token) => { turnstileToken = token; },
-                'expired-callback': () => { turnstileToken = ''; },
-                'error-callback': () => { turnstileToken = ''; return true; },
+                'refresh-expired': 'auto',
+                'refresh-timeout': 'auto',
+                retry: 'auto',
+                'retry-interval': 3000,
+                callback: (token) => { 
+                    turnstileToken = token; 
+                },
+                'expired-callback': () => { 
+                    turnstileToken = ''; 
+                    if (widgetId !== null && window.turnstile) {
+                        try { window.turnstile.reset(widgetId); } catch (_) {}
+                    }
+                },
+                'timeout-callback': () => {
+                    turnstileToken = '';
+                    if (widgetId !== null && window.turnstile) {
+                        try { window.turnstile.reset(widgetId); } catch (_) {}
+                    }
+                },
+                'error-callback': (errorCode) => { 
+                    turnstileToken = ''; 
+                    console.warn('[TURNSTILE] Desafío temporalmente no completado o expirado:', errorCode);
+                    if (widgetId !== null && window.turnstile) {
+                        setTimeout(() => {
+                            try { window.turnstile.reset(widgetId); } catch (_) {}
+                        }, 1500);
+                    }
+                    return false;
+                },
             });
         } catch (_error) {
             host.innerHTML = '<p class="text-center text-xs font-bold text-rose-300">No se pudo cargar la verificación anti-bots. Revisa tu conexión.</p>';
@@ -90,7 +116,13 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
     async function refresh() {
         if (siteKey) {
             turnstileToken = '';
-            if (widgetId !== null && window.turnstile) window.turnstile.reset(widgetId);
+            if (widgetId !== null && window.turnstile) {
+                try {
+                    window.turnstile.reset(widgetId);
+                } catch (e) {
+                    console.warn('[TURNSTILE] Reset error:', e);
+                }
+            }
             return;
         }
         await drawVisualCaptcha();

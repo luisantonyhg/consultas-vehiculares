@@ -943,7 +943,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function fetchSUNARP(plate: string) {
             return runExclusive('sunarp', () =>
-                runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate));
+                runFetchWithRetry('sunarp', (callbacks) => runFetchSUNARP(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchSAT(plate: string) {
