@@ -722,6 +722,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 resolveFn = resolve;
                 rejectFn = reject;
             });
+            let retryScheduled = false;
 
             const customCallbacks = {
                 setCardLoading: (id: string, title: string, sub: string, iconClass: string, bgColorClass: string, sourceName: string) => {
@@ -760,7 +761,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const isPermanentProxyConfig = normalizedError.includes('configure fise_proxy') ||
                         normalizedError.includes('no permite connect al puerto 23308');
                     const isMantenimiento = (errorMessage || '').toLowerCase().includes('mantenimiento') || (errorMessage || '').toLowerCase().includes('desarrollo');
-                    const retryableTimeoutProviders = new Set(['lima', 'fise']);
+                    const retryableTimeoutProviders = new Set(['sunarp', 'lima', 'fise']);
                     const noRetry = is404Error || isBackpressure || isPermanentProxyConfig || isMantenimiento ||
                         (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
@@ -771,6 +772,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
                     queryAttempts[id] = attempt;
                     if (attempt < maxAttempts) {
+                        retryScheduled = true;
                         const delay = attempt === 1 ? 1500 : 3500;
                         console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${maxAttempts}): ${errorMessage}. Reintentando en ${delay / 1000}s...`);
                         setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando ${attempt + 1}/${maxAttempts}...)`);
@@ -795,7 +797,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
             try {
                 const res = await fetchCall(customCallbacks);
-                resolveFn(res || { success: false });
+                if (!retryScheduled) resolveFn(res || { success: false });
             } catch (err) {
                 console.error(`[CRASH] runFetchWithRetry catch error for ${cardId}:`, err);
                 await customCallbacks.setCardError(
@@ -956,21 +958,25 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchSATCaptura(plate: string) {
-            const callbacks = {
-                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
-                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
-                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
-            };
-            return runExclusive('sat', () => runFetchWithRetry('sat_captura', () => runFetchSATCaptura(plate, BACKEND_URL, callbacks), plate));
+            return runExclusive('sat', () =>
+                runFetchWithRetry(
+                    'sat_captura',
+                    (callbacks) => runFetchSATCaptura(plate, BACKEND_URL, callbacks),
+                    plate,
+                    1,
+                    2,
+                ));
         }
 
         async function fetchSATDeposito(plate: string) {
-            const callbacks = {
-                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
-                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
-                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
-            };
-            return runExclusive('sat', () => runFetchWithRetry('sat_deposito', () => runFetchSATDeposito(plate, BACKEND_URL, callbacks), plate));
+            return runExclusive('sat', () =>
+                runFetchWithRetry(
+                    'sat_deposito',
+                    (callbacks) => runFetchSATDeposito(plate, BACKEND_URL, callbacks),
+                    plate,
+                    1,
+                    2,
+                ));
         }
 
         const isRetryingCard: Record<string, boolean> = {};
@@ -1011,6 +1017,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
                     const retryProof = captcha.getProof(retryCaptchaInput?.value || '');
                     if (!retryProof.valid) {
+                        await drawCaptcha();
                         showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Para reintentar una sección, completa nuevamente la verificación anti-bots.</span>');
                         document.getElementById('query-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         return;
@@ -1717,7 +1724,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 setCardLoading('historial_dueños', 'Historial de Dueños y Gravámenes', 'Analizando asientos y transferencias oficiales...', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
                                 return fetchHistorialDuenos(plate, detectedOffice);
                             },
-                            sat: () => fetchSAT(plate),
+                            sat_captura: () => fetchSATCaptura(plate),
+                            sat_deposito: () => fetchSATDeposito(plate),
                         };
                         for (const sectionId of ADVANCED_EXECUTION_ORDER) {
                             const startedAt = performance.now();

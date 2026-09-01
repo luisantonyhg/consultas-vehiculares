@@ -15,7 +15,9 @@ test('mantiene 18 secciones habilitadas en orden explícito', () => {
 });
 
 test('Papeletas Lima, Lunas e historial se ejecutan antes que Captura/Depósito SAT', () => {
-  assert.deepEqual(ADVANCED_EXECUTION_ORDER, ['lima', 'sbs', 'historial_dueños', 'lunas', 'sat']);
+  assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
+    'lima', 'sbs', 'historial_dueños', 'lunas', 'sat_captura', 'sat_deposito',
+  ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('sat_captura'));
   assert.ok(ids.indexOf('lunas') < ids.indexOf('sat_captura'));

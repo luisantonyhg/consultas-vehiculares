@@ -242,9 +242,8 @@ export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
-    // 95s: SUNARP ya tiene su PROPIO navegador (no espera a ATU/SBS). El backend corta
-    // a los 90s (HARD_TIMEOUT), así que 95s da un pequeño margen para recibir la respuesta.
-    // Antes eran 180s → la tarjeta giraba hasta 3 min cuando Turnstile no daba token.
+    // 95s: el backend limita CapSolver + SUNARP a 60s. Este margen cubre cola,
+    // red, serialización y entrega de la respuesta sin dejar el loader indefinido.
     const timeoutId = setTimeout(() => controller.abort(), 95000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal });
@@ -296,7 +295,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (95s). El navegador está ocupado, pulse Reintentar.' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'SUNARP no respondió dentro de 95s. Pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', msg, plate);
         return { success: false, error: msg };
     }

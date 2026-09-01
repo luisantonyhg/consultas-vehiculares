@@ -23,4 +23,11 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
 // Primero la fuente avanzada de menor latencia observada. LUNAS queda después
 // del historial porque su CAPTCHA es el más variable (≈57-168 s), evitando
 // que bloquee la trazabilidad. Las dos secciones SAT permanecen al final.
-export const ADVANCED_EXECUTION_ORDER = Object.freeze(['lima', 'sbs', 'historial_dueños', 'lunas', 'sat']);
+export const ADVANCED_EXECUTION_ORDER = Object.freeze([
+    'lima',
+    'sbs',
+    'historial_dueños',
+    'lunas',
+    'sat_captura',
+    'sat_deposito',
+]);

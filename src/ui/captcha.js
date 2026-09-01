@@ -25,6 +25,31 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
     let widgetId = null;
     let challengeId = '';
     let loading = false;
+    let resetting = false;
+
+    async function resetTurnstile() {
+        turnstileToken = '';
+        if (resetting) return;
+        resetting = true;
+        try {
+            const turnstile = await loadTurnstile();
+            if (widgetId !== null) {
+                try {
+                    turnstile.reset(widgetId);
+                    return;
+                } catch (error) {
+                    console.warn('[TURNSTILE] Reset directo falló; recreando widget:', error);
+                    try { turnstile.remove(widgetId); } catch (_) {}
+                    widgetId = null;
+                }
+            }
+            const host = document.getElementById('turnstile-container');
+            if (host) host.innerHTML = '';
+            await renderTurnstile();
+        } finally {
+            resetting = false;
+        }
+    }
 
     async function renderTurnstile() {
         const row = document.getElementById('captcha-row');
@@ -59,25 +84,18 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
                     turnstileToken = token; 
                 },
                 'expired-callback': () => { 
-                    turnstileToken = ''; 
-                    if (widgetId !== null && window.turnstile) {
-                        try { window.turnstile.reset(widgetId); } catch (_) {}
-                    }
+                    // refresh-expired='auto' ya renueva el desafío.
+                    turnstileToken = '';
                 },
                 'timeout-callback': () => {
+                    // refresh-timeout='auto' ya regenera el desafío.
                     turnstileToken = '';
-                    if (widgetId !== null && window.turnstile) {
-                        try { window.turnstile.reset(widgetId); } catch (_) {}
-                    }
                 },
                 'error-callback': (errorCode) => { 
                     turnstileToken = ''; 
                     console.warn('[TURNSTILE] Desafío temporalmente no completado o expirado:', errorCode);
-                    if (widgetId !== null && window.turnstile) {
-                        setTimeout(() => {
-                            try { window.turnstile.reset(widgetId); } catch (_) {}
-                        }, 1500);
-                    }
+                    // false deja que retry='auto' haga la recuperación. Evita
+                    // competir con un segundo reset manual programado por nosotros.
                     return false;
                 },
             });
@@ -115,14 +133,7 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
 
     async function refresh() {
         if (siteKey) {
-            turnstileToken = '';
-            if (widgetId !== null && window.turnstile) {
-                try {
-                    window.turnstile.reset(widgetId);
-                } catch (e) {
-                    console.warn('[TURNSTILE] Reset error:', e);
-                }
-            }
+            await resetTurnstile();
             return;
         }
         await drawVisualCaptcha();
