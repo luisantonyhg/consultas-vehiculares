@@ -149,20 +149,28 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
             const sbsData = { soat: data.soat, vehicular: data.vehicular, cat: data.cat };
             const sbsTipos = [data.soat, data.vehicular, data.cat].filter(Boolean);
             const tiposConError = sbsTipos.filter((tipo) => tipo.error);
-            // Usa el resumen oficial "N.° de accidentes coberturados" del portal SBS cuando existe;
-            // si no, cae al conteo de pólizas devueltas.
+            const officialAccidentTotal = (tipo) => {
+                if (typeof tipo?.total_accidentes === 'number') return tipo.total_accidentes;
+                if (!tipo?.error && (tipo?.sin_registros || (Array.isArray(tipo?.data) && tipo.data.length === 0))) return 0;
+                return null;
+            };
+            // Sólo el resumen oficial de accidentes puede contarse como
+            // siniestro. Una fila de póliza nunca equivale a un accidente.
             const totalSiniestros = sbsTipos.reduce(
-                (acc, t) => acc + (typeof t.total_accidentes === 'number' ? t.total_accidentes : (t.data || []).length),
+                (acc, t) => acc + (officialAccidentTotal(t) ?? 0),
                 0
             );
+            const tiposSinTotal = sbsTipos.filter(
+                (tipo) => !tipo.error && officialAccidentTotal(tipo) === null
+            );
             let customBadge = '';
-            if (tiposConError.length > 0) {
-                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-exclamation"></i> PARCIAL · ${tiposConError.length} SIN VERIFICAR
-                </span>`;
-            } else if (totalSiniestros > 0) {
+            if (totalSiniestros > 0) {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-triangle-exclamation"></i> ${totalSiniestros} SINIESTRO${totalSiniestros > 1 ? 'S' : ''}
+                </span>`;
+            } else if (tiposConError.length > 0 || tiposSinTotal.length > 0) {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-exclamation"></i> PARCIAL · ${tiposConError.length + tiposSinTotal.length} SIN TOTAL OFICIAL
                 </span>`;
             } else {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
@@ -183,4 +191,3 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
         return { success: false, error: msg };
     }
 }
-

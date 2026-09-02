@@ -181,7 +181,7 @@ export function renderLima(plate, message, directUrl, data, totalDeudaParam) {
                         </div>
                     </div>
                 </div>
-                <a href="${directUrl}" target="_blank" rel="noopener"
+                <a href="${directUrl}" target="_blank" rel="noopener noreferrer"
                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-95">
                     <i class="fas fa-arrow-up-right-from-square text-[11px]"></i> Pagar en SAT
                 </a>
@@ -234,9 +234,9 @@ export function renderLima(plate, message, directUrl, data, totalDeudaParam) {
         </div>
         <div class="flex flex-col items-center gap-2">
             <p class="text-[11px] text-slate-400 dark:text-slate-500">Verificado en tiempo real con el portal oficial del SAT Lima</p>
-            <a href="${directUrl}" target="_blank" rel="noopener"
+            <a href="${directUrl}" target="_blank" rel="noopener noreferrer"
                class="w-full max-w-xs flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-extrabold uppercase tracking-wide transition-all shadow-md active:scale-95">
-               <i class="fas fa-arrow-up-right-from-square"></i> Portal SAT Virtual
+               <i class="fas fa-arrow-up-right-from-square"></i> Verificar portal SAT
             </a>
         </div>
     </div>`;
@@ -501,18 +501,19 @@ export function renderSBS(data, plate) {
     ];
 
     let html = '';
-    let totalSiniestros = 0;
 
     tiposConfig.forEach((cfg, idx) => {
         const tipo = data[cfg.key];
         const borderTop = idx > 0 ? 'border-t border-slate-200 dark:border-slate-800 pt-4 mt-4' : '';
         if (!tipo) return;
 
-        const count = (tipo.data || []).length;
-        const acc = typeof tipo.total_accidentes === 'number' ? tipo.total_accidentes : null;
-        const badgeVal = acc !== null ? acc : count;
-        totalSiniestros += badgeVal;
-        const badgeTone = badgeVal > 0 ? 'red' : 'emerald';
+        const rows = Array.isArray(tipo.data) ? tipo.data : [];
+        const count = rows.length;
+        const acc = typeof tipo.total_accidentes === 'number'
+            ? tipo.total_accidentes
+            : (!tipo.error && (tipo.sin_registros || count === 0) ? 0 : null);
+        const accidentTone = acc === null ? 'slate' : (acc > 0 ? 'red' : 'emerald');
+        const accidentSummary = acc === null ? 'No informado' : `${acc} siniestro${acc === 1 ? '' : 's'} reportado${acc === 1 ? '' : 's'}`;
 
         html += `<div class="${borderTop} font-poppins">`;
         html += `<div class="flex items-center gap-2 mb-2">
@@ -520,10 +521,13 @@ export function renderSBS(data, plate) {
                 <i class="${cfg.icon} text-xs ${cfg.color}"></i>
             </div>
             <span class="text-[10px] font-extrabold uppercase tracking-widest ${cfg.color}">${cfg.label}</span>
-            ${count > 0
-                ? `<span class="ml-auto text-[9px] font-bold ${badgeTone === 'red' ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900'} border px-2 py-0.5 rounded-full">${acc !== null ? `${acc} accidente${acc !== 1 ? 's' : ''}` : `${count} póliza${count > 1 ? 's' : ''}`}</span>`
-                : ''
-            }
+            <span class="ml-auto rounded-lg border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wide ${
+                accidentTone === 'red'
+                    ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300'
+                    : accidentTone === 'emerald'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                        : 'border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+            }">${accidentSummary}</span>
         </div>`;
 
         if (tipo.error) {
@@ -534,30 +538,49 @@ export function renderSBS(data, plate) {
                 <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Sin siniestros registrados</p>
             </div>`;
         } else {
-            // Las tablas de SBS tienen hasta diez columnas y eran ilegibles en
-            // celular. Cada registro se presenta como ficha; se conservan todos
-            // los campos y los valores largos pueden envolver sin superponerse.
-            html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">${tipo.data.map((row, rowIndex) => {
-                const entries = Object.entries(row || {});
-                const companyEntry = entries.find(([key]) => /compa|aseg/i.test(key));
-                const company = companyEntry && companyEntry[1] ? String(companyEntry[1]) : `${cfg.label} #${rowIndex + 1}`;
-                return `<article class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                    <div class="flex items-center justify-between gap-2 bg-slate-900 dark:bg-slate-950 px-3 py-2.5 text-white">
-                        <div class="min-w-0">
-                            <p class="text-[8px] font-bold uppercase tracking-[.16em] text-slate-400">Registro ${rowIndex + 1}</p>
-                            <p class="truncate text-[11px] font-extrabold" title="${escapeHTML(company)}">${escapeHTML(company)}</p>
-                        </div>
-                        <span class="shrink-0 rounded-md bg-white/10 px-2 py-1 text-[8px] font-bold uppercase tracking-wider">${cfg.label}</span>
-                    </div>
-                    <dl class="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-800">${entries.map(([key, rawValue]) => {
-                        const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);
-                        return `<div class="min-w-0 bg-white dark:bg-slate-900 px-3 py-2.5">
-                            <dt class="mb-1 text-[8px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 break-words">${escapeHTML(key)}</dt>
-                            <dd class="text-[11px] font-bold leading-snug text-slate-700 dark:text-slate-200 break-words [overflow-wrap:anywhere]">${escapeHTML(value)}</dd>
-                        </div>`;
-                    }).join('')}</dl>
-                </article>`;
-            }).join('')}</div>`;
+            // Tabla oficial responsive: en móvil conserva todas las columnas
+            // mediante desplazamiento horizontal y marca exclusivamente la
+            // columna de siniestros, sin confundir pólizas con accidentes.
+            const headers = [...new Set(rows.flatMap(row => Object.keys(row || {})))]
+                .filter(key => key !== 'dias_para_vencer');
+            const accidentHeader = headers.find(key => /accident|siniest/i.test(key));
+            const displayHeaders = accidentHeader ? headers : [...headers, 'Siniestros reportados'];
+
+            const accidentCell = (rawValue) => {
+                const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);
+                const numeric = /^\s*\d+(?:[.,]\d+)?\s*$/.test(value) ? Number(value.replace(',', '.')) : null;
+                const tone = numeric === null
+                    ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    : numeric > 0
+                        ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300'
+                        : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300';
+                return `<span class="inline-flex min-w-[44px] items-center justify-center rounded-lg border px-2.5 py-1 font-black ${tone}">${escapeHTML(value)}</span>`;
+            };
+
+            html += `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm dark:border-slate-800" role="region" aria-label="Tabla de siniestralidad ${cfg.label}" tabindex="0">
+                <table class="min-w-[820px] w-full border-collapse bg-white text-left text-[10px] font-poppins dark:bg-slate-900">
+                    <thead class="bg-slate-900 text-white dark:bg-slate-950">
+                        <tr>
+                            ${displayHeaders.map((header, index) => `<th class="whitespace-nowrap border-r border-white/10 px-3 py-2.5 text-[8px] font-extrabold uppercase tracking-wider ${index === 0 ? 'sticky left-0 z-10 bg-slate-900 dark:bg-slate-950' : ''}">${escapeHTML(header)}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        ${rows.map((row, rowIndex) => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            ${displayHeaders.map((header, columnIndex) => {
+                                const isAccident = header === accidentHeader || header === 'Siniestros reportados';
+                                const rawValue = header === 'Siniestros reportados'
+                                    ? (rowIndex === 0 ? (acc === null ? '—' : acc) : '—')
+                                    : row?.[header];
+                                const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);
+                                return `<td class="max-w-[240px] border-r border-slate-100 px-3 py-2.5 align-top font-semibold leading-snug text-slate-700 [overflow-wrap:anywhere] dark:border-slate-800 dark:text-slate-200 ${columnIndex === 0 ? 'sticky left-0 z-[5] bg-white dark:bg-slate-900' : ''}">
+                                    ${isAccident ? accidentCell(rawValue) : escapeHTML(value)}
+                                </td>`;
+                            }).join('')}
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-1.5 text-[9px] text-slate-400 md:hidden"><i class="fas fa-arrows-left-right mr-1"></i>Desliza horizontalmente para ver todas las columnas.</p>`;
         }
         html += '</div>';
     });

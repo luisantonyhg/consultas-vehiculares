@@ -63,24 +63,23 @@ export const SOURCE_URLS = {
     citv: 'https://rec.mtc.gob.pe/Citv/ArConsultaCitv',
     lunas: 'https://sistemas.policia.gob.pe/consultalunas/ConsultarServicioLunas',
     // pnp_req desactivado: no incluir la URL de ConsultaPVR en el bundle.
-    historial_dueños: 'https://www.sunarp.gob.pe/',
-    callao: 'https://pagopapeletascallao.pe/',
-    lima: 'https://www.sat.gob.pe/',
+    historial_dueños: 'https://sprl.sunarp.gob.pe/sprl/ingreso',
+    callao: 'https://pagopapeletascallao.pe/public/',
+    lima: 'https://www.sat.gob.pe/VirtualSAT/modulos/papeletas.aspx',
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
     cinemometro: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmPapeletasCinemometro.aspx',
-    atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo',
+    atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo/',
     gnv: 'https://vh.infogas.com.pe/',
     fise: 'https://fise.minem.gob.pe:23308/consulta-taller/pages/consultaTaller/inicio',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
-    sunarp: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/',
-    vehiculo: 'https://www.sunarp.gob.pe/',
+    sunarp: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/inicio',
+    vehiculo: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/inicio',
     placas_pe: 'https://www.placas.pe/#/home/verificarEstadoPlaca',
     valor_venal: 'https://www.apeseg.org.pe/lista-referencial-de-precios/',
     osinergmin: 'https://pvo.osinergmin.gob.pe/msfh5/registroHidrocarburos.xhtml?method=buscar',
     sat_captura: 'https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx',
     sat_deposito: 'https://www.sat.gob.pe/VirtualSAT/modulos/ConsultaDeposito.aspx',
-    sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/',
-    municipal: 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php'
+    sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/'
 };
 
 export const SERVICE_COLORS = {
@@ -543,12 +542,16 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
 
     const sourceUrl = SOURCE_URLS[cardId] || '';
     const verifyLink = sourceUrl 
-        ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
         : '';
     // Los proveedores externos controlan parte de los textos mostrados. Aunque
     // los renderizadores escapan campos simples, esta barrera central evita que
     // una respuesta manipulada pueda inyectar scripts o manejadores HTML.
-    const safeHtmlContent = DOMPurify.sanitize(String(htmlContent || ''));
+    // DOMPurify elimina `target` en algunas configuraciones. Lo conservamos de
+    // forma explícita para que los portales oficiales nunca reemplacen Cañita.
+    const safeHtmlContent = DOMPurify.sanitize(String(htmlContent || ''), {
+        ADD_ATTR: ['target'],
+    });
     const finalContent = `
         <div class="flex flex-col h-full justify-between">
             <div class="flex-1">${safeHtmlContent}</div>
@@ -626,9 +629,9 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
         </button>`;
         const sourceUrl = SOURCE_URLS[cardId] || '';
         const verifyBtn = sourceUrl 
-            ? `<a href="${sourceUrl}" target="_blank" rel="noopener"
+            ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer"
                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-600">
-                  <i class="fas fa-arrow-up-right-from-square"></i> Portal Oficial
+                  <i class="fas fa-arrow-up-right-from-square"></i> Verificar fuente
                </a>`
             : '';
         rightContent = `
@@ -655,7 +658,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
 
     const sourceUrl = SOURCE_URLS[cardId] || '';
     const verifyLink = sourceUrl 
-        ? `<a href="${sourceUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar</a>`
+        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
         : '';
     const finalContent = `
         <div class="flex flex-col h-full justify-between">

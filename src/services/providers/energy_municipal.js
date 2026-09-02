@@ -1,6 +1,21 @@
 import { renderGNV, renderFise } from '../../utils/renderers.js';
 import { secureFetch } from '../transport.js';
 
+export const MUNICIPAL_SOURCE_URLS = Object.freeze({
+    'Huánuco': 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php',
+    'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
+    'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
+    'Cajamarca': 'https://www.satcajamarca.gob.pe/consultas',
+    'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/buscar_placa_',
+    'Cusco': 'https://cusco.gob.pe/informatica/index.php/',
+    'Ica': 'https://m.satica.gob.pe/',
+    'Piura': 'https://fiscalizacionelectronica.munipiura.gob.pe/',
+    'Tacna': 'https://www.munitacna.gob.pe/pagina/sf/servicios/papeletas',
+    'Tarapoto': 'https://www.sat-t.gob.pe/',
+    // El formulario de papeletas se habilita desde el panel autenticado.
+    'Trujillo': 'https://digital.satt.gob.pe/pagos/',
+});
+
 export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
     const controller = new AbortController();
@@ -86,30 +101,17 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
         if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
         const data = await res.json();
         const items = Array.isArray(data.data) ? data.data : [];
-        // Portal oficial de cada municipalidad para verificación manual
-        const MUNI_URLS = {
-            'Huánuco': 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php',
-            'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
-            'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
-            'Cajamarca': 'https://www.satcajamarca.gob.pe/#/',
-            'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/buscar_placa_',
-            'Cusco': 'https://cusco.gob.pe/informatica/index.php/',
-            'Ica': 'https://m.satica.gob.pe/consultapapeletas.php',
-            'Piura': 'https://www.munipiura.gob.pe/',
-            'Tacna': 'https://www.munitacna.gob.pe/',
-            'Tarapoto': 'https://www.mpsm.gob.pe/'
-        };
         const rows = items.map(m => {
             const err = !m.success;
             const con = !!m.tiene_papeletas;
             const cls = err ? 'text-slate-400 dark:text-slate-500' : (con ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-emerald-600 dark:text-emerald-400 font-bold');
             const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation animate-pulse' : 'fa-circle-check');
             const estado = err ? 'No disponible' : (con ? `${m.total || 1} papeleta(s) registrada(s)` : 'Sin papeletas');
-            const url = m.url || MUNI_URLS[m.municipio] || '';
+            const url = MUNICIPAL_SOURCE_URLS[m.municipio] || '';
             const verBtn = url
-                ? `<a href="${url}" target="_blank" rel="noopener" title="Verificar en el portal oficial de ${m.municipio}"
+                ? `<a href="${url}" target="_blank" rel="noopener noreferrer" title="Verificar en el portal oficial de ${m.municipio}"
                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-all shadow-xs border border-slate-200/80 dark:border-slate-700 shrink-0">
-                     <i class="fas fa-arrow-up-right-from-square text-[9px] text-brand-red"></i> Portal</a>`
+                     <i class="fas fa-arrow-up-right-from-square text-[9px] text-brand-red"></i> Verificar portal</a>`
                 : '';
 
             // Detalle completo y responsivo de todas las papeletas de la municipalidad
@@ -184,12 +186,11 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
         }).join('');
         const content = `<div class="p-3 md:p-4">
             <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-3 md:px-4 divide-y divide-slate-100 dark:divide-slate-800">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 flex items-center gap-1.5 px-1"><i class="fas fa-circle-info text-blue-500"></i> Cobertura en vivo: Huánuco, Chachapoyas, Arequipa, Cajamarca, Chiclayo, Cusco, Ica, Piura, Tacna, Tarapoto y Trujillo.</p>
         </div>`;
         const conPapeletas = items.some(m => m.tiene_papeletas);
         let badge = conPapeletas
-            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON PAPELETAS</span>`
-            : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN PAPELETAS</span>`;
+            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON REGISTROS</span>`
+            : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN REGISTROS</span>`;
         callbacks.setCardData('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', content, true, conPapeletas, badge);
         return data;
     } catch (err) {
@@ -199,5 +200,3 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
         return { success: false, error: msg };
     }
 }
-
-

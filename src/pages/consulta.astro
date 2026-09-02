@@ -621,7 +621,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         // VEHICLE DATA ACCUMULATION
         // ====================================================
-        let vehicleData: Record<string, string> = {};
+        let vehicleData: Record<string, any> = {};
         let queryAttempts: Record<string, number> = {};
         let currentSunarpValidation: 'found' | 'not_found' | 'indeterminate' = 'indeterminate';
 
@@ -797,6 +797,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
             try {
                 const res = await fetchCall(customCallbacks);
+                if (attempt > 1 && res?.success) {
+                    console.info(
+                        `[RECOVERY] Consulta ${cardId} recuperada correctamente ` +
+                        `en intento frontend ${attempt}/${maxAttempts}`
+                    );
+                }
                 if (!retryScheduled) resolveFn(res || { success: false });
             } catch (err) {
                 console.error(`[CRASH] runFetchWithRetry catch error for ${cardId}:`, err);
@@ -820,10 +826,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             batchSize: number = 4
         ): Promise<any[]> {
             return runOrderedWithConcurrency(jobs, batchSize, {
-                onStart: ({ index, queue_wait_ms }) => console.info(
+                onStart: ({ index, queue_wait_ms }: { index: number; queue_wait_ms: number }) => console.info(
                     `[COLA-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} inicia tras ${Math.round(queue_wait_ms)}ms`
                 ),
-                onFinish: ({ index, processing_ms, status }) => console.info(
+                onFinish: ({ index, processing_ms, status }: { index: number; processing_ms: number; status: string }) => console.info(
                     `[PROCESO-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} ${status} en ${Math.round(processing_ms)}ms`
                 ),
             });
@@ -893,7 +899,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function fetchLima(plate: string) {
             return runExclusive('lima', () =>
-                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 2));
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchSutran(plate: string) {
@@ -963,8 +969,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     'sat_captura',
                     (callbacks) => runFetchSATCaptura(plate, BACKEND_URL, callbacks),
                     plate,
-                    1,
-                    2,
                 ));
         }
 
@@ -974,8 +978,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     'sat_deposito',
                     (callbacks) => runFetchSATDeposito(plate, BACKEND_URL, callbacks),
                     plate,
-                    1,
-                    2,
                 ));
         }
 
@@ -1015,12 +1017,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // admisión (antes se ignoraba el 422 y la fuente recibía un 403).
                 if (!activeConsultationTicket) {
                     const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
-                    const retryProof = captcha.getProof(retryCaptchaInput?.value || '');
+                    let retryProof = captcha.getProof(retryCaptchaInput?.value || '');
                     if (!retryProof.valid) {
-                        await drawCaptcha();
-                        showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Para reintentar una sección, completa nuevamente la verificación anti-bots.</span>');
+                        showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Completa la verificación anti-bots; el reintento continuará automáticamente.</span>');
                         document.getElementById('query-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        return;
+                        retryProof = await captcha.waitForProof(retryCaptchaInput?.value || '', 120000);
+                        if (!retryProof.valid) {
+                            showRetryNotice('<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>La verificación expiró. Pulsa Reintentar para generar un nuevo desafío.</span>');
+                            return;
+                        }
                     }
 
                     let admission = await acquireConsultationSlot(BACKEND_URL, retryProof);
@@ -1040,7 +1045,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
                 else if (cardId === 'historial_dueños') {
-                    const rawRetryOffice = (vehicleData?.Sede || vehicleData?.sede || sunarpResult?.Sede || sunarpResult?.sede || sunarpResult?.datos?.Sede || vehicleData?.datos?.Sede || 'LIMA');
+                    const rawRetryOffice = (
+                        vehicleData?.Sede || vehicleData?.sede ||
+                        vehicleData?.datos?.Sede || vehicleData?.datos?.sede || 'LIMA'
+                    );
                     const sedecaptadodelaseccionsunarp = String(rawRetryOffice).toUpperCase().trim();
                     console.log('sedecaptadodelaseccionsunarp =', sedecaptadodelaseccionsunarp);
                     await fetchHistorialDuenos(plate, sedecaptadodelaseccionsunarp);
@@ -1682,6 +1690,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('municipal', () => fetchMunicipal(plate)),
                             () => runSectionSafely('estado_placa', () => fetchEstadoPlacaYValor(plate)),
                             () => runSectionSafely('osinergmin', () => fetchOsinergmin(plate)),
+                            // LUNAS no consume Chromium; ejecutarla en la fase
+                            // rápida evita que espere Lima, SBS e Historial.
+                            () => runSectionSafely('lunas', () => fetchLunas(plate)),
                         ], fastBatchSize);
 
                         // FASE 2: servicios avanzados secuenciales. SAT captura/depósito
@@ -1704,7 +1715,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Turno 3)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 1)');
                         setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Captcha PNP', 'fas fa-eye-slash', '', 'PNP', 'En espera (Turno 4)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno final)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno final)');
 
@@ -1714,10 +1724,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             lima: () => {
                                 setCardLoading('lima', 'Papeletas Lima (SAT)', 'Consultando papeletas SAT...', 'fas fa-traffic-light', '', 'SAT Lima');
                                 return fetchLima(plate);
-                            },
-                            lunas: () => {
-                                setCardLoading('lunas', 'Lunas Oscurecidas', 'Resolviendo captcha PNP...', 'fas fa-eye-slash', '', 'PNP');
-                                return fetchLunas(plate);
                             },
                             historial_dueños: () => {
                                 queryStatus.textContent = 'Analizando historial de dueños y asientos registrales...';

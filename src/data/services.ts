@@ -24,7 +24,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "sunarp-consulta",
         title: "Consulta Vehicular (SUNARP)",
-        url: "https://consultavehicular.sunarp.gob.pe/consulta-vehicular/",
+        url: "https://consultavehicular.sunarp.gob.pe/consulta-vehicular/inicio",
         logo: "/assets/sunarp.jpeg"
       },
       {
@@ -85,7 +85,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "sat-papeleta",
         title: "Papeleta Lima (SAT)",
-        url: "https://www.sat.gob.pe/VirtualSAT/principal.aspx?mysession=iWsITx%2fNYB5zzANmpEiBenNqpKpKgba2IOqbVp0Vxqg%3d",
+        url: "https://www.sat.gob.pe/VirtualSAT/modulos/papeletas.aspx",
         logo: "/assets/sat.png"
       },
       {
@@ -109,7 +109,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "sat-internamiento",
         title: "Internamiento Vehículo",
-        url: "https://www.sat.gob.pe/VirtualSAT/modulos/ConsultaDeposito.aspx?mysession",
+        url: "https://www.sat.gob.pe/VirtualSAT/modulos/ConsultaDeposito.aspx",
         logo: "/assets/sat.png"
       },
       {
@@ -127,7 +127,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "atu-taxis",
         title: "Taxis Autorizados (ATU)",
-        url: "https://soluciones.atu.gob.pe/ConsultaVehiculo",
+        url: "https://soluciones.atu.gob.pe/ConsultaVehiculo/",
         logo: "/assets/atu.png"
       },
       {
@@ -201,7 +201,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "cajamarca-papeleta",
         title: "Papeleta Cajamarca",
-        url: "https://www.satcajamarca.gob.pe/#/",
+        url: "https://www.satcajamarca.gob.pe/consultas",
         logo: "/assets/cajamarca.png"
       },
       {
@@ -237,7 +237,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "piura-papeleta",
         title: "Papeleta Piura",
-        url: "http://www.munipiura.gob.pe/consulta-de-multas-de-transito#buscar-por-placa",
+        url: "https://fiscalizacionelectronica.munipiura.gob.pe/",
         logo: "/assets/perushield.png"
       },
       {
@@ -255,7 +255,7 @@ export const SERVICES_DATA: ServiceSection[] = [
       {
         id: "trujillo-papeleta",
         title: "Papeleta Trujillo",
-        url: "https://satt.gob.pe/servicios/record-de-infracciones",
+        url: "https://digital.satt.gob.pe/pagos/",
         logo: "/assets/trujillo.png"
       }
     ]

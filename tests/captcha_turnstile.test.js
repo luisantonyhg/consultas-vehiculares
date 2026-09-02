@@ -46,6 +46,14 @@ test('Turnstile usa una sola estrategia de recuperación y el reset explícito s
   options['timeout-callback']();
   assert.equal(resetCalls, 0, 'los callbacks auto no deben competir con reset manual');
 
+  const retryProofPromise = captcha.waitForProof('', 1000);
+  await Promise.resolve();
+  options.callback('fresh-retry-token');
+  const retryProof = await retryProofPromise;
+  assert.equal(retryProof.valid, true);
+  assert.equal(retryProof.turnstileToken, 'fresh-retry-token');
+  assert.equal(resetCalls, 1, 'el reintento manual debe regenerar el desafío');
+
   await captcha.refresh();
-  assert.equal(resetCalls, 1, 'el token consumido sí se renueva explícitamente');
+  assert.equal(resetCalls, 2, 'el token consumido sí se renueva explícitamente');
 });

@@ -12,22 +12,20 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 10, id: 'placas_pe', phase: 'fast' },
     { position: 11, id: 'valor_venal', phase: 'fast' },
     { position: 12, id: 'osinergmin', phase: 'fast' },
-    { position: 13, id: 'lima', phase: 'advanced' },
-    { position: 14, id: 'sbs', phase: 'advanced' },
-    { position: 15, id: 'historial_dueños', phase: 'registry' },
-    { position: 16, id: 'lunas', phase: 'advanced' },
+    { position: 13, id: 'lunas', phase: 'fast' },
+    { position: 14, id: 'lima', phase: 'advanced' },
+    { position: 15, id: 'sbs', phase: 'advanced' },
+    { position: 16, id: 'historial_dueños', phase: 'registry' },
     { position: 17, id: 'sat_captura', phase: 'final' },
     { position: 18, id: 'sat_deposito', phase: 'final' },
 ]);
 
-// Primero la fuente avanzada de menor latencia observada. LUNAS queda después
-// del historial porque su CAPTCHA es el más variable (≈57-168 s), evitando
-// que bloquee la trazabilidad. Las dos secciones SAT permanecen al final.
+// LUNAS ya se lanzó en la fase rápida (posición 13), por lo que no debe esperar
+// a Lima, SBS ni al historial registral. Las dos secciones SAT permanecen al final.
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'lima',
     'sbs',
     'historial_dueños',
-    'lunas',
     'sat_captura',
     'sat_deposito',
 ]);

@@ -26,6 +26,14 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
     let challengeId = '';
     let loading = false;
     let resetting = false;
+    const proofWaiters = new Set();
+
+    function publishTurnstileToken(token) {
+        turnstileToken = token || '';
+        if (!turnstileToken) return;
+        for (const resolve of proofWaiters) resolve(turnstileToken);
+        proofWaiters.clear();
+    }
 
     async function resetTurnstile() {
         turnstileToken = '';
@@ -80,9 +88,7 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
                 'refresh-timeout': 'auto',
                 retry: 'auto',
                 'retry-interval': 3000,
-                callback: (token) => { 
-                    turnstileToken = token; 
-                },
+                callback: (token) => publishTurnstileToken(token),
                 'expired-callback': () => { 
                     // refresh-expired='auto' ya renueva el desafío.
                     turnstileToken = '';
@@ -153,6 +159,27 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
     });
     return {
         refresh,
+        async waitForProof(answer, timeoutMs = 120000) {
+            const current = this.getProof(answer);
+            if (current.valid || !siteKey) return current;
+
+            // Preparar un reto nuevo y esperar su callback permite que el
+            // reintento continúe automáticamente después de marcar Turnstile.
+            const token = await new Promise((resolve) => {
+                let settled = false;
+                const finish = (value) => {
+                    if (settled) return;
+                    settled = true;
+                    proofWaiters.delete(finish);
+                    clearTimeout(timer);
+                    resolve(value || '');
+                };
+                const timer = setTimeout(() => finish(''), timeoutMs);
+                proofWaiters.add(finish);
+                void resetTurnstile().catch(() => finish(''));
+            });
+            return { turnstileToken: token, valid: Boolean(token), mode: 'turnstile' };
+        },
         getProof(answer) {
             if (siteKey) return { turnstileToken, valid: Boolean(turnstileToken), mode: 'turnstile' };
             const normalized = String(answer || '').trim().toUpperCase();

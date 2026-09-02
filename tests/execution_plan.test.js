@@ -16,7 +16,7 @@ test('mantiene 18 secciones habilitadas en orden explícito', () => {
 
 test('Papeletas Lima, Lunas e historial se ejecutan antes que Captura/Depósito SAT', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'lima', 'sbs', 'historial_dueños', 'lunas', 'sat_captura', 'sat_deposito',
+    'lima', 'sbs', 'historial_dueños', 'sat_captura', 'sat_deposito',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('sat_captura'));
@@ -26,8 +26,9 @@ test('Papeletas Lima, Lunas e historial se ejecutan antes que Captura/Depósito 
   assert.deepEqual(ids.slice(-2), ['sat_captura', 'sat_deposito']);
 });
 
-test('LUNAS no bloquea el historial y las dos consultas SAT siguen absolutamente al final', () => {
+test('LUNAS se ejecuta en fase rápida y las dos consultas SAT siguen absolutamente al final', () => {
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
-  assert.ok(ids.indexOf('historial_dueños') < ids.indexOf('lunas'));
+  assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'fast');
+  assert.ok(ids.indexOf('lunas') < ids.indexOf('lima'));
   assert.deepEqual(ids.slice(-2), ['sat_captura', 'sat_deposito']);
 });
