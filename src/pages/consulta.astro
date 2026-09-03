@@ -173,10 +173,122 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             0%, 100% { transform: translateY(0) scale(1); }
             50% { transform: translateY(-3px) scale(1.012); }
         }
+
+        /* Marco interactivo de la placa de búsqueda */
+        .plate-input-card {
+            transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+        }
+        .plate-input-card:focus-within {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(255, 208, 0, 0.45);
+        }
     </style>
 </head>
 
 <body class="bg-slate-50 text-slate-800 transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
+
+    <!-- Modal de Novedades y Actualizaciones (Diseño Limpio, Blanco y Compacto) -->
+    <div id="updates-modal" class="fixed inset-0 z-[140] hidden items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm transition-all duration-300 font-poppins" role="dialog" aria-modal="true" aria-labelledby="updates-modal-title">
+        <div class="relative w-full max-w-[460px] overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl border border-slate-200">
+            <!-- Header Blanco y Elegante -->
+            <div class="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3.5">
+                <div class="flex items-center gap-2.5">
+                    <img src="/assets/logocanita.jpeg" alt="Logo Cañita" class="h-6 w-auto rounded object-contain" />
+                    <div>
+                        <h2 id="updates-modal-title" class="text-sm font-extrabold tracking-tight text-slate-900 leading-tight">
+                            Nuevas Actualizaciones Setiembre
+                        </h2>
+                        <p class="text-[10px] text-slate-400 font-medium">Validaciones oficiales en tiempo real · v2026</p>
+                    </div>
+                </div>
+                <button id="updates-modal-close" type="button" aria-label="Cerrar ventana" class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition active:scale-95 cursor-pointer">
+                    <i class="fas fa-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Listado Compacto con Logos Oficiales Reales -->
+            <div class="space-y-2 p-4 text-left">
+                <!-- Ítem 1: Papeletas Otras Municipalidades -->
+                <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 hover:bg-slate-50 transition">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 shadow-xs">
+                        <img src="/assets/munlima.png" alt="Municipalidades" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <h3 class="text-xs font-bold text-slate-800 truncate">Papeletas Otras Municipalidades</h3>
+                            <span class="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold text-blue-600 border border-blue-100 shrink-0">12 Provincias</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-tight truncate">Huancayo, Huánuco, Arequipa, Cusco, Piura, Tacna y más.</p>
+                    </div>
+                </div>
+
+                <!-- Ítem 2: Garantías Mobiliarias SIGM SUNARP -->
+                <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 hover:bg-slate-50 transition">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 shadow-xs">
+                        <img src="/assets/sunarp.jpeg" alt="SUNARP" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <h3 class="text-xs font-bold text-slate-800 truncate">Garantías Mobiliarias SUNARP</h3>
+                            <span class="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-700 border border-amber-200 shrink-0">SIGM Oficial</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-tight truncate">Verifica si el vehículo está prendado o tiene afectaciones.</p>
+                    </div>
+                </div>
+
+                <!-- Ítem 3: Deuda GNV (FISE Ahorro GNV) -->
+                <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 hover:bg-slate-50 transition">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 shadow-xs">
+                        <img src="/assets/fise.png" alt="FISE" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <h3 class="text-xs font-bold text-slate-800 truncate">Deuda GNV (FISE Ahorro GNV)</h3>
+                            <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700 border border-emerald-200 shrink-0">MINEM</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-tight truncate">Saldos pendientes, cronograma y recaudos en grifos.</p>
+                    </div>
+                </div>
+
+                <!-- Ítem 4: Requisitoria Policial PNP Asistida -->
+                <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 hover:bg-slate-50 transition">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 shadow-xs">
+                        <img src="/assets/logopnp.png" alt="PNP" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <h3 class="text-xs font-bold text-slate-800 truncate">Requisitoria Policial PNP</h3>
+                            <span class="rounded bg-rose-50 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-600 border border-rose-200 shrink-0">WhatsApp</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-tight truncate">Asesoría asistida para antecedentes policiales y capturas.</p>
+                    </div>
+                </div>
+
+                <!-- Ítem 5: ANÁLISIS INTELIGENTE DEL VEHÍCULO -->
+                <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 hover:bg-slate-50 transition">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 p-1 shadow-xs">
+                        <img src="/assets/logocanita.jpeg" alt="Cañita AI" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <h3 class="text-xs font-bold text-slate-800 truncate">ANÁLISIS INTELIGENTE DEL VEHÍCULO</h3>
+                            <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700 border border-emerald-200 shrink-0">Al Final</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-tight truncate">Índice integral de salud cruzando las 20 fuentes oficiales.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Blanco y Compacto -->
+            <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+                <span class="text-[10px] font-semibold text-slate-400">Consultas actualizadas en tiempo real</span>
+                <button id="updates-modal-accept" type="button" class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-black transition active:scale-95 cursor-pointer">
+                    <span>Entendido</span>
+                    <i class="fas fa-arrow-right text-[10px]"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <main class="w-full flex-1 flex flex-col items-center">
         {/* Banner Section */}
@@ -229,17 +341,35 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                     {/* Módulo de Búsqueda */}
                     <form id="query-form" class="mt-5 max-w-[340px] mx-auto bg-white/10 border border-white/20 p-4 rounded-2xl flex flex-col gap-4 shadow-lg focus-within:ring-2 focus-within:ring-brand-yellow/50 transition-all duration-300">
-                        {/* Input de Placa - Fila Superior */}
-                        <div class="w-full pb-3 border-b border-white/10">
-                            <input
-                                type="text"
-                                id="plate-search-input"
-                                placeholder="ABC-123"
-                                maxlength="7"
-                                class="w-full bg-white/5 border border-white/25 rounded-xl font-archivo text-xl text-white font-bold placeholder-white/30 uppercase text-center py-2.5 focus:ring-1 focus:ring-brand-yellow focus:border-brand-yellow focus:outline-none"
-                                required
-                                aria-label="Ingresa tu placa vehicular para consultar"
-                            />
+                        {/* Input de Placa con marco oficial peruano */}
+                        <div class="w-full pb-2">
+                            <label for="plate-search-input" class="block text-[10px] font-bold uppercase tracking-wider text-white/80 mb-1.5 text-center">
+                                Placa a Consultar
+                            </label>
+                            <div class="plate-input-card relative w-full max-w-[260px] mx-auto overflow-hidden rounded-xl shadow-md border-2 border-white/20 bg-white">
+                                <img src="/assets/PERU-PLACA-REGULAR.png" alt="Placa vehicular peruana" class="block h-auto w-full pointer-events-none select-none" />
+                                
+                                {/* Ventana editable donde el usuario tipea directamente la placa */}
+                                <div class="absolute left-[4.5%] right-[4.5%] top-[27%] bottom-[11%] flex items-center justify-center bg-white">
+                                    <input
+                                        type="text"
+                                        id="plate-search-input"
+                                        placeholder="ABC-123"
+                                        maxlength="7"
+                                        class="w-full h-full bg-transparent border-0 font-archivo text-2xl sm:text-3xl font-black text-slate-950 placeholder:text-slate-300 uppercase text-center tracking-[-0.04em] focus:outline-none focus:ring-0 p-0 selection:bg-brand-yellow/50"
+                                        required
+                                        autocomplete="off"
+                                        autocorrect="off"
+                                        spellcheck="false"
+                                        aria-label="Ingresa tu placa vehicular para consultar"
+                                    />
+                                </div>
+
+                                {/* Mini holograma superior derecho que replica la placa */}
+                                <div class="absolute right-[4.5%] top-[9%] flex h-[16%] min-w-[20%] items-center justify-center rounded-sm bg-slate-200 px-1 pointer-events-none select-none">
+                                    <span id="plate-search-mini" class="text-[8px] sm:text-[9px] font-black tracking-tight text-slate-500 uppercase">ABC-123</span>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Captcha de Seguridad - Fila del Medio */}
@@ -541,6 +671,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchSATCaptura,
             runFetchSATDeposito,
             runFetchMunicipal,
+            runFetchFISE,
+            runFetchSIGM,
             runFetchPlacasPE,
             runFetchValorVenal,
             fillValorVenalSoles,
@@ -562,6 +694,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
         import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER } from '../services/execution_plan.js';
         import { runOrderedWithConcurrency } from '../services/execution_scheduler.js';
+        import { calculateVehicleScore } from '../services/vehicle_score.js';
 
         // ====================================================
         // CONFIG
@@ -573,6 +706,26 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 ? 'http://localhost:8000/api/v1'
                 : 'https://backend-consultarvehiculos-production.up.railway.app/api/v1'
         );
+        const WHATSAPP_NUMBER = String(import.meta.env.PUBLIC_WHATSAPP_NUMBER || '51928701061').replace(/\D/g, '') || '51928701061';
+        const updatesModal = document.getElementById('updates-modal');
+        const closeUpdatesModal = () => {
+            updatesModal?.classList.add('hidden');
+            updatesModal?.classList.remove('flex');
+            document.body.style.overflow = '';
+            try { sessionStorage.setItem('canita_updates_2026_09', 'seen'); } catch {}
+        };
+        if (updatesModal) {
+            try {
+                if (!sessionStorage.getItem('canita_updates_2026_09')) {
+                    updatesModal.classList.remove('hidden');
+                    updatesModal.classList.add('flex');
+                    document.body.style.overflow = 'hidden';
+                }
+            } catch {}
+            document.getElementById('updates-modal-close')?.addEventListener('click', closeUpdatesModal);
+            document.getElementById('updates-modal-accept')?.addEventListener('click', closeUpdatesModal);
+            updatesModal.addEventListener('click', (event) => { if (event.target === updatesModal) closeUpdatesModal(); });
+        }
         let activeConsultationTicket: string | null = null;
         let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -601,9 +754,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         const drawCaptcha = captcha.refresh;
 
         // ====================================================
-        // FORMATO DE PLACA
+        // FORMATO DE PLACA Y REPLICACIÓN EN MINI HOLOGRAMA
         // ====================================================
         const plateInput = document.getElementById('plate-search-input') as HTMLInputElement;
+        const plateMini = document.getElementById('plate-search-mini');
         if (plateInput) {
             plateInput.addEventListener('input', () => {
                 // Se aceptan exactamente 6 caracteres alfanuméricos. El guion
@@ -612,9 +766,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     .replace(/[^A-Za-z0-9]/g, '')
                     .toUpperCase()
                     .slice(0, 6);
-                plateInput.value = cleanVal.length > 3
+                const formatted = cleanVal.length > 3
                     ? `${cleanVal.slice(0, 3)}-${cleanVal.slice(3)}`
                     : cleanVal;
+                plateInput.value = formatted;
+                if (plateMini) {
+                    plateMini.textContent = formatted || 'ABC-123';
+                }
             });
         }
 
@@ -622,6 +780,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // VEHICLE DATA ACCUMULATION
         // ====================================================
         let vehicleData: Record<string, any> = {};
+        let sectionResults: Record<string, any> = {};
         let queryAttempts: Record<string, number> = {};
         let currentSunarpValidation: 'found' | 'not_found' | 'indeterminate' = 'indeterminate';
 
@@ -840,6 +999,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             console.info(`[SECCION-INICIO] ${sectionId}`);
             try {
                 const result = await job();
+                sectionResults[sectionId] = result;
                 console.info(`[SECCION-FIN] ${sectionId}`, {
                     processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
                     success: result?.success !== false,
@@ -912,6 +1072,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function fetchMunicipal(plate: string) {
             return runFetchWithRetry('municipal', (callbacks) => runFetchMunicipal(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchFISE(plate: string) {
+            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchSIGM(plate: string) {
+            return runFetchWithRetry('sigm', (callbacks) => runFetchSIGM(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchPlacasPE(plate: string) {
@@ -1341,17 +1509,22 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="sigm-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                     <!-- 6. Seguridad y Combustible -->
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="pnp_contacto-card-container" data-status="funciona"></div>
 
-                    <!-- 7. Secciones en Desarrollo / Próximamente (agrupadas al final) -->
+                    <!-- 7. Secciones en Desarrollo / Próximamente -->
                     <div id="atu-card-container" data-status="development"></div>
                     <div id="sat_deuda-card-container" data-status="development"></div>
-                    <div id="fise-card-container" data-status="development"></div>
+                    <div id="fise-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+
+                    <!-- 8. ANÁLISIS INTELIGENTE DEL VEHÍCULO (Evaluación integral de todas las secciones al final) -->
+                    <div id="score-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>
@@ -1375,14 +1548,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 'SAT Lima',
                 'Esta verificación estará disponible próximamente. Actualmente no se ejecuta para proteger la velocidad y estabilidad de las demás consultas.'
             );
-            setCardComingSoon(
-                'fise',
-                'Deuda GNV (FISE Ahorro GNV)',
-                'Programa Ahorro GNV - MINEM',
-                'fas fa-gas-pump',
-                'FISE MINEM',
-                'Esta consulta estará disponible próximamente. Por ahora no se ejecuta para evitar demoras o resultados incompletos.'
-            );
+            const contactText = encodeURIComponent(`Hola, solicito validar si el vehículo de placa ${plate} tiene una requisitoria vehicular policial vigente en 2026.`);
+            const contactHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${contactText}`;
+            setCardData('pnp_contacto', 'Requisitoria Vehicular Policiales PNP', 'Validación policial vigente 2026', 'fab fa-whatsapp', '', 'Fuente policial cerrada',
+                `<div class="rounded-2xl border-2 border-rose-500 bg-rose-50/60 p-5 text-center font-poppins"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-600 text-2xl text-white shadow-md"><i class="fas fa-shield-halved"></i></div><h4 class="mt-3 text-sm font-black text-rose-900">Validación de requisitoria vehicular</h4><p class="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-slate-700">Si deseas saber si el vehículo de placa <strong>${plate}</strong> tiene una requisitoria vehicular policial vigente en 2026, escríbenos para asesorarte y apoyarte con la información correspondiente. Esta información proviene de una fuente cerrada.</p><a href="${contactHref}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-[#128C7E]"><i class="fab fa-whatsapp text-base"></i> Solicitar validación</a></div>`,
+                true, false, `<span class="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase text-white"><i class="fas fa-lock"></i> FUENTE CERRADA</span>`);
 
             if (!fromCache) {
                 setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
@@ -1393,6 +1563,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG');
                 setCardLoading('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC');
                 setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
+                setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
                 setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
@@ -1400,6 +1571,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
                 setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
+                setCardWaiting('sigm', 'Vehículo Prendado · Garantías Mobiliarias SUNARP', 'Consulta gratuita por bien', 'fas fa-file-shield', '', 'SIGM SUNARP', 'En espera (Fase avanzada)');
+                setCardWaiting('score', 'ANÁLISIS INTELIGENTE DEL VEHÍCULO', 'Diagnóstico Integral y Confianza', 'fas fa-gauge-high', '', 'Cañita', 'Consolidando fuentes');
 
                 setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 1)');
                 setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 2)');
@@ -1557,6 +1730,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                 // Reset vehicle info
                 vehicleData = {};
+                sectionResults = {};
                 currentSunarpValidation = 'indeterminate';
 
                 const captchaProof = captcha.getProof(captchaInput?.value || '');
@@ -1631,6 +1805,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         queryStatus.textContent = 'Validando la existencia de la placa en SUNARP...';
                         updateLoadingStatus('Validando placa en SUNARP...');
                         const sunarpResult = await fetchSUNARP(plate);
+                        sectionResults.sunarp = sunarpResult;
                         currentSunarpValidation = sunarpResult?.validation_status === 'found'
                             ? 'found'
                             : sunarpResult?.validation_status === 'not_found'
@@ -1684,11 +1859,20 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('soat_detallado', () => fetchSOATDetallado(plate)),
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
                             () => runSectionSafely('gnv', () => fetchGNV(plate)),
+                            () => runSectionSafely('fise', () => fetchFISE(plate)),
                             () => runSectionSafely('callao', () => fetchCallao(plate)),
                             () => runSectionSafely('sutran', () => fetchSutran(plate)),
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
                             () => runSectionSafely('municipal', () => fetchMunicipal(plate)),
-                            () => runSectionSafely('estado_placa', () => fetchEstadoPlacaYValor(plate)),
+                            () => runSectionSafely('placas_pe', async () => {
+                                const pd = await fetchPlacasPE(plate);
+                                return pd;
+                            }),
+                            () => runSectionSafely('valor_venal', async () => {
+                                const pdData = sectionResults.placas_pe?.data || {};
+                                const reference = resolveVehicleReference(pdData, vehicleData);
+                                return await fetchValorVenal(plate, reference.marca, reference.modelo, reference.anio);
+                            }),
                             () => runSectionSafely('osinergmin', () => fetchOsinergmin(plate)),
                             // LUNAS no consume Chromium; ejecutarla en la fase
                             // rápida evita que espere Lima, SBS e Historial.
@@ -1718,7 +1902,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno final)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno final)');
 
-                        console.info('[ORDEN-CONSULTA] 18 secciones:', ENABLED_EXECUTION_ORDER);
+                        console.info('[ORDEN-CONSULTA] 20 consultas automáticas:', ENABLED_EXECUTION_ORDER);
                         const advancedJobs: Record<string, () => Promise<any>> = {
                             sbs: () => fetchSBS(plate),
                             lima: () => {
@@ -1730,6 +1914,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 setCardLoading('historial_dueños', 'Historial de Dueños y Gravámenes', 'Analizando asientos y transferencias oficiales...', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
                                 return fetchHistorialDuenos(plate, detectedOffice);
                             },
+                            sigm: () => fetchSIGM(plate),
                             sat_captura: () => fetchSATCaptura(plate),
                             sat_deposito: () => fetchSATDeposito(plate),
                         };
@@ -1739,6 +1924,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             await runSectionSafely(sectionId, advancedJobs[sectionId]);
                             console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
                         }
+
+                        renderVehicleScore(plate);
 
                         // Guardar snapshot de resultados en localStorage
                         saveToCache(plate);
@@ -1845,6 +2032,21 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 errorMsg.textContent = err.message || 'Error de conexión con el servidor.';
             }
         };
+
+        function renderVehicleScore(plate: string) {
+            const { score, alerts, verified, failed } = calculateVehicleScore(sectionResults);
+            const tone = score > 70
+                ? { bg: 'bg-emerald-500', soft: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900', text: 'text-emerald-700 dark:text-emerald-400', label: 'Excelente condición global', icon: 'fa-circle-check' }
+                : score >= 50
+                    ? { bg: 'bg-amber-500', soft: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900', text: 'text-amber-700 dark:text-amber-400', label: 'Requiere revisión puntual', icon: 'fa-triangle-exclamation' }
+                    : { bg: 'bg-rose-600', soft: 'bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900', text: 'text-rose-700 dark:text-rose-400', label: 'Riesgo / Alertas críticas', icon: 'fa-circle-xmark' };
+            const alertHtml = alerts.length
+                ? alerts.map(item => `<li class="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 px-3 py-2 text-xs"><span><i class="fas fa-triangle-exclamation mr-2 text-rose-500"></i>${item.label}</span><strong class="text-rose-600 dark:text-rose-400 font-mono">-${item.points} pts</strong></li>`).join('')
+                : '<li class="rounded-lg bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><i class="fas fa-circle-check mr-2"></i>Sin observaciones detectadas en todas las fuentes evaluadas.</li>';
+            const content = `<div class="rounded-2xl border p-4 font-poppins ${tone.soft}"><div class="grid items-center gap-4 sm:grid-cols-[150px_1fr]"><div class="mx-auto flex h-32 w-32 flex-col items-center justify-center rounded-full border-[10px] border-white dark:border-slate-800 shadow-lg ${tone.bg} text-white"><strong class="text-4xl font-black leading-none">${score}%</strong><span class="mt-1 text-[10px] font-black uppercase tracking-widest">Confianza</span></div><div><span class="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-slate-900 px-3 py-1 text-[10px] font-black uppercase shadow-xs ${tone.text}"><i class="fas ${tone.icon}"></i>${tone.label}</span><h4 class="mt-3 text-lg font-black text-slate-900 dark:text-white">Diagnóstico Integral para ${plate}</h4><p class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">Evaluación consolidada en tiempo real: ${verified} registros verificados con éxito, considerando antecedentes policiales, papeletas provinciales, gravámenes SUNARP, garantías SIGM, siniestralidad SBS y deudas GNV.</p></div></div><ul class="mt-4 grid gap-2 sm:grid-cols-2">${alertHtml}</ul><p class="mt-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400"><strong>Nota de peritaje:</strong> este análisis calcula el porcentaje de salud administrativa y registral cruzando las 20 fuentes oficiales en tiempo real.</p></div>`;
+            const badge = `<span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-black uppercase text-white ${tone.bg}"><i class="fas ${tone.icon}"></i> ${score}% CONFIANZA</span>`;
+            setCardData('score', 'ANÁLISIS INTELIGENTE DEL VEHÍCULO', 'Evaluación consolidada y porcentaje de salud integral', 'fas fa-brain-circuit', '', 'Cañita AI', content, true, alerts.length > 0, badge);
+        }
 
         (window as any).abrirModalImagen = function(imgSrc: string, titleText: string = 'Foto Probatoria') {
             const modal = document.getElementById('papeleta-modal')!;

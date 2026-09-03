@@ -7,5 +7,6 @@ export * from './infracciones.js';
 export * from './tecnicas.js';
 export * from './municipales.js';
 export * from './fise.js';
+export * from './sigm.js';
 export * from './pnp.js';
 export * from './historial_duenos.js';

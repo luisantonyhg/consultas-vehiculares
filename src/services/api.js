@@ -10,6 +10,7 @@ import {
     initHistorialDuenosEvents
 } from '../utils/renderers.js';
 import { secureFetch } from './transport.js';
+export { runFetchSIGM } from './providers/sigm.js';
 export { setConsultationTicket } from './transport.js';
 export {
     acquireConsultationSlot,

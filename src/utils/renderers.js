@@ -53,6 +53,9 @@ export const LOGO_MAPPING = {
     valor_venal: '/assets/apeseg.png',
     osinergmin: '/assets/osinergmin.png',
     fise: '/assets/fise.png',
+    sigm: '/assets/sunarp.jpeg',
+    score: '/assets/logocanita.jpeg',
+    pnp_contacto: '/assets/logopnp.png',
     // pnp_req desactivado junto con su tarjeta.
     historial_dueños: '/assets/sunarp.jpeg'
 };
@@ -71,6 +74,7 @@ export const SOURCE_URLS = {
     atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo/',
     gnv: 'https://vh.infogas.com.pe/',
     fise: 'https://fise.minem.gob.pe:23308/consulta-taller/pages/consultaTaller/inicio',
+    sigm: 'https://sigm.sunarp.gob.pe/garantias-mobiliarias/inicio',
     sbs: 'https://servicios.sbs.gob.pe/reportesoat/',
     sunarp: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/inicio',
     vehiculo: 'https://consultavehicular.sunarp.gob.pe/consulta-vehicular/inicio',
@@ -96,6 +100,9 @@ export const SERVICE_COLORS = {
     atu:         { bg: 'bg-teal-50 dark:bg-teal-950/20',       icon: 'text-teal-600 dark:text-teal-400',       ring: 'ring-teal-200 dark:ring-teal-900' },
     gnv:         { bg: 'bg-green-50 dark:bg-green-950/20',     icon: 'text-green-600 dark:text-green-400',     ring: 'ring-green-200 dark:ring-green-900' },
     fise:        { bg: 'bg-sky-50 dark:bg-sky-950/20',         icon: 'text-sky-600 dark:text-sky-400',         ring: 'ring-sky-200 dark:ring-sky-900' },
+    sigm:        { bg: 'bg-lime-50 dark:bg-lime-950/20',       icon: 'text-lime-600 dark:text-lime-400',       ring: 'ring-lime-200 dark:ring-lime-900' },
+    score:       { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
+    pnp_contacto:{ bg: 'bg-rose-50 dark:bg-rose-950/20',       icon: 'text-rose-600 dark:text-rose-400',       ring: 'ring-rose-500 dark:ring-rose-800' },
     sbs:         { bg: 'bg-violet-50 dark:bg-violet-950/20',   icon: 'text-violet-600 dark:text-violet-400',   ring: 'ring-violet-200 dark:ring-violet-900' },
     sunarp:      { bg: 'bg-emerald-50 dark:bg-emerald-950/20', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-900' },
     vehiculo:    { bg: 'bg-slate-50 dark:bg-slate-950/20',     icon: 'text-slate-600 dark:text-slate-400',     ring: 'ring-slate-200 dark:ring-slate-900' },
@@ -317,27 +324,29 @@ export function reorderCards() {
             'valor_venal-card-container',
             'citv-card-container',
             'gnv-card-container',
+            'fise-card-container',
             'osinergmin-card-container',
             'sutran-card-container',
             'cinemometro-card-container',
             'callao-card-container',
             'municipal-card-container',
+            'sigm-card-container',
+            'pnp_contacto-card-container',
             'sat_captura-card-container',
             'sat_deposito-card-container',
             'lunas-card-container',
-            // Secciones futuras: siempre ocupan las últimas posiciones.
+            // Secciones futuras:
             'atu-card-container',
             'sat_deuda-card-container',
-            'fise-card-container'
+            // ANÁLISIS INTELIGENTE DEL VEHÍCULO: evaluación final consolidada de todo el peritaje
+            'score-card-container'
         ];
         const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
         return (_ia === -1 ? 999 : _ia) - (_ib === -1 ? 999 : _ib);
     });
     cards.forEach(card => wrapper.appendChild(card));
 
-    // Lunas se consulta al final por ser una fuente pesada. Cuando la fuente ya
-    // respondió correctamente, se presenta junto a Papeletas Lima SAT; mientras
-    // siga pendiente o falle, permanece al final sin alterar las demás tarjetas.
+    // Lunas se presenta junto a Papeletas Lima SAT si ya respondió correctamente
     const lunasCard = document.getElementById('lunas-card-container');
     const limaCard = document.getElementById('lima-card-container');
     if (lunasCard?.parentElement === wrapper) {
@@ -348,13 +357,17 @@ export function reorderCards() {
         }
     }
 
-    // Estas tarjetas son informativas y nunca participan en la consulta.
+    // Estas tarjetas son informativas y nunca participan en la consulta activa.
     const atuCard = document.getElementById('atu-card-container');
     const satDebtCard = document.getElementById('sat_deuda-card-container');
-    const fiseCard = document.getElementById('fise-card-container');
     if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
     if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
-    if (fiseCard?.parentElement === wrapper) wrapper.appendChild(fiseCard);
+
+    // ANÁLISIS INTELIGENTE DEL VEHÍCULO: SIEMPRE se ubica al final absoluto de todas las secciones
+    const scoreCard = document.getElementById('score-card-container');
+    if (scoreCard?.parentElement === wrapper) {
+        wrapper.appendChild(scoreCard);
+    }
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {
@@ -604,20 +617,20 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
     if (isMantenimiento) {
         container.setAttribute('data-status', 'mantenimiento');
         badgeHTML = `<button onclick="event.stopPropagation(); window.reintentarSeccion('${cardId}', '${plate}')" title="Reintentar esta consulta"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold bg-slate-900 hover:bg-black text-white shadow-sm uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer border border-slate-700">
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white shadow-sm uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer border border-amber-600">
             <i class="fas fa-rotate-right"></i> REINTENTAR
         </button>`;
         rightContent = `
             <div class="flex flex-col items-center justify-center text-center gap-3 py-6 font-poppins">
-                <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center mb-1">
-                    <i class="fas fa-wrench text-2xl text-slate-700 dark:text-slate-300 animate-pulse"></i>
+                <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-800 flex items-center justify-center mb-1">
+                    <i class="fas fa-screwdriver-wrench text-2xl text-amber-600 dark:text-amber-400"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">Servicio en Desarrollo</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 max-w-[300px] mx-auto leading-relaxed">${safeErrorMessage}</p>
+                    <p class="text-sm font-bold text-amber-800 dark:text-amber-300 leading-tight">Página Oficial en Mantenimiento</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-[340px] mx-auto leading-relaxed">${safeErrorMessage}</p>
                 </div>
                 <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                    class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
+                    class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
                     <i class="fas fa-rotate-right"></i> Reintentar Consulta
                 </button>
             </div>`;

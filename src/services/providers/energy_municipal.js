@@ -3,6 +3,7 @@ import { secureFetch } from '../transport.js';
 
 export const MUNICIPAL_SOURCE_URLS = Object.freeze({
     'Huánuco': 'https://www.munihuanuco.gob.pe/wp-content/servicios/transportes/gt_papeletas.php',
+    'Huancayo': 'https://estadocuentavirtual.sath.gob.pe/papeletastransito',
     'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
     'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
     'Cajamarca': 'https://www.satcajamarca.gob.pe/consultas',

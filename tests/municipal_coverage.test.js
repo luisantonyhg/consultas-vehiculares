@@ -11,7 +11,7 @@ test('sin registros municipales mantiene badge verde aunque alguna fuente no est
     globalThis.fetch = async () => new Response(JSON.stringify({
       success: true,
       coverage_status: 'PARTIAL',
-      municipios_total: 11,
+      municipios_total: 12,
       municipios_verificados: 7,
       municipios_no_disponibles: 4,
       data: [
@@ -39,10 +39,11 @@ test('sin registros municipales mantiene badge verde aunque alguna fuente no est
 });
 
 test('cada municipalidad tiene un formulario público explícito para verificar', () => {
-  assert.equal(Object.keys(MUNICIPAL_SOURCE_URLS).length, 11);
+  assert.equal(Object.keys(MUNICIPAL_SOURCE_URLS).length, 12);
   for (const [municipio, url] of Object.entries(MUNICIPAL_SOURCE_URLS)) {
     assert.ok(url.startsWith('https://'), `${municipio} debe usar HTTPS`);
   }
   assert.equal(MUNICIPAL_SOURCE_URLS.Cajamarca, 'https://www.satcajamarca.gob.pe/consultas');
   assert.equal(MUNICIPAL_SOURCE_URLS.Piura, 'https://fiscalizacionelectronica.munipiura.gob.pe/');
+  assert.equal(MUNICIPAL_SOURCE_URLS.Huancayo, 'https://estadocuentavirtual.sath.gob.pe/papeletastransito');
 });

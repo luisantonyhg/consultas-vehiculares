@@ -21,130 +21,160 @@ function fmtMoney(num) {
 export function renderFise(data, plate) {
     if (!data || !data.tiene_financiamiento) {
         return `
-        <div class="flex flex-col items-center justify-center py-6 px-4 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-2.5 ring-4 ring-emerald-50 dark:ring-emerald-900/20">
+        <div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-1 ring-4 ring-emerald-50 dark:ring-emerald-900/20">
                 <i class="fas fa-check-circle"></i>
             </div>
-            <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Sin Deuda ni Financiamiento FISE</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-                El vehículo con placa <strong>${escapeHTML(plate)}</strong> no registra saldos pendientes ni financiamiento en el programa Ahorro GNV (FISE).
+            <p class="font-bold text-slate-700 dark:text-slate-300 text-sm">Sin Deuda ni Financiamiento FISE</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 max-w-sm">
+                El vehículo con placa <strong class="font-mono text-slate-600 dark:text-slate-300">${escapeHTML(plate)}</strong> no registra saldos pendientes ni financiamiento activo en el programa Ahorro GNV (FISE).
             </p>
         </div>`;
     }
 
     const {
-        numeroDocumento,
-        nombreBeneficiario,
-        costoFinanciamiento,
-        montoPagado,
-        montoPendiente,
-        montoDeudaVencido,
-        montoCuotasTeorico,
+        costoFinanciamiento = 0,
+        montoPagado = 0,
+        montoPendiente = 0,
+        montoCuotasTeorico = 0,
+        montoDeudaVencido = 0,
         esPerdidaDescuentoProvincia,
         recaudos = []
     } = data;
 
-    // Resumen financiero en tarjetas KPI
-    const kpiCards = `
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/50">
-            <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block mb-0.5">Financiamiento</span>
-            <span class="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">${fmtMoney(costoFinanciamiento)}</span>
-        </div>
-        <div class="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40">
-            <span class="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">Total Pagado</span>
-            <span class="text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300">${fmtMoney(montoPagado)}</span>
-        </div>
-        <div class="p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40">
-            <span class="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block mb-0.5">Saldo Pendiente</span>
-            <span class="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300">${fmtMoney(montoPendiente)}</span>
-        </div>
-        <div class="p-2.5 rounded-xl ${montoDeudaVencido > 0 ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200/70 dark:border-rose-800/40' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/50'} border">
-            <span class="text-[10px] uppercase font-bold ${montoDeudaVencido > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500'} block mb-0.5">Deuda Vencida</span>
-            <span class="text-xs sm:text-sm font-bold ${montoDeudaVencido > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-700 dark:text-slate-200'}">${fmtMoney(montoDeudaVencido)}</span>
-        </div>
-    </div>`;
+    const safePlate = escapeHTML(data.placaVehiculo || plate || '—');
+    const tieneRetraso = Number(montoDeudaVencido || 0) > 0;
+    const estadoBadgeHtml = tieneRetraso
+        ? `<span class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+            <i class="fas fa-triangle-exclamation text-[8px]"></i> Retraso en pago: ${fmtMoney(montoDeudaVencido)}
+           </span>`
+        : `<span class="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+            <i class="fas fa-coins text-[8px]"></i> Saldo pendiente: ${fmtMoney(montoPendiente)}
+           </span>`;
 
-    // Información del titular y advertencias
-    let infoTitular = '';
-    if (nombreBeneficiario || numeroDocumento) {
-        infoTitular = `
-        <div class="mb-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div>
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Beneficiario:</span>
-                <strong class="text-slate-800 dark:text-slate-200 ml-1">${escapeHTML(nombreBeneficiario || '—')}</strong>
-            </div>
-            ${numeroDocumento ? `<div>
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Doc:</span>
-                <span class="font-mono font-bold text-slate-700 dark:text-slate-300 ml-1">${escapeHTML(numeroDocumento)}</span>
-            </div>` : ''}
-        </div>`;
-    }
-
-    let advertenciaProvincia = '';
-    if (esPerdidaDescuentoProvincia === 'S') {
-        advertenciaProvincia = `
-        <div class="mb-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
-            <i class="fas fa-triangle-exclamation text-amber-600 mt-0.5"></i>
-            <span><strong>Aviso FISE:</strong> Registra pérdida de bono/descuento por abastecimiento fuera de provincia de conversión.</span>
-        </div>`;
-    }
-
-    // Tabla de Recaudos
-    let tablaRecaudos = '';
+    // Tabla de Recaudos oficial formateada
+    let recaudosFilas = '';
     if (recaudos && recaudos.length > 0) {
-        const filas = recaudos.map((r, i) => `
-            <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors text-xs">
+        recaudosFilas = recaudos.map((r, i) => {
+            const ultimoRecaudoTexto = r.fechaUltimoRecaudo
+                ? `${escapeHTML(r.fechaUltimoRecaudo)}${r.montoUltimoRecaudo ? ` <span class="text-slate-500 font-semibold">(${fmtMoney(r.montoUltimoRecaudo)})</span>` : ''}`
+                : '—';
+            return `
+            <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors text-xs font-poppins">
                 <td class="py-2.5 px-3 font-semibold text-slate-500 dark:text-slate-400 text-center">${r.nro || (i + 1)}</td>
-                <td class="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">${escapeHTML(r.tipoRecaudo || 'Recaudo')}</td>
-                <td class="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-300 text-right">${fmtMoney(r.montoRecaudo)}</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">${escapeHTML(r.tipoRecaudo || 'Recarga GRIFOS')}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white text-right">${Number(r.montoRecaudo || 0).toFixed(2)}</td>
                 <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 text-center">${escapeHTML(r.fechaPrimerRecaudo || '—')}</td>
-                <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 text-center font-semibold">${r.cantidadRecaudo || 0}</td>
-                <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 text-right">
-                    <span>${escapeHTML(r.fechaUltimoRecaudo || '—')}</span>
-                    ${r.montoUltimoRecaudo ? `<span class="text-[11px] text-slate-400 block">(${fmtMoney(r.montoUltimoRecaudo)})</span>` : ''}
+                <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 text-center font-bold">${r.cantidadRecaudo || 0}</td>
+                <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 text-right font-medium">${ultimoRecaudoTexto}</td>
+            </tr>`;
+        }).join('');
+    } else {
+        recaudosFilas = `
+            <tr>
+                <td colspan="6" class="py-4 px-3 text-center text-xs text-slate-400 dark:text-slate-500">
+                    No se registran transacciones de recaudo para este financiamiento.
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+    }
 
-        tablaRecaudos = `
-        <div class="mt-2">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <i class="fas fa-list-check text-blue-500"></i> Historial de Recaudos
-                </span>
-                <span class="text-[11px] text-slate-400 dark:text-slate-500">${recaudos.length} registro(s)</span>
+    const advertenciaProvinciaHtml = esPerdidaDescuentoProvincia === 'S'
+        ? `<div class="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-300">
+            <i class="fas fa-triangle-exclamation text-rose-600 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+                <strong>Pérdida de Bono de Descuento:</strong> Se detectó abastecimiento fuera de provincia de conversión. El saldo se recalculó sin el subsidio estatal.
             </div>
-            <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800/70 shadow-xs">
+           </div>`
+        : '';
+
+    return `
+    <article class="font-poppins">
+        <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <!-- Header con estética automotriz como lunas polarizadas -->
+            <div class="relative flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 px-4 py-3 pr-16">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Programa Ahorro GNV · MINEM</span>
+                        ${estadoBadgeHtml}
+                    </div>
+                    <div class="mt-1 flex items-baseline gap-x-4 gap-y-1 flex-wrap">
+                        <p class="text-sm md:text-base font-black leading-tight text-slate-900 dark:text-white">Liquidación de Financiamiento</p>
+                        <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Placa: <strong class="font-mono text-xs text-slate-700 dark:text-slate-200">${safePlate}</strong></p>
+                    </div>
+                </div>
+                <img src="/assets/fise.png" alt="FISE Ahorro GNV" class="absolute right-3.5 top-1/2 h-8 w-auto -translate-y-1/2 rounded-md bg-white object-contain p-1 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700" />
+            </div>
+
+            <!-- Tabla de recaudos -->
+            <div class="overflow-x-auto border-b border-slate-200 dark:border-slate-800">
                 <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                     <thead>
-                        <tr class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                        <tr class="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                             <th class="py-2.5 px-3 text-center">Nro.</th>
                             <th class="py-2.5 px-3">Tipo recaudo</th>
-                            <th class="py-2.5 px-3 text-right">Monto recaudo</th>
-                            <th class="py-2.5 px-3 text-center">1er recaudo</th>
-                            <th class="py-2.5 px-3 text-center">Recargas</th>
+                            <th class="py-2.5 px-3 text-right">Monto recaudo (S/)</th>
+                            <th class="py-2.5 px-3 text-center">Fecha primer recaudo</th>
+                            <th class="py-2.5 px-3 text-center">Cantidad recargas</th>
                             <th class="py-2.5 px-3 text-right">Último recaudo</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${filas}
+                        ${recaudosFilas}
                     </tbody>
                 </table>
             </div>
-        </div>`;
-    } else {
-        tablaRecaudos = `
-        <div class="p-3 text-center rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-xs text-slate-400">
-            No se registran movimientos de recaudo para este financiamiento.
-        </div>`;
-    }
 
-    return `
-    <div class="font-poppins">
-        ${kpiCards}
-        ${infoTitular}
-        ${advertenciaProvincia}
-        ${tablaRecaudos}
-    </div>`;
+            <!-- Desglose oficial de amortización y cronograma -->
+            <div class="p-4 bg-slate-50/40 dark:bg-slate-950/20">
+                ${advertenciaProvinciaHtml}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-poppins">
+                    <!-- Columna izquierda: Estado del financiamiento total -->
+                    <div class="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-3 shadow-xs">
+                        <table class="w-full border-collapse">
+                            <tbody>
+                                <tr class="border-b border-slate-100 dark:border-slate-800/60">
+                                    <td class="py-2 text-slate-600 dark:text-slate-400 font-medium">Monto financiamiento (S/):</td>
+                                    <td class="py-2 text-right font-mono font-bold text-slate-900 dark:text-white">${Number(costoFinanciamiento || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr class="border-b border-slate-100 dark:border-slate-800/60">
+                                    <td class="py-2 text-slate-600 dark:text-slate-400 font-medium">Monto pagado (S/):</td>
+                                    <td class="py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">${Number(montoPagado || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr class="font-bold">
+                                    <td class="py-2 text-slate-900 dark:text-white">* Monto total pendiente de pago:</td>
+                                    <td class="py-2 text-right font-mono text-slate-900 dark:text-white text-sm">${Number(montoPendiente || 0).toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Columna derecha: Estado de cuotas a la fecha -->
+                    <div class="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-3 shadow-xs">
+                        <table class="w-full border-collapse">
+                            <tbody>
+                                <tr class="border-b border-slate-100 dark:border-slate-800/60">
+                                    <td class="py-2 text-slate-600 dark:text-slate-400 font-medium">Monto a pagar a la fecha (S/):</td>
+                                    <td class="py-2 text-right font-mono font-bold text-slate-900 dark:text-white">${Number(montoCuotasTeorico || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr class="border-b border-slate-100 dark:border-slate-800/60">
+                                    <td class="py-2 text-slate-600 dark:text-slate-400 font-medium">Monto total pagado (S/):</td>
+                                    <td class="py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">${Number(montoPagado || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr class="font-bold ${tieneRetraso ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}">
+                                    <td class="py-2">** Monto retrasado en pago a la fecha:</td>
+                                    <td class="py-2 text-right font-mono text-sm">${Number(montoDeudaVencido || 0).toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Notas y consideraciones oficiales -->
+                <div class="mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800/70 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed space-y-1">
+                    <p><strong>*</strong> Monto total a pagar en caso de que desee cancelar la totalidad del financiamiento.</p>
+                    <p><strong>**</strong> Monto retrasado en el pago con respecto a su cronograma de pagos de referencia.</p>
+                </div>
+            </div>
+        </div>
+    </article>`;
 }

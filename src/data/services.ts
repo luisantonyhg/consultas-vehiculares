@@ -74,6 +74,12 @@ export const SERVICES_DATA: ServiceSection[] = [
         title: "Alerta Robo (SUNARP)",
         url: "https://alertarobo.sunarp.gob.pe/alerta-robo/",
         logo: "/assets/sunarp.jpeg"
+      },
+      {
+        id: "sunarp-sigm",
+        title: "Vehículo Prendado · Garantías Mobiliarias SUNARP",
+        url: "https://sigm.sunarp.gob.pe/garantias-mobiliarias/inicio",
+        logo: "/assets/sunarp.jpeg"
       }
     ]
   },
@@ -192,6 +198,12 @@ export const SERVICES_DATA: ServiceSection[] = [
     title: "Papeletas en Provincias",
     icon: "fas fa-map-marked-alt",
     services: [
+      {
+        id: "huancayo-papeleta",
+        title: "Papeleta Huancayo (SATH)",
+        url: "https://estadocuentavirtual.sath.gob.pe/papeletastransito",
+        logo: "/assets/perushield.png"
+      },
       {
         id: "arequipa-papeleta",
         title: "Papeleta Arequipa",
