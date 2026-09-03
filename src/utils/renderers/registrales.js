@@ -363,7 +363,7 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     let tableHtml = '';
     if (rowsHtml) {
         tableHtml = `
-        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+        <div class="hidden rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
             <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                 <tbody>
                     ${rowsHtml}

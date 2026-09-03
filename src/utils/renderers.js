@@ -357,17 +357,17 @@ export function reorderCards() {
         }
     }
 
-    // Estas tarjetas son informativas y nunca participan en la consulta activa.
-    const atuCard = document.getElementById('atu-card-container');
-    const satDebtCard = document.getElementById('sat_deuda-card-container');
-    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
-    if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
-
-    // ANÁLISIS INTELIGENTE DEL VEHÍCULO: SIEMPRE se ubica al final absoluto de todas las secciones
+    // ANÁLISIS INTELIGENTE DEL VEHÍCULO: Ubicado al final de todas las consultas activas (antes de Próximamente)
     const scoreCard = document.getElementById('score-card-container');
     if (scoreCard?.parentElement === wrapper) {
         wrapper.appendChild(scoreCard);
     }
+
+    // Secciones informativas 'PRÓXIMAMENTE': Siempre se ubican al final absoluto de la pantalla.
+    const atuCard = document.getElementById('atu-card-container');
+    const satDebtCard = document.getElementById('sat_deuda-card-container');
+    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
+    if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {
