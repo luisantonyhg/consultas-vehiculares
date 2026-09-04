@@ -447,31 +447,21 @@ export function buildSPRLStatusBadge(data) {
     const totalDuenos = etapas || (anteriores > 0 ? anteriores + 1 : null) || data?.resumen?.total_propietarios || data?.resumen?.total_duenos;
 
     const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
-    const classes = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white shadow-sm uppercase tracking-wider';
+    const num = totalDuenos || anteriores || totalAsientos || 1;
 
-    let countLabel = '';
-    if (totalDuenos && totalDuenos > 0) {
-        countLabel = `${totalDuenos} DUEÑO${totalDuenos === 1 ? '' : 'S'} · `;
-    } else if (anteriores > 0) {
-        countLabel = `${anteriores} DUEÑO${anteriores === 1 ? '' : 'S'} ANTERIOR${anteriores === 1 ? '' : 'ES'} · `;
-    } else if (totalAsientos) {
-        countLabel = `${totalAsientos} ASIENTOS · `;
-    }
-
+    // Solo cuando tiene gravámenes vigentes se pinta en rojo con CON GRAVÁMENES
     if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes !== undefined && gravamenes > 0)) {
-        return `<span class="${classes} bg-rose-600"><i class="fas fa-triangle-exclamation"></i> ${countLabel}CON GRAVÁMENES</span>`;
-    }
-    if (encumbrancesStatus === 'VERIFIED_NONE' || (encumbrancesStatus === 'VERIFIED' && gravamenes === 0)) {
-        return `<span class="${classes} bg-emerald-500"><i class="fas fa-circle-check"></i> ${countLabel}SIN GRAVÁMENES</span>`;
+        return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-rose-600 text-center leading-none">
+            <span class="inline-flex items-center gap-1 text-[9px] font-black"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>
+            <span class="text-[8px] font-bold tracking-tight text-rose-100 mt-0.5">${num} DUEÑO${num === 1 ? '' : 'S'} ANTERIORES</span>
+        </span>`;
     }
 
-    // Tener asientos o datos básicos no demuestra ausencia de gravámenes.
-    // PARTIAL_RESULT y cualquier estado no verificado se muestran siempre como
-    // pendientes para evitar una conclusión verde falsa.
-    const partialLabel = countLabel
-        ? `${countLabel}GRAVÁMENES PENDIENTES`
-        : 'VERIFICACIÓN DE GRAVÁMENES PENDIENTE';
-    return `<span class="${classes} bg-amber-500"><i class="fas fa-clock"></i> ${partialLabel}</span>`;
+    // Sin gravámenes: Muestra directamente "[N] DUEÑOS" con "ANTERIORES" en salto abajo, sin la frase "sin gravamenes"
+    return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-emerald-600 text-center leading-none">
+        <span class="text-[10px] font-black">${num} DUEÑO${num === 1 ? '' : 'S'}</span>
+        <span class="text-[8px] font-bold tracking-tight text-emerald-100 mt-0.5">ANTERIORES</span>
+    </span>`;
 }
 
 export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina = '') {
