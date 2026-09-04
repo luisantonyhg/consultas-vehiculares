@@ -20,22 +20,34 @@ export function renderCallao(data, plate, total) {
             <p class="text-xs text-slate-400 dark:text-slate-500">No se registraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong> en el Callao</p>
         </div>`;
     }
-    const rows = data.map((p) => `
+    const rows = data.map((p) => {
+        const docIdentifier = p.nroPapeleta || p.detalleUrl || '';
+        const insoluto = p.importe || p.insoluto || p.total || '0.00';
+        const totalPagar = p.totalPagar || p.total || insoluto;
+        const fecha = p.fechaInfraccion || p.fecha || '-';
+        return `
         <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-red-50/50 dark:hover:bg-rose-950/10 transition-colors duration-150 font-poppins">
-            <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-slate-850 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.nroPapeleta || '-'}</td>
-            <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-semibold text-slate-655 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigo || '-'}</td>
-            <td class="py-1.5 px-1.5 text-[9px] md:text-xs text-slate-550 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.fechaInfraccion || '-'}</td>
-            <td class="py-1.5 px-1.5 text-[9px] md:text-xs font-bold text-red-655 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${p.total || '0'}</td>
-            <td class="py-1.5 px-1.5 text-center">
-                ${p.detalleUrl ? `
-                    <button data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(p.detalleUrl))}"
-                        class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900 transition-all active:scale-95 shadow-sm"
-                        title="Ver papeleta">
-                        <i class="fas fa-file-image text-[10px]"></i>
+            <td class="py-2 px-2 text-[10px] md:text-xs font-black text-slate-900 dark:text-slate-100 border-r border-slate-100 dark:border-slate-800 leading-tight">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] font-bold text-slate-800 dark:text-slate-200">${p.nroPapeleta || '-'}</span>
+                ${p.nroCuota ? `<span class="block text-[8px] text-slate-400 font-medium">Cuota: ${p.nroCuota}</span>` : ''}
+            </td>
+            <td class="py-2 px-2 text-[10px] md:text-xs font-extrabold text-amber-700 dark:text-amber-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigo || '-'}</td>
+            <td class="py-2 px-2 text-[10px] md:text-xs text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap">${fecha}</td>
+            <td class="py-2 px-2 text-[10px] md:text-xs font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${insoluto}</td>
+            <td class="py-2 px-2 text-[10px] md:text-xs font-black text-red-600 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${totalPagar}</td>
+            <td class="py-2 px-2 text-center">
+                ${docIdentifier ? `
+                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}"
+                        class="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-xs text-[10px] font-bold"
+                        title="Ver Documento de la Papeleta ${docIdentifier}">
+                        <i class="fas fa-file-pdf text-[11px]"></i>
+                        <span class="hidden sm:inline">Ver</span>
                     </button>
                 ` : '<span class="text-slate-300 dark:text-slate-700 text-[10px]">—</span>'}
             </td>
-        </tr>`).join('');
+        </tr>`;
+    }).join('');
+
     return `
         <div class="flex items-start justify-between mb-4 gap-3 font-poppins px-1">
             <div>
@@ -48,16 +60,17 @@ export function renderCallao(data, plate, total) {
                 <p class="text-[8px] text-red-500 mt-0.5 font-bold uppercase tracking-wider">⚠ PAGA O EVITA EMBARGO</p>
             </div>
         </div>
-        <div class="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+        <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm">
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 table-fixed">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 min-w-[580px]">
                     <thead>
                         <tr class="bg-slate-900 dark:bg-slate-955 text-white">
-                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[28%]">Papeleta</th>
-                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[18%]">Código</th>
-                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[24%]">Fecha</th>
-                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 w-[20%]">Total</th>
-                            <th class="py-2 px-1.5 text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-center w-[10%]">Doc.</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Papeleta</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Código</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Fecha Infracción</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Insoluto</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Total a Pagar</th>
+                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-center">Documento</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -539,12 +552,31 @@ export function renderSBS(data, plate) {
             </div>`;
         } else {
             // Tabla oficial responsive: en móvil conserva todas las columnas
-            // mediante desplazamiento horizontal y marca exclusivamente la
-            // columna de siniestros, sin confundir pólizas con accidentes.
-            const headers = [...new Set(rows.flatMap(row => Object.keys(row || {})))]
+            // mediante desplazamiento horizontal y posiciona la columna de siniestros
+            // al costado de la Compañía Aseguradora.
+            const rawHeaders = [...new Set(rows.flatMap(row => Object.keys(row || {})))]
                 .filter(key => key !== 'dias_para_vencer');
-            const accidentHeader = headers.find(key => /accident|siniest/i.test(key));
-            const displayHeaders = accidentHeader ? headers : [...headers, 'Siniestros reportados'];
+            const accidentHeader = rawHeaders.find(key => /accident|siniest/i.test(key));
+            const targetAccidentHeader = accidentHeader || 'Siniestros reportados';
+
+            // Remueve la columna de accidente de los headers base para recolocarla
+            const nonAccidentHeaders = rawHeaders.filter(k => k !== accidentHeader);
+
+            // Busca la columna de Compañía Aseguradora
+            const compIdx = nonAccidentHeaders.findIndex(k => /asegurad|compañ|compan|empresa/i.test(k));
+
+            const displayHeaders = [];
+            if (compIdx !== -1) {
+                displayHeaders.push(...nonAccidentHeaders.slice(0, compIdx + 1));
+                displayHeaders.push(targetAccidentHeader);
+                displayHeaders.push(...nonAccidentHeaders.slice(compIdx + 1));
+            } else {
+                if (nonAccidentHeaders.length > 0) {
+                    displayHeaders.push(nonAccidentHeaders[0], targetAccidentHeader, ...nonAccidentHeaders.slice(1));
+                } else {
+                    displayHeaders.push(targetAccidentHeader);
+                }
+            }
 
             const accidentCell = (rawValue) => {
                 const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);
@@ -567,8 +599,8 @@ export function renderSBS(data, plate) {
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         ${rows.map((row, rowIndex) => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                             ${displayHeaders.map((header, columnIndex) => {
-                                const isAccident = header === accidentHeader || header === 'Siniestros reportados';
-                                const rawValue = header === 'Siniestros reportados'
+                                const isAccident = header === targetAccidentHeader || header === accidentHeader;
+                                const rawValue = (header === 'Siniestros reportados' && !row?.[header])
                                     ? (rowIndex === 0 ? (acc === null ? '—' : acc) : '—')
                                     : row?.[header];
                                 const value = rawValue === null || rawValue === undefined || rawValue === '' ? '—' : String(rawValue);

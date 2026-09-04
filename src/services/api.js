@@ -436,22 +436,40 @@ export async function runFetchPNP(plate, BACKEND_URL, callbacks) {
 export function buildSPRLStatusBadge(data) {
     const encumbrancesStatus = data?.gravamenes?.status || data?.verification?.encumbrances_history || 'NOT_VERIFIED';
     const gravamenes = data?.resumen?.gravamenes_vigentes;
+    
+    // Contabilizar dueños / etapas de titularidad / dueños anteriores
+    const ownership = data?.ownership_history || {};
+    const legacyPropiedad = data?.propiedad || {};
+    const anteriores = Array.isArray(ownership.previous) 
+        ? ownership.previous.length 
+        : (Array.isArray(legacyPropiedad.anteriores) ? legacyPropiedad.anteriores.length : 0);
+    const etapas = data?.resumen?.etapas_titularidad ?? ownership.stage_count ?? (Array.isArray(ownership.stages) ? ownership.stages.length : null);
+    const totalDuenos = etapas || (anteriores > 0 ? anteriores + 1 : null) || data?.resumen?.total_propietarios || data?.resumen?.total_duenos;
+
     const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
     const classes = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white shadow-sm uppercase tracking-wider';
 
+    let countLabel = '';
+    if (totalDuenos && totalDuenos > 0) {
+        countLabel = `${totalDuenos} DUEÑO${totalDuenos === 1 ? '' : 'S'} · `;
+    } else if (anteriores > 0) {
+        countLabel = `${anteriores} DUEÑO${anteriores === 1 ? '' : 'S'} ANTERIOR${anteriores === 1 ? '' : 'ES'} · `;
+    } else if (totalAsientos) {
+        countLabel = `${totalAsientos} ASIENTOS · `;
+    }
+
     if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes !== undefined && gravamenes > 0)) {
-        return `<span class="${classes} bg-rose-600"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`;
+        return `<span class="${classes} bg-rose-600"><i class="fas fa-triangle-exclamation"></i> ${countLabel}CON GRAVÁMENES</span>`;
     }
     if (encumbrancesStatus === 'VERIFIED_NONE' || (encumbrancesStatus === 'VERIFIED' && gravamenes === 0)) {
-        const seatLabel = totalAsientos ? `${totalAsientos} ASIENTOS · ` : '';
-        return `<span class="${classes} bg-emerald-500"><i class="fas fa-circle-check"></i> ${seatLabel}SIN GRAVÁMENES VERIFICADO</span>`;
+        return `<span class="${classes} bg-emerald-500"><i class="fas fa-circle-check"></i> ${countLabel}SIN GRAVÁMENES</span>`;
     }
 
     // Tener asientos o datos básicos no demuestra ausencia de gravámenes.
     // PARTIAL_RESULT y cualquier estado no verificado se muestran siempre como
     // pendientes para evitar una conclusión verde falsa.
-    const partialLabel = totalAsientos
-        ? `${totalAsientos} ASIENTOS · GRAVÁMENES PENDIENTES`
+    const partialLabel = countLabel
+        ? `${countLabel}GRAVÁMENES PENDIENTES`
         : 'VERIFICACIÓN DE GRAVÁMENES PENDIENTE';
     return `<span class="${classes} bg-amber-500"><i class="fas fa-clock"></i> ${partialLabel}</span>`;
 }
