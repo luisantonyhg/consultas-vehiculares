@@ -131,13 +131,29 @@ export function getFormattedTimestamp() {
 }
 
 export function parseDateDDMMYYYY(dateStr) {
-    if (!dateStr) return new Date(0);
-    const parts = dateStr.trim().split('/');
-    if (parts.length !== 3) return new Date(0);
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    return new Date(year, month, day);
+    const invalidDate = () => new Date(Number.NaN);
+    if (typeof dateStr !== 'string') return invalidDate();
+
+    const value = dateStr.trim().split(' ')[0];
+    const peMatch = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (!peMatch && !isoMatch) return invalidDate();
+
+    const day = Number(peMatch ? peMatch[1] : isoMatch[3]);
+    const month = Number(peMatch ? peMatch[2] : isoMatch[2]) - 1;
+    const year = Number(peMatch ? peMatch[3] : isoMatch[1]);
+    const parsed = new Date(year, month, day);
+
+    // Date normaliza silenciosamente fechas imposibles (31/02 -> marzo).
+    // Rechazarlas evita convertir respuestas incompletas en datos inventados.
+    if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month ||
+        parsed.getDate() !== day
+    ) {
+        return invalidDate();
+    }
+    return parsed;
 }
 
 export function fila(label, value) {
@@ -323,6 +339,7 @@ export function reorderCards() {
             'sbs-card-container',
             'valor_venal-card-container',
             'citv-card-container',
+            'atu-card-container',
             'gnv-card-container',
             'fise-card-container',
             'osinergmin-card-container',
@@ -336,7 +353,6 @@ export function reorderCards() {
             'sat_deposito-card-container',
             'lunas-card-container',
             // Secciones futuras:
-            'atu-card-container',
             'sat_deuda-card-container',
             // ANÁLISIS INTELIGENTE DEL VEHÍCULO: evaluación final consolidada de todo el peritaje
             'score-card-container'
@@ -364,9 +380,7 @@ export function reorderCards() {
     }
 
     // Secciones informativas 'PRÓXIMAMENTE': Siempre se ubican al final absoluto de la pantalla.
-    const atuCard = document.getElementById('atu-card-container');
     const satDebtCard = document.getElementById('sat_deuda-card-container');
-    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
     if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
 }
 
@@ -513,7 +527,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
                 let text = 'CON REGISTROS';
                 if (cardId === 'soat') text = 'ACTIVO';
                 if (cardId === 'citv') text = 'VIGENTE';
-                if (cardId === 'atu') text = 'HABILITADO';
+                if (cardId === 'atu') text = 'AUTORIZADO COMO TAXI';
                 badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-circle-check"></i> ${text}
                 </span>`;
@@ -521,12 +535,12 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
         } else {
             let text = 'SIN REGISTROS';
             if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') text = 'SIN PAPELETAS';
-            if (cardId === 'atu') text = 'NO REGISTRADO';
+            if (cardId === 'atu') text = 'NO INSCRITO COMO TAXI';
             if (cardId === 'lunas') text = 'SIN PERMISO';
             if (cardId === 'citv') text = 'SIN INSPECCIÓN';
 
             const rojoSinDato = (cardId === 'soat' || cardId === 'citv' || cardId === 'lunas');
-            const verdeSinDato = (text === 'SIN PAPELETAS' || text === 'NO REGISTRADO'
+            const verdeSinDato = (text === 'SIN PAPELETAS' || text === 'NO INSCRITO COMO TAXI'
                 || cardId === 'gnv' || cardId === 'osinergmin');
 
             if (rojoSinDato) {

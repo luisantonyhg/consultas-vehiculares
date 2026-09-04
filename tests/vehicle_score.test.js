@@ -18,7 +18,8 @@ test('las fuentes caídas reducen confianza sin inventar hallazgos', () => {
     citv: { success: false },
     sigm: { success: false },
   });
-  assert.equal(result.score, 70);
+  assert.equal(result.score, 100);
+  assert.equal(result.coveragePercent, 0);
   assert.equal(result.failed, 3);
   assert.equal(result.alerts.length, 0);
 });
@@ -29,6 +30,13 @@ test('garantía, captura y siniestro producen un índice rojo y explicable', () 
     sat_captura: { success: true, captura: { tiene: true } },
     sbs: { success: true, soat: { total_accidentes: 1 } },
   });
-  assert.equal(result.score, 30);
-  assert.deepEqual(result.alerts.map(item => item.points), [25, 15, 30]);
+  assert.equal(result.score, 45);
+  assert.deepEqual(result.alerts.map(item => item.points), [25, 20, 10]);
+});
+
+test('dataset de regresión del plan conserva la matriz de riesgo', () => {
+  assert.equal(calculateVehicleScore({}).score, 100);
+  assert.equal(calculateVehicleScore({ soat: { success: true, data: [] } }).score, 90);
+  assert.equal(calculateVehicleScore({ sat_captura: { success: true, captura: { tiene: true } } }).score, 75);
+  assert.equal(calculateVehicleScore({ lunas: { success: true, data: { tiene_autorizacion: false } } }).score, 98);
 });

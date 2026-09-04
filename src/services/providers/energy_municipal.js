@@ -95,7 +95,10 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
 export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 40000);
+    // Doce portales se consultan en paralelo y algunos requieren reintento de
+    // conexión. No abortar el agregado mientras el backend aún está dentro de
+    // su presupuesto; la tarjeta se actualiza sin retener el modal SUNARP.
+    const timeoutId = setTimeout(() => controller.abort(), 85000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);

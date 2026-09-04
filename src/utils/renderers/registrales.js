@@ -200,19 +200,48 @@ export function renderSOATDetallado(result, plate) {
         const active = estadoActivo(cert.estado);
         const badgeClass = active ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
         const estadoText = String(cert.estado || '').toUpperCase() || (active ? 'ACTIVO' : 'VENCIDO');
-        return `<article class="overflow-hidden rounded-xl border ${active ? 'border-emerald-300 dark:border-emerald-800' : 'border-rose-200 dark:border-rose-950/60'} bg-white shadow-sm dark:bg-slate-900">
-            <div class="flex items-start justify-between gap-2 border-b ${active ? 'border-emerald-100 dark:border-emerald-950/40' : 'border-rose-100 dark:border-rose-950/40'} px-3 py-2.5">
-                <div class="min-w-0">
-                    <p class="text-[9px] font-extrabold uppercase tracking-[.16em] ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">Certificado histórico #${index + 1}</p>
-                    <p class="truncate text-sm font-black text-slate-900 dark:text-white">${safe(cert.compania)}</p>
+        const contratante = cert.contratante || cert.Contratante || 'No informado';
+        const ubigeo = cert.ubigeo || cert.Ubigeo || 'No informado';
+
+        return `<article class="overflow-hidden rounded-xl border ${active ? 'border-emerald-300 dark:border-emerald-800' : 'border-rose-200 dark:border-rose-950/60'} bg-white shadow-sm dark:bg-slate-900 font-poppins">
+            <div class="border-b ${active ? 'border-emerald-100 dark:border-emerald-950/40 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-rose-100 dark:border-rose-950/40 bg-rose-50/30 dark:bg-rose-950/10'} px-3.5 py-3">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0 flex-1">
+                        <span class="text-[9px] font-extrabold uppercase tracking-[.16em] ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">
+                            Certificado histórico #${index + 1}
+                        </span>
+                        <h4 class="text-sm font-black text-slate-900 dark:text-white leading-snug mt-0.5">${safe(cert.compania)}</h4>
+                    </div>
+                    <span class="shrink-0 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}">
+                        <i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} mr-1"></i>${safe(estadoText)}
+                    </span>
                 </div>
-                <span class="shrink-0 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}"><i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} mr-1"></i>${safe(estadoText)}</span>
+
+                <!-- Bloque destacado: Quién compra y Lugar de compra -->
+                <div class="mt-2.5 pt-2 border-t border-slate-200/70 dark:border-slate-800/80 flex flex-col gap-1.5">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white/80 dark:bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                        <i class="fas fa-user-check text-blue-500 text-[11px] shrink-0"></i>
+                        <div class="min-w-0 flex-1">
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Quién compra (Contratante)</span>
+                            <span class="truncate font-black text-slate-900 dark:text-white block">${safe(contratante)}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white/60 dark:bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-200/40 dark:border-slate-800/60">
+                        <i class="fas fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+                        <div class="min-w-0 flex-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Lugar de compra</span>
+                            <span class="truncate font-bold text-slate-700 dark:text-slate-200 block">${safe(ubigeo)}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
             <table class="w-full table-fixed border-collapse text-left"><tbody>
-                ${fila('Inicio', safe(cert.inicio))}${fila('Fin', safe(cert.fin))}
-                ${fila('Contratante', safe(cert.contratante))}${fila('Uso', safe(cert.uso))}
-                ${fila('Clase', safe(cert.clase))}${fila('Ubigeo', safe(cert.ubigeo))}
-                ${fila('Tipo', safe(cert.tipo))}
+                ${fila('Vigencia Inicio', safe(cert.inicio))}
+                ${fila('Vigencia Fin', safe(cert.fin))}
+                ${fila('Uso del Vehículo', safe(cert.uso))}
+                ${fila('Clase Vehicular', safe(cert.clase))}
+                ${fila('Tipo de Certificado', safe(cert.tipo))}
             </tbody></table>
         </article>`;
     }).join('');
@@ -221,14 +250,36 @@ export function renderSOATDetallado(result, plate) {
         const active = estadoActivo(cert.estado);
         const badgeClass = active ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
         const estadoText = String(cert.estado || '').toUpperCase() || (active ? 'ACTIVO' : 'VENCIDO');
-        const values = [cert.compania, cert.inicio, cert.fin, cert.contratante, cert.uso, cert.clase, cert.ubigeo, cert.tipo];
-        return `<tr class="border-b border-slate-100 last:border-0 dark:border-slate-800 ${active ? 'bg-emerald-50/30 dark:bg-emerald-950/15' : ''}">
-            ${values.map((value, i) => `<td class="px-2.5 py-2.5 align-middle text-[10px] leading-snug ${i === 0 ? 'font-extrabold text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300'}">${safe(value)}</td>`).join('')}
-            <td class="px-2.5 py-2.5 align-middle"><span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}"><i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} text-[8px]"></i>${safe(estadoText)}</span></td>
+        const contratante = cert.contratante || cert.Contratante || 'No informado';
+        const ubigeo = cert.ubigeo || cert.Ubigeo || 'No informado';
+
+        return `<tr class="border-b border-slate-100 last:border-0 dark:border-slate-800 ${active ? 'bg-emerald-50/30 dark:bg-emerald-950/15' : ''} font-poppins">
+            <!-- Compañía, Quién compra y Lugar de compra enriquecidos -->
+            <td class="px-3.5 py-3 align-middle max-w-[280px]">
+                <p class="font-black text-xs text-slate-900 dark:text-white leading-tight">${safe(cert.compania)}</p>
+                <div class="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-slate-800 dark:text-slate-200">
+                    <i class="fas fa-user-check text-[9px] text-blue-500 shrink-0"></i>
+                    <span class="truncate" title="Contratante: ${safe(contratante)}">${safe(contratante)}</span>
+                </div>
+                <div class="mt-0.5 flex items-center gap-1.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400">
+                    <i class="fas fa-location-dot text-[8px] text-rose-500 shrink-0"></i>
+                    <span class="truncate" title="Lugar: ${safe(ubigeo)}">${safe(ubigeo)}</span>
+                </div>
+            </td>
+            <td class="px-2.5 py-3 align-middle text-[10px] font-semibold text-slate-700 dark:text-slate-300">${safe(cert.inicio)}</td>
+            <td class="px-2.5 py-3 align-middle text-[10px] font-semibold text-slate-700 dark:text-slate-300">${safe(cert.fin)}</td>
+            <td class="px-2.5 py-3 align-middle text-[10px] font-semibold text-slate-700 dark:text-slate-300">${safe(cert.uso)}</td>
+            <td class="px-2.5 py-3 align-middle text-[10px] font-semibold text-slate-700 dark:text-slate-300">${safe(cert.clase)}</td>
+            <td class="px-2.5 py-3 align-middle text-[10px] font-semibold text-slate-700 dark:text-slate-300">${safe(cert.tipo)}</td>
+            <td class="px-2.5 py-3 align-middle">
+                <span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[9px] font-extrabold uppercase shadow-xs ${badgeClass}">
+                    <i class="${active ? 'fas fa-circle-check' : 'fas fa-circle-xmark'} text-[8px]"></i>${safe(estadoText)}
+                </span>
+            </td>
         </tr>`;
     }).join('');
 
-    const siniestrosBlock = siniestros.length ? `<section class="mt-4 overflow-hidden rounded-xl border border-rose-200 dark:border-rose-900/60">
+    const siniestrosBlock = siniestros.length ? `<section class="mt-4 overflow-hidden rounded-xl border border-rose-200 dark:border-rose-900/60 font-poppins">
         <div class="flex items-center justify-between bg-rose-50 px-3 py-2.5 dark:bg-rose-950/30">
             <div><p class="text-[9px] font-extrabold uppercase tracking-[.16em] text-rose-500">Siniestros reportados</p><p class="text-xs font-bold text-slate-700 dark:text-slate-200">${siniestros.length} registro${siniestros.length === 1 ? '' : 's'} encontrado${siniestros.length === 1 ? '' : 's'}</p></div>
             <i class="fas fa-car-burst text-rose-500"></i>
@@ -246,7 +297,14 @@ export function renderSOATDetallado(result, plate) {
         </div>
         <div class="grid gap-2.5 rounded-b-xl border border-t-0 border-slate-200 bg-slate-50/30 p-2.5 dark:border-slate-800 dark:bg-slate-950/20 md:hidden">${mobileCards}</div>
         <div class="hidden overflow-x-auto rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-800 md:block">
-            <table class="min-w-[1180px] w-full border-collapse text-left"><thead><tr class="bg-slate-900 text-white">${['Compañía','Inicio','Fin','Contratante','Uso','Clase','Ubigeo','Tipo','Estado'].map(h => `<th class="px-2.5 py-2 text-[9px] font-extrabold uppercase tracking-wider">${h}</th>`).join('')}</tr></thead><tbody>${desktopRows}</tbody></table>
+            <table class="min-w-[1050px] w-full border-collapse text-left">
+                <thead>
+                    <tr class="bg-slate-900 text-white">
+                        ${['Aseguradora · Quién compra y Lugar','Vigencia Inicio','Vigencia Fin','Uso','Clase','Tipo','Estado'].map(h => `<th class="px-2.5 py-2.5 text-[9px] font-extrabold uppercase tracking-wider">${h}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>${desktopRows}</tbody>
+            </table>
         </div>
         ${siniestrosBlock}
     </div>`;

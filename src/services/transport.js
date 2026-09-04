@@ -1,5 +1,6 @@
 /** Transporte HTTP compartido por todos los proveedores vehiculares. */
 let activeConsultationTicket = null;
+let activeConsultationId = null;
 const sectionPerformanceSamples = [];
 
 function sectionFromUrl(url) {
@@ -29,6 +30,15 @@ export function setConsultationTicket(ticketId) {
     activeConsultationTicket = ticketId || null;
 }
 
+export function setConsultationId(consultationId) {
+    activeConsultationId = consultationId || null;
+}
+
+export function createConsultationId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return `cv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export async function secureFetch(url, options = {}) {
     const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET)
         ? import.meta.env.PUBLIC_CLIENT_SECRET
@@ -37,6 +47,7 @@ export async function secureFetch(url, options = {}) {
         ...options.headers,
         ...(clientSecret ? { 'X-Client-Secret': clientSecret } : {}),
         ...(activeConsultationTicket ? { 'X-Consultation-Ticket': activeConsultationTicket } : {}),
+        ...(activeConsultationId ? { 'X-Consultation-Id': activeConsultationId } : {}),
     };
     const section = sectionFromUrl(url);
     const startedAt = performance.now();
@@ -51,6 +62,7 @@ export async function secureFetch(url, options = {}) {
             backend_queue_ms: Number(res.headers.get('X-Queue-Wait-Ms') || 0),
             backend_processing_ms: Number(res.headers.get('X-Processing-Time-Ms') || 0),
             request_id: res.headers.get('X-Request-ID') || '',
+            consultation_id: activeConsultationId || '',
             timestamp: new Date().toISOString(),
         };
         sectionPerformanceSamples.push(sample);
@@ -70,6 +82,7 @@ export async function secureFetch(url, options = {}) {
                 ok: false,
                 frontend_total_ms: Math.round((performance.now() - startedAt) * 10) / 10,
                 error: error?.name || 'FetchError',
+                consultation_id: activeConsultationId || '',
                 timestamp: new Date().toISOString(),
             };
             sectionPerformanceSamples.push(failed);

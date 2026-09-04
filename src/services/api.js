@@ -7,11 +7,13 @@ import {
     renderOsinergmin,
     renderPNPRequisitorias,
     renderHistorialDuenos,
-    initHistorialDuenosEvents
+    initHistorialDuenosEvents,
+    renderSatCaptura,
+    renderSatDeposito
 } from '../utils/renderers.js';
 import { secureFetch } from './transport.js';
 export { runFetchSIGM } from './providers/sigm.js';
-export { setConsultationTicket } from './transport.js';
+export { createConsultationId, setConsultationId, setConsultationTicket } from './transport.js';
 export {
     acquireConsultationSlot,
     waitForConsultationSlot,
@@ -35,54 +37,8 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-    const renderTablaDetalle = (detalle) => {
-        if (!Array.isArray(detalle) || detalle.length === 0) return '';
-        const headers = Object.keys(detalle[0]);
-        if (headers.length === 0) return '';
-        
-        const ths = headers.map(h => `<th class="py-2 px-2.5 text-[9px] md:text-[10px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 sticky top-0 bg-slate-900 dark:bg-slate-950 text-white whitespace-nowrap">${h}</th>`).join('');
-        
-        const rows = detalle.map(row => {
-            const tds = headers.map(h => {
-                const val = row[h] || '—';
-                const isMonto = h.toLowerCase().includes('monto');
-                const cls = isMonto ? 'font-bold text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300';
-                return `<td class="py-2 px-2.5 text-[10px] md:text-xs border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap ${cls}">${val}</td>`;
-            }).join('');
-            return `<tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors font-poppins">${tds}</tr>`;
-        }).join('');
-
-        return `
-            <div class="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm">
-                <div class="overflow-x-auto max-h-[260px]">
-                    <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
-                        <thead>
-                            <tr class="bg-slate-900 dark:bg-slate-950 text-white">${ths}</tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                </div>
-            </div>`;
-    };
-
-    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
-        <div class="p-3 md:p-4 font-poppins">
-            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
-                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
-                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
-                </div>
-            </div>
-            ${resaltarRojo && detalle ? renderTablaDetalle(detalle) : ''}
-        </div>`;
 
     try {
-        // Una única llamada consulta captura y depósito con un solo Chromium.
-        // El backend ya hace los reintentos de CAPTCHA. No iniciar aquí otra
-        // consulta larga: si el AbortController vence, el Chromium del servidor
-        // no puede cancelarse de forma fiable y terminaría compitiendo con Lima
-        // y Lunas aunque el frontend ya hubiera avanzado de fase.
         let cap = null, dep = null, satLastError = null;
         const SAT_BUDGET_MS = 170000;
         const satStart = Date.now();
@@ -113,7 +69,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         if (cap && cap.success) {
             const tiene = !!cap.tiene;
             callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
-                bloque(cap.mensaje, cap.fecha, tiene, cap.detalle), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+                renderSatCaptura(cap, plate), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
         } else {
             callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || satLastError || 'No se pudo consultar', plate);
         }
@@ -121,7 +77,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         if (dep && dep.success) {
             const internado = !!dep.internado;
             callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
-                bloque(dep.mensaje, dep.fecha, internado, dep.detalle), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+                renderSatDeposito(dep, plate), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
         } else {
             callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', (dep && dep.error) || satLastError || 'No se pudo consultar', plate);
         }
@@ -139,16 +95,7 @@ export async function runFetchSATCaptura(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
-        <div class="p-3 md:p-4 font-poppins">
-            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
-                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
-                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
-                </div>
-            </div>
-        </div>`;
+
     try {
         const res = await secureFetch(`${BACKEND_URL}/sat/captura/${plate}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -157,7 +104,7 @@ export async function runFetchSATCaptura(plate, BACKEND_URL, callbacks) {
         if (cap && cap.success) {
             const tiene = !!cap.tiene;
             callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
-                bloque(cap.mensaje, cap.fecha, tiene, cap.detalle), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+                renderSatCaptura(cap, plate), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
             return data;
         } else {
             throw new Error((cap && cap.error) || 'No se pudo consultar orden de captura');
@@ -172,16 +119,7 @@ export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
-        <div class="p-3 md:p-4 font-poppins">
-            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
-                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
-                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
-                </div>
-            </div>
-        </div>`;
+
     try {
         const res = await secureFetch(`${BACKEND_URL}/sat/deposito/${plate}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -190,7 +128,7 @@ export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
         if (dep && dep.success) {
             const internado = !!dep.internado;
             callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
-                bloque(dep.mensaje, dep.fecha, internado, dep.detalle), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+                renderSatDeposito(dep, plate), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
             return data;
         } else {
             throw new Error((dep && dep.error) || 'No se pudo consultar internamiento en depósito');
@@ -206,16 +144,6 @@ export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
     const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
     const neutralBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${t}</span>`;
-    const bloque = (mensaje, fecha, resaltarRojo, detalle) => `
-        <div class="p-3 md:p-4 font-poppins">
-            <div class="flex items-start gap-3 rounded-xl border p-3 ${resaltarRojo ? 'border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20' : 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20'}">
-                <i class="fas ${resaltarRojo ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'} mt-0.5 text-base"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[13px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">${mensaje}</p>
-                    ${fecha ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1"><i class="fas fa-calendar-day"></i>Informe actualizado al ${fecha}</p>` : ''}
-                </div>
-            </div>
-        </div>`;
     try {
         const res = await secureFetch(`${BACKEND_URL}/sat/deuda/${plate}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -224,11 +152,11 @@ export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
         if (deu && deu.success) {
             if (deu.manual || deu.tiene_deuda === null || deu.tiene_deuda === undefined) {
                 callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
-                    bloque(deu.mensaje, deu.fecha, false, null), true, false, neutralBadge('VERIFICAR MANUAL'));
+                    `<div class="p-3 text-xs text-slate-600 dark:text-slate-300 font-poppins">${deu.mensaje || 'Verificación manual requerida'}</div>`, true, false, neutralBadge('VERIFICAR MANUAL'));
             } else {
                 const conDeuda = !!deu.tiene_deuda;
                 callbacks.setCardData('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima',
-                    bloque(deu.mensaje, deu.fecha, conDeuda, deu.detalle), true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
+                    `<div class="p-3 text-xs text-slate-600 dark:text-slate-300 font-poppins">${deu.mensaje || 'Consulta procesada'}</div>`, true, conDeuda, conDeuda ? badBadge('CON DEUDA') : okBadge('SIN DEUDA'));
             }
             return data;
         } else {
@@ -241,7 +169,6 @@ export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');
     const controller = new AbortController();
     // 95s: el backend limita CapSolver + SUNARP a 60s. Este margen cubre cola,
     // red, serialización y entrega de la respuesta sin dejar el loader indefinido.
@@ -506,6 +433,29 @@ export async function runFetchPNP(plate, BACKEND_URL, callbacks) {
     }
 }
 
+export function buildSPRLStatusBadge(data) {
+    const encumbrancesStatus = data?.gravamenes?.status || data?.verification?.encumbrances_history || 'NOT_VERIFIED';
+    const gravamenes = data?.resumen?.gravamenes_vigentes;
+    const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
+    const classes = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white shadow-sm uppercase tracking-wider';
+
+    if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes !== undefined && gravamenes > 0)) {
+        return `<span class="${classes} bg-rose-600"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`;
+    }
+    if (encumbrancesStatus === 'VERIFIED_NONE' || (encumbrancesStatus === 'VERIFIED' && gravamenes === 0)) {
+        const seatLabel = totalAsientos ? `${totalAsientos} ASIENTOS · ` : '';
+        return `<span class="${classes} bg-emerald-500"><i class="fas fa-circle-check"></i> ${seatLabel}SIN GRAVÁMENES VERIFICADO</span>`;
+    }
+
+    // Tener asientos o datos básicos no demuestra ausencia de gravámenes.
+    // PARTIAL_RESULT y cualquier estado no verificado se muestran siempre como
+    // pendientes para evitar una conclusión verde falsa.
+    const partialLabel = totalAsientos
+        ? `${totalAsientos} ASIENTOS · GRAVÁMENES PENDIENTES`
+        : 'VERIFICACIÓN DE GRAVÁMENES PENDIENTE';
+    return `<span class="${classes} bg-amber-500"><i class="fas fa-clock"></i> ${partialLabel}</span>`;
+}
+
 export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina = '') {
     const TIT = 'Historial de Dueños y Gravámenes';
     callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
@@ -532,22 +482,7 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
 
         if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
             const content = renderHistorialDuenos(data, plate);
-            const encumbrancesStatus = data.gravamenes?.status || data.verification?.encumbrances_history || 'NOT_VERIFIED';
-            const ownershipStatus = data.verification?.ownership_history || (data.ownership_history?.actual_identified?.length ? 'VERIFIED' : 'NOT_VERIFIED');
-            const gravamenes = data.resumen?.gravamenes_vigentes;
-            const totalAsientos = data.resumen?.total_asientos || (Array.isArray(data.asientos) && data.asientos.length ? data.asientos.length : null);
-            let badge = '';
-            if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes > 0)) {
-                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>`;
-            } else if (encumbrancesStatus === 'PARTIAL') {
-                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-clock"></i> VERIFICACIÓN PARCIAL</span>`;
-            } else if (encumbrancesStatus === 'VERIFIED_NONE' || encumbrancesStatus === 'VERIFIED' || totalAsientos !== null) {
-                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${totalAsientos ? `${totalAsientos} ASIENTOS` : 'CADENA DOMINIAL VERIFICADA'}</span>`;
-            } else if (data.vehiculo?.estado || data.verification?.public_current_owner === 'VERIFIED' || data.titularidad_publica?.titulares_identificados?.length) {
-                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> REGISTRO SUNARP VERIFICADO</span>`;
-            } else {
-                badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> REGISTRO VERIFICADO</span>`;
-            }
+            const badge = buildSPRLStatusBadge(data);
 
             callbacks.setCardData('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', content, true, true, badge);
 

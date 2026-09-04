@@ -293,7 +293,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     <main class="w-full flex-1 flex flex-col items-center">
         {/* Banner Section */}
         <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-b border-white/5 px-5 py-4 md:py-4 md:px-2 flex flex-col items-center overflow-hidden relative">
-            
+
             {/* Header / Barra de Navegación con Logo Rectangular Cañita */}
             <header class="w-full max-w-[1100px] flex justify-between items-center py-2 mx-auto px-4 md:px-2.5 z-20 gap-3">
                 <a href="/" class="flex items-center group shrink-0" title="Inicio Cañita">
@@ -438,7 +438,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <span class="text-slate-850 dark:text-slate-200 font-archivo text-[11px] md:text-xs font-black tracking-tight">CAÑITA</span>
                 </div>
             </div>
-            
+
             {/* Estado inicial */}
             <div
                 id="results-container"
@@ -665,6 +665,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchSutran,
             runFetchCinemometro,
             runFetchGNV,
+            runFetchATU,
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
@@ -686,6 +687,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             touchConsultationSlot,
             waitForHeavyPhase,
             releaseConsultationSlot,
+            createConsultationId,
+            setConsultationId,
             setConsultationTicket
         } from '../services/api.js';
         import { initVisits } from '../ui/visits.js';
@@ -694,7 +697,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
         import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER } from '../services/execution_plan.js';
         import { runOrderedWithConcurrency } from '../services/execution_scheduler.js';
-        import { calculateVehicleScore } from '../services/vehicle_score.js';
+        import { calculateVehicleScore, buildConsolidatedPayload } from '../services/vehicle_score.js';
 
         // ====================================================
         // CONFIG
@@ -898,16 +901,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const is404Error = (errorMessage || '').includes('404') || (errorMessage || '').includes('actualización') || (errorMessage || '').includes('no encontrada');
                     const isConnError = (errorMessage || '').includes('Failed to fetch') || (errorMessage || '').includes('NetworkError') || (errorMessage || '').includes('CONNECTION_REFUSED');
 
-                    if (isConnError) {
-                        const friendlyMsg = "No se puede conectar con el servidor backend (http://localhost:8000). Asegúrate de tener el backend iniciado.";
-                        console.error(`[BACKEND DESCONECTADO] No hay conexión con el servidor backend para la consulta ${cardId}`);
-                        setCardError(id, title, sub, iconClass, bgColorClass, sourceName, friendlyMsg, plate);
-                        resolveFn({ success: false, error: friendlyMsg });
-                        return;
-                    }
-
                     // Solo errores 404 (sección inexistente) se eximen de reintento.
-                    // El resto (incluyendo SUNARP, FISE, SBS, SAT, ATU, LUNAS) reintenta automáticamente.
+                    // Saturación del gateway y cortes de transporte sí se recuperan
+                    // automáticamente con backoff, aunque el proveedor use un solo
+                    // intento normal. Errores permanentes no se multiplican.
                     const normalizedError = (errorMessage || '').toLowerCase();
                     const isBackpressure = normalizedError.includes('429') ||
                         normalizedError.includes('503') ||
@@ -921,7 +918,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         normalizedError.includes('no permite connect al puerto 23308');
                     const isMantenimiento = (errorMessage || '').toLowerCase().includes('mantenimiento') || (errorMessage || '').toLowerCase().includes('desarrollo');
                     const retryableTimeoutProviders = new Set(['sunarp', 'lima', 'fise']);
-                    const noRetry = is404Error || isBackpressure || isPermanentProxyConfig || isMantenimiento ||
+                    const noRetry = is404Error || isPermanentProxyConfig || isMantenimiento ||
                         (isTimeout && !retryableTimeoutProviders.has(cardId));
                     if (noRetry) {
                         console.warn(`[INFO] Consulta ${cardId} finalizada sin reintento: ${errorMessage}`);
@@ -930,14 +927,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         return;
                     }
                     queryAttempts[id] = attempt;
-                    if (attempt < maxAttempts) {
+                    const effectiveMaxAttempts = isBackpressure
+                        ? Math.max(maxAttempts, 3)
+                        : isConnError ? Math.max(maxAttempts, 2) : maxAttempts;
+                    if (attempt < effectiveMaxAttempts) {
                         retryScheduled = true;
-                        const delay = attempt === 1 ? 1500 : 3500;
-                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${maxAttempts}): ${errorMessage}. Reintentando en ${delay / 1000}s...`);
-                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando ${attempt + 1}/${maxAttempts}...)`);
+                        const delay = isBackpressure
+                            ? Math.min(5000 * attempt, 10000)
+                            : attempt === 1 ? 1500 : 3500;
+                        console.warn(`[RETRY] Consulta ${cardId} falló (Intento ${attempt}/${effectiveMaxAttempts}): ${errorMessage}. Reintentando en ${delay / 1000}s...`);
+                        setCardLoading(id, title, sub, iconClass, bgColorClass, `${sourceName} (Reintentando ${attempt + 1}/${effectiveMaxAttempts}...)`);
                         setTimeout(async () => {
                             try {
-                                const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, attempt + 1, maxAttempts);
+                                const retryResult = await runFetchWithRetry(cardId, fetchCall, plate, attempt + 1, effectiveMaxAttempts);
                                 resolveFn(retryResult);
                             } catch (e) {
                                 rejectFn(e);
@@ -982,14 +984,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function runInBatches(
             jobs: Array<() => Promise<any>>,
-            batchSize: number = 4
+            batchSize: number = 4,
+            queueLabel: string = 'trabajo rápido'
         ): Promise<any[]> {
             return runOrderedWithConcurrency(jobs, batchSize, {
                 onStart: ({ index, queue_wait_ms }: { index: number; queue_wait_ms: number }) => console.info(
-                    `[COLA-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} inicia tras ${Math.round(queue_wait_ms)}ms`
+                    `[COLA-FRONTEND] ${queueLabel} ${index + 1}/${jobs.length} inicia tras ${Math.round(queue_wait_ms)}ms`
                 ),
                 onFinish: ({ index, processing_ms, status }: { index: number; processing_ms: number; status: string }) => console.info(
-                    `[PROCESO-FRONTEND] trabajo rápido ${index + 1}/${jobs.length} ${status} en ${Math.round(processing_ms)}ms`
+                    `[PROCESO-FRONTEND] ${queueLabel} ${index + 1}/${jobs.length} ${status} en ${Math.round(processing_ms)}ms`
                 ),
             });
         }
@@ -1045,7 +1048,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchCITV(plate: string) {
-            return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate);
+            return runFetchWithRetry('citv', (callbacks) => runFetchCITV(plate, BACKEND_URL, callbacks), plate, 1, 2);
         }
 
         async function fetchLunas(plate: string) {
@@ -1059,7 +1062,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function fetchLima(plate: string) {
             return runExclusive('lima', () =>
-                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate));
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 2));
         }
 
         async function fetchSutran(plate: string) {
@@ -1067,7 +1070,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchCinemometro(plate: string) {
-            return runFetchWithRetry('cinemometro', (callbacks) => runFetchCinemometro(plate, BACKEND_URL, callbacks), plate);
+            return runFetchWithRetry('cinemometro', (callbacks) => runFetchCinemometro(plate, BACKEND_URL, callbacks), plate, 1, 2);
         }
 
         async function fetchMunicipal(plate: string) {
@@ -1075,7 +1078,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchFISE(plate: string) {
-            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate);
+            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 2);
         }
 
         async function fetchSIGM(plate: string) {
@@ -1083,7 +1086,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchPlacasPE(plate: string) {
-            return runFetchWithRetry('placas_pe', (callbacks) => runFetchPlacasPE(plate, BACKEND_URL, callbacks), plate);
+            return runFetchWithRetry('placas_pe', (callbacks) => runFetchPlacasPE(plate, BACKEND_URL, callbacks), plate, 1, 2);
         }
 
         async function fetchValorVenal(plate: string, marca?: string, modelo?: string, anio?: string) {
@@ -1105,11 +1108,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchHistorialDuenos(plate: string, oficina: string = '') {
-            return runFetchWithRetry('historial_dueños', (callbacks) => runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina), plate);
+            return runFetchWithRetry('historial_dueños', (callbacks) => runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina), plate, 1, 2);
         }
 
         async function fetchGNV(plate: string) {
             return runFetchWithRetry('gnv', (callbacks) => runFetchGNV(plate, BACKEND_URL, callbacks), plate);
+        }
+
+        async function fetchATU(plate: string) {
+            return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchSBS(plate: string) {
@@ -1137,6 +1144,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     'sat_captura',
                     (callbacks) => runFetchSATCaptura(plate, BACKEND_URL, callbacks),
                     plate,
+                    1,
+                    2,
                 ));
         }
 
@@ -1146,6 +1155,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     'sat_deposito',
                     (callbacks) => runFetchSATDeposito(plate, BACKEND_URL, callbacks),
                     plate,
+                    1,
+                    2,
                 ));
         }
 
@@ -1233,6 +1244,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'placas_pe')   await fetchPlacasPE(plate);
                 else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
                 else if (cardId === 'sbs')         await fetchSBS(plate);
+                else if (cardId === 'atu')         await fetchATU(plate);
                 else if (cardId === 'sat_captura') await fetchSATCaptura(plate);
                 else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
                 else if (cardId === 'sat')         await fetchSAT(plate);
@@ -1351,7 +1363,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 'sunarp', 'historial_dueños', 'placas_pe', 'soat', 'soat_detallado',
                 'citv', 'valor_venal', 'sbs', 'lima', 'callao', 'sutran',
                 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'sat_captura',
-                'sat_deposito', 'lunas'
+                'sat_deposito', 'lunas', 'atu'
             ];
             const cacheData: any = {
                 version: 3,
@@ -1497,10 +1509,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="historial_dueños-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- 3. Registro Vehicular AAP -->
                     <div id="placas_pe-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <!-- 4. Pólizas e Inspecciones Técnicas -->
+                    <!-- 4. Pólizas, Inspecciones Técnicas y Habilitaciones -->
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat_detallado-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                     <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- 5. Papeletas de Tránsito -->
@@ -1512,16 +1525,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="sigm-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                     <!-- 6. Seguridad y Combustible -->
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="fise-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="osinergmin-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_captura-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sat_deposito-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="lunas-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="pnp_contacto-card-container" data-status="funciona"></div>
 
-                    <!-- 7. Secciones en Desarrollo / Próximamente -->
-                    <div id="atu-card-container" data-status="development"></div>
+                    <!-- 7. Secciones en desarrollo -->
                     <div id="sat_deuda-card-container" data-status="development"></div>
-                    <div id="fise-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
 
                     <!-- 8. ANÁLISIS INTELIGENTE DEL VEHÍCULO (Evaluación integral de todas las secciones al final) -->
                     <div id="score-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
@@ -1531,15 +1543,16 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
                 </div>`;
             
-            // Secciones futuras: visibles, sin solicitudes al backend y siempre al final.
-            setCardComingSoon(
+            setCardWaiting(
                 'atu',
-                'Habilitación Taxi ATU',
-                'Lima y Callao',
+                '¿Está inscrito como taxi en ATU?',
+                'Autorización vehicular por placa · Lima y Callao',
                 'fas fa-taxi',
+                '',
                 'ATU',
-                'Esta verificación estará disponible próximamente. No se ejecuta ni ocupa recursos del servidor mientras mejoramos su estabilidad.'
+                'En espera (Fase avanzada)'
             );
+            // Secciones futuras: visibles, sin solicitudes al backend y siempre al final.
             setCardComingSoon(
                 'sat_deuda',
                 'Deuda Imp. Vehicular (SAT)',
@@ -1732,6 +1745,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 vehicleData = {};
                 sectionResults = {};
                 currentSunarpValidation = 'indeterminate';
+                setConsultationId(createConsultationId());
 
                 const captchaProof = captcha.getProof(captchaInput?.value || '');
                 if (!captchaProof.valid) {
@@ -1744,6 +1758,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         submitBtn.innerHTML = '<i class="fas fa-search"></i> Buscar';
                     }
                     hideLoadingOverlay();
+                    setConsultationId(null);
                     return;
                 }
                 if (captchaInput) captchaInput.value = '';
@@ -1799,89 +1814,103 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
                         }
 
-                        // VALIDACIÓN INICIAL: SUNARP se resuelve primero. Solo una respuesta
-                        // oficial y explícita "no encontrada" detiene el resto. Un timeout,
-                        // captcha o caída es indeterminado y deja continuar las demás fuentes.
-                        queryStatus.textContent = 'Validando la existencia de la placa en SUNARP...';
-                        updateLoadingStatus('Validando placa en SUNARP...');
-                        const sunarpResult = await fetchSUNARP(plate);
-                        sectionResults.sunarp = sunarpResult;
+                        // SUNARP comienza junto a las fuentes rápidas. Las rápidas
+                        // avanzan detrás del modal, pero la pantalla principal solo se
+                        // revela cuando la sección registral llegó a un estado terminal.
+                        queryStatus.textContent = 'Validando primero la información registral SUNARP...';
+                        updateLoadingStatus('Validando la placa en SUNARP...');
+                        setCardWaiting('sunarp', 'Consulta Vehicular SUNARP', 'Datos registrales oficiales', 'fas fa-car-side', '', 'SUNARP', 'Consultando en segundo plano...');
+                        const sunarpPromise = runSectionSafely('sunarp', () => fetchSUNARP(plate));
+
+                        const sunarpReadyPromise = sunarpPromise.then(async (result: any) => {
+                            const validation = result?.validation_status;
+                            queryStatus.textContent = validation === 'found'
+                                ? 'SUNARP confirmado. Las demás fuentes continúan actualizándose...'
+                                : validation === 'not_found'
+                                    ? 'SUNARP terminó la validación. Conservando resultados parciales...'
+                                    : 'SUNARP no fue concluyente. Conservando resultados y reintentos independientes...';
+                            updateLoadingStatus(
+                                validation === 'found'
+                                    ? 'Registro SUNARP confirmado. Mostrando resultados...'
+                                    : validation === 'not_found'
+                                        ? 'SUNARP terminó la validación de la placa.'
+                                        : 'SUNARP terminó con una respuesta no concluyente.'
+                            );
+                            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                            clearTimeout(safetyLoaderTimeout);
+                            hideLoadingOverlay();
+                            scrollToResults();
+                            return result;
+                        });
+
+                        // FASE 1A: fuentes de respuesta corta. No retener el inicio de
+                        // la fase avanzada por CITV, Municipal, Lunas o SOAT/SBS.
+                        const fastBatchSize = admission?.load_mode === 'protected'
+                            ? 1
+                            : admission?.load_mode === 'balanced' ? 2 : 4;
+                        await runInBatches([
+                            // Grupo inmediato: normalmente entrega tarjetas antes o
+                            // alrededor de la confirmación SUNARP.
+                            () => runSectionSafely('soat_detallado', () => fetchSOATDetallado(plate)),
+                            () => runSectionSafely('placas_pe', async () => fetchPlacasPE(plate)),
+                            () => runSectionSafely('osinergmin', () => fetchOsinergmin(plate)),
+                            () => runSectionSafely('sutran', () => fetchSutran(plate)),
+                            () => runSectionSafely('fise', () => fetchFISE(plate)),
+                            () => runSectionSafely('gnv', () => fetchGNV(plate)),
+                            // Grupo estándar.
+                            () => runSectionSafely('callao', () => fetchCallao(plate)),
+                            () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
+                            () => runSectionSafely('valor_venal', async () => {
+                                const pdData = sectionResults.placas_pe?.data || {};
+                                const reference = resolveVehicleReference(pdData, vehicleData);
+                                return await fetchValorVenal(plate, reference.marca, reference.modelo, reference.anio);
+                            }),
+                        ], fastBatchSize);
+
+                        // FASE 1B: solo fuentes sin Chromium continúan en segundo
+                        // plano. SOAT simple y Municipal pueden abrir navegadores de
+                        // respaldo y por eso deben respetar el cupo de fase pesada.
+                        const variableBatchSize = admission?.load_mode === 'protected' ? 1 : 2;
+                        const variableSectionsPromise = runInBatches([
+                            () => runSectionSafely('citv', () => fetchCITV(plate)),
+                            () => runSectionSafely('lunas', () => fetchLunas(plate)),
+                        ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
+
+                        // Antes de fuentes registrales avanzadas sí necesitamos el resultado
+                        // de SUNARP. Una caída/timeout no invalida los resultados parciales.
+                        queryStatus.textContent = 'Resultados rápidos listos. Finalizando SUNARP en segundo plano...';
+                        const sunarpResult = await sunarpReadyPromise;
                         currentSunarpValidation = sunarpResult?.validation_status === 'found'
                             ? 'found'
                             : sunarpResult?.validation_status === 'not_found'
                                 ? 'not_found'
                                 : 'indeterminate';
 
-                        // setCardData/setCardError ya insertó el resultado. Esperar dos
-                        // frames garantiza que el navegador pinte el estado antes del fade.
-                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                        clearTimeout(safetyLoaderTimeout);
-                        hideLoadingOverlay();
-                        scrollToResults();
-
                         if (currentSunarpValidation === 'not_found') {
                             showInvalidPlateAlert(plate);
-                            queryStatus.innerHTML = '<span class="font-bold text-slate-700"><i class="fas fa-circle-xmark mr-1"></i> Placa no encontrada. Verifica los datos ingresados.</span>';
+                            queryStatus.innerHTML = '<span class="font-bold text-slate-700"><i class="fas fa-circle-xmark mr-1"></i> Placa no encontrada en SUNARP. Se conservaron los resultados parciales obtenidos.</span>';
                             queryStatus.classList.remove('opacity-0');
-                            resultCache.delete(plate);
+                            await variableSectionsPromise;
+                            renderVehicleScore(plate);
                             return;
                         }
 
                         queryStatus.textContent = currentSunarpValidation === 'found'
-                            ? 'Placa confirmada. Completando las demás secciones...'
+                            ? 'Placa confirmada. Preparando secciones avanzadas...'
                             : 'SUNARP no pudo confirmar temporalmente. Continuando con las demás fuentes...';
 
-                        // Detectar sede registral confirmada para el historial (Siempre en Mayúsculas para selector SPRL)
                         const rawOffice = (
-                            sunarpResult?.datos?.Sede ||
-                            sunarpResult?.datos?.sede ||
-                            sunarpResult?.datos?.Oficina ||
-                            sunarpResult?.datos?.oficina ||
-                            sunarpResult?.Sede ||
-                            sunarpResult?.sede ||
-                            vehicleData?.Sede ||
-                            vehicleData?.sede ||
-                            'LIMA'
+                            sunarpResult?.datos?.Sede || sunarpResult?.datos?.sede ||
+                            sunarpResult?.datos?.Oficina || sunarpResult?.datos?.oficina ||
+                            sunarpResult?.Sede || sunarpResult?.sede ||
+                            vehicleData?.Sede || vehicleData?.sede || 'LIMA'
                         );
-                        const sedecaptadodelaseccionsunarp = String(rawOffice).toUpperCase().trim();
-                        console.log('sedecaptadodelaseccionsunarp =', sedecaptadodelaseccionsunarp);
-                        const detectedOffice = sedecaptadodelaseccionsunarp;
-
-                        // Estado visual para historial de dueños en espera de fase avanzada
+                        const detectedOffice = String(rawOffice).toUpperCase().trim();
+                        console.log('sedecaptadodelaseccionsunarp =', detectedOffice);
                         setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Fase avanzada)');
 
-                        // FASE 1: una vez validada SUNARP, ejecutar servicios rápidos (0.3s - 15s)
-                        const fastBatchSize = admission?.load_mode === 'protected'
-                            ? 1
-                            : admission?.load_mode === 'balanced' ? 2 : 4;
-                        await runInBatches([
-                            () => runSectionSafely('soat', () => fetchSOAT(plate)),
-                            () => runSectionSafely('soat_detallado', () => fetchSOATDetallado(plate)),
-                            () => runSectionSafely('citv', () => fetchCITV(plate)),
-                            () => runSectionSafely('gnv', () => fetchGNV(plate)),
-                            () => runSectionSafely('fise', () => fetchFISE(plate)),
-                            () => runSectionSafely('callao', () => fetchCallao(plate)),
-                            () => runSectionSafely('sutran', () => fetchSutran(plate)),
-                            () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
-                            () => runSectionSafely('municipal', () => fetchMunicipal(plate)),
-                            () => runSectionSafely('placas_pe', async () => {
-                                const pd = await fetchPlacasPE(plate);
-                                return pd;
-                            }),
-                            () => runSectionSafely('valor_venal', async () => {
-                                const pdData = sectionResults.placas_pe?.data || {};
-                                const reference = resolveVehicleReference(pdData, vehicleData);
-                                return await fetchValorVenal(plate, reference.marca, reference.modelo, reference.anio);
-                            }),
-                            () => runSectionSafely('osinergmin', () => fetchOsinergmin(plate)),
-                            // LUNAS no consume Chromium; ejecutarla en la fase
-                            // rápida evita que espere Lima, SBS e Historial.
-                            () => runSectionSafely('lunas', () => fetchLunas(plate)),
-                        ], fastBatchSize);
-
-                        // FASE 2: servicios avanzados secuenciales. SAT captura/depósito
-                        // queda absolutamente al final para que su presupuesto de 170s
-                        // no bloquee Lima, Lunas ni el historial registral.
+                        // FASE 2: servicios avanzados secuenciales. Siniestralidad SBS
+                        // queda al final porque en la medición real tomó 37.4 s.
                         if (activeConsultationTicket) {
                             await waitForHeavyPhase(BACKEND_URL, activeConsultationTicket, (state: any) => {
                                 if (state.heavy_status === 'queued') {
@@ -1898,11 +1927,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // Estado visual bonito para la cola secuencial
                         setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Turno 3)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 1)');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno 2)');
-                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno final)');
-                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno final)');
+                        setCardWaiting('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', 'En espera (Fase pesada)');
+                        setCardWaiting('soat', 'Historial SOAT', 'Pólizas y vigencia', 'fas fa-shield-halved', '', 'SBS', 'En espera (Fase pesada)');
+                        setCardWaiting('atu', '¿Está inscrito como taxi en ATU?', 'Autorización vehicular por placa · Lima y Callao', 'fas fa-taxi', '', 'ATU', 'En espera (Fase pesada)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno final)');
+                        setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 4)');
+                        setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 5)');
 
-                        console.info('[ORDEN-CONSULTA] 20 consultas automáticas:', ENABLED_EXECUTION_ORDER);
+                        console.info('[ORDEN-CONSULTA] 21 consultas automáticas:', ENABLED_EXECUTION_ORDER);
                         const advancedJobs: Record<string, () => Promise<any>> = {
                             sbs: () => fetchSBS(plate),
                             lima: () => {
@@ -1915,16 +1947,29 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 return fetchHistorialDuenos(plate, detectedOffice);
                             },
                             sigm: () => fetchSIGM(plate),
+                            municipal: () => fetchMunicipal(plate),
+                            soat: () => fetchSOAT(plate),
+                            atu: () => fetchATU(plate),
                             sat_captura: () => fetchSATCaptura(plate),
                             sat_deposito: () => fetchSATDeposito(plate),
                         };
-                        for (const sectionId of ADVANCED_EXECUTION_ORDER) {
-                            const startedAt = performance.now();
-                            console.info(`[ORDEN-CONSULTA] Inicio ${sectionId}`);
-                            await runSectionSafely(sectionId, advancedJobs[sectionId]);
-                            console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
-                        }
+                        // Dos carriles por consulta: con dos fases pesadas activas se
+                        // ocupan como máximo los cuatro slots globales de navegador.
+                        // En modo protegido se degrada automáticamente a un solo carril.
+                        const advancedConcurrency = admission?.load_mode === 'protected' ? 1 : 2;
+                        await runInBatches(
+                            ADVANCED_EXECUTION_ORDER.map((sectionId) => async () => {
+                                const startedAt = performance.now();
+                                console.info(`[ORDEN-CONSULTA] Inicio ${sectionId}`);
+                                const result = await runSectionSafely(sectionId, advancedJobs[sectionId]);
+                                console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
+                                return result;
+                            }),
+                            advancedConcurrency,
+                            'sección avanzada',
+                        );
 
+                        await variableSectionsPromise;
                         renderVehicleScore(plate);
 
                         // Guardar snapshot de resultados en localStorage
@@ -1947,6 +1992,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             await releaseConsultationSlot(BACKEND_URL, ticketToRelease);
                             setConsultationTicket(null);
                         }
+                        setConsultationId(null);
                         if (consultationHeartbeat) {
                             clearInterval(consultationHeartbeat);
                             consultationHeartbeat = null;
@@ -2034,17 +2080,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         };
 
         function renderVehicleScore(plate: string) {
-            const { score, alerts, verified, failed } = calculateVehicleScore(sectionResults);
-            const tone = score > 70
+            // Contrato único normalizado (Punto 6)
+            const payload = buildConsolidatedPayload(plate, sectionResults);
+            const { score, coveragePercent, alerts, verified, totalSources } = calculateVehicleScore(payload);
+            const tone = score >= 80
                 ? { bg: 'bg-emerald-500', soft: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900', text: 'text-emerald-700 dark:text-emerald-400', label: 'Excelente condición global', icon: 'fa-circle-check' }
                 : score >= 50
                     ? { bg: 'bg-amber-500', soft: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900', text: 'text-amber-700 dark:text-amber-400', label: 'Requiere revisión puntual', icon: 'fa-triangle-exclamation' }
                     : { bg: 'bg-rose-600', soft: 'bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900', text: 'text-rose-700 dark:text-rose-400', label: 'Riesgo / Alertas críticas', icon: 'fa-circle-xmark' };
+
+            const categoryBadge = (cat: string) => {
+                if (cat === 'CRÍTICO') return '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400">CRÍTICO</span>';
+                if (cat === 'ALTO') return '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">ALTO</span>';
+                if (cat === 'MEDIO') return '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">MEDIO</span>';
+                return '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">INFORMATIVO</span>';
+            };
+
             const alertHtml = alerts.length
-                ? alerts.map(item => `<li class="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 px-3 py-2 text-xs"><span><i class="fas fa-triangle-exclamation mr-2 text-rose-500"></i>${item.label}</span><strong class="text-rose-600 dark:text-rose-400 font-mono">-${item.points} pts</strong></li>`).join('')
+                ? alerts.map(item => `<li class="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 px-3 py-2 text-xs"><div class="flex items-center gap-2">${categoryBadge(item.category)}<span>${item.label}</span></div><strong class="text-rose-600 dark:text-rose-400 font-mono">-${item.points} pts</strong></li>`).join('')
                 : '<li class="rounded-lg bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><i class="fas fa-circle-check mr-2"></i>Sin observaciones detectadas en todas las fuentes evaluadas.</li>';
-            const content = `<div class="rounded-2xl border p-4 font-poppins ${tone.soft}"><div class="grid items-center gap-4 sm:grid-cols-[150px_1fr]"><div class="mx-auto flex h-32 w-32 flex-col items-center justify-center rounded-full border-[10px] border-white dark:border-slate-800 shadow-lg ${tone.bg} text-white"><strong class="text-4xl font-black leading-none">${score}%</strong><span class="mt-1 text-[10px] font-black uppercase tracking-widest">Confianza</span></div><div><span class="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-slate-900 px-3 py-1 text-[10px] font-black uppercase shadow-xs ${tone.text}"><i class="fas ${tone.icon}"></i>${tone.label}</span><h4 class="mt-3 text-lg font-black text-slate-900 dark:text-white">Diagnóstico Integral para ${plate}</h4><p class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">Evaluación consolidada en tiempo real: ${verified} registros verificados con éxito, considerando antecedentes policiales, papeletas provinciales, gravámenes SUNARP, garantías SIGM, siniestralidad SBS y deudas GNV.</p></div></div><ul class="mt-4 grid gap-2 sm:grid-cols-2">${alertHtml}</ul><p class="mt-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400"><strong>Nota de peritaje:</strong> este análisis calcula el porcentaje de salud administrativa y registral cruzando las 20 fuentes oficiales en tiempo real.</p></div>`;
-            const badge = `<span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-black uppercase text-white ${tone.bg}"><i class="fas ${tone.icon}"></i> ${score}% CONFIANZA</span>`;
+
+            const content = `<div class="rounded-2xl border p-4 font-poppins ${tone.soft}"><div class="grid items-center gap-4 sm:grid-cols-[150px_1fr]"><div class="mx-auto flex h-32 w-32 flex-col items-center justify-center rounded-full border-[10px] border-white dark:border-slate-800 shadow-lg ${tone.bg} text-white"><strong class="text-4xl font-black leading-none">${score}%</strong><span class="mt-1 text-[10px] font-black uppercase tracking-widest">Salud Vehicular</span></div><div><span class="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-slate-900 px-3 py-1 text-[10px] font-black uppercase shadow-xs ${tone.text}"><i class="fas ${tone.icon}"></i>${tone.label}</span><h4 class="mt-3 text-lg font-black text-slate-900 dark:text-white">Diagnóstico Integral para ${plate}</h4><p class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">Evaluación consolidada en tiempo real: <strong>${verified} de ${totalSources}</strong> fuentes verificadas con éxito (${coveragePercent}% de cobertura), cruzando antecedentes policiales, gravámenes SUNARP, garantías SIGM, habilitación de taxi ATU, siniestralidad SBS y deudas GNV.</p></div></div><ul class="mt-4 grid gap-2 sm:grid-cols-2">${alertHtml}</ul><p class="mt-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400"><strong>Nota de peritaje:</strong> la salud administrativa del vehículo evalúa infracciones, historial comercial de taxi y gravámenes reales sin penalizar la puntuación ante indisponibilidades de servidores externos.</p></div>`;
+            const badge = `<span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-black uppercase text-white ${tone.bg}"><i class="fas ${tone.icon}"></i> ${score}% SALUD</span>`;
             setCardData('score', 'ANÁLISIS INTELIGENTE DEL VEHÍCULO', 'Evaluación consolidada y porcentaje de salud integral', 'fas fa-brain-circuit', '', 'Cañita AI', content, true, alerts.length > 0, badge);
         }
 

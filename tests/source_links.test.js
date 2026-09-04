@@ -6,8 +6,8 @@ import { MUNICIPAL_SOURCE_URLS } from '../src/services/providers/energy_municipa
 import { SOURCE_URLS } from '../src/utils/renderers.js';
 
 
-test('las 20 secciones automáticas habilitadas tienen una fuente oficial verificable', () => {
-  assert.equal(ENABLED_EXECUTION_ORDER.length, 20);
+test('las 21 secciones automáticas habilitadas tienen una fuente oficial verificable', () => {
+  assert.equal(ENABLED_EXECUTION_ORDER.length, 21);
   for (const { id } of ENABLED_EXECUTION_ORDER) {
     if (id === 'municipal') {
       assert.equal(Object.keys(MUNICIPAL_SOURCE_URLS).length, 12);

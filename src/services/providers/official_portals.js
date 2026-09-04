@@ -106,7 +106,9 @@ export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
 }
 
 export async function runFetchATU(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU');
+    const title = '¿Está inscrito como taxi en ATU?';
+    const subtitle = 'Autorización vehicular por placa · Lima y Callao';
+    callbacks.setCardLoading('atu', title, subtitle, 'fas fa-taxi', '', 'ATU');
     const controller = new AbortController();
     // 160s: ATU comparte el navegador con SBS (1 a la vez). Margen para que, sin importar
     // cuál tome el navegador primero, el segundo en cola tenga tiempo de ejecutarse.
@@ -120,16 +122,16 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
             callbacks.processVehicleInfo('atu', data.data);
             const content = renderAtu(data.data, plate);
             const hasData = data.data && data.data.fuenteDato !== 'NOREGISTRADO' && data.data.estadoCertificado === 1;
-            callbacks.setCardData('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', content, true, hasData);
+            callbacks.setCardData('atu', title, subtitle, 'fas fa-taxi', '', 'ATU', content, true, hasData);
             return data;
         } else {
-            callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', data.error || 'Error al consultar habilitación', plate);
+            callbacks.setCardError('atu', title, subtitle, 'fas fa-taxi', '', 'ATU', data.error || 'No se pudo verificar la inscripción como taxi', plate);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado en el navegador (160s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('atu', 'Habilitación Taxi ATU', '', 'fas fa-taxi', '', 'ATU', msg, plate);
+        callbacks.setCardError('atu', title, subtitle, 'fas fa-taxi', '', 'ATU', msg, plate);
         return { success: false, error: msg };
     }
 }
