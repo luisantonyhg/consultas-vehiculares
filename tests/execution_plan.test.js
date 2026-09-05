@@ -16,7 +16,7 @@ test('mantiene 21 secciones automáticas habilitadas en orden explícito', () =>
 
 test('SBS se ejecuta al final y no bloquea las otras secciones avanzadas', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'sigm', 'lima', 'municipal', 'soat', 'atu', 'historial_dueños', 'sat_captura', 'sat_deposito', 'sbs',
+    'atu', 'sigm', 'lima', 'municipal', 'soat', 'historial_dueños', 'sat_captura', 'sat_deposito', 'sbs',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('sat_captura'));
@@ -33,4 +33,10 @@ test('LUNAS se ejecuta temprano y siniestralidad queda absolutamente al final', 
   assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'background');
   assert.ok(ids.indexOf('lunas') < ids.indexOf('lima'));
   assert.equal(ids.at(-1), 'sbs');
+});
+
+test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzada', () => {
+  const callao = ENABLED_EXECUTION_ORDER.find(item => item.id === 'callao');
+  assert.equal(callao?.phase, 'background');
+  assert.ok(callao.position < ENABLED_EXECUTION_ORDER.find(item => item.id === 'sigm').position);
 });

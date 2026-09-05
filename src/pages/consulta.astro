@@ -1222,6 +1222,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     setConsultationTicket(activeConsultationTicket);
                 }
 
+                // Un ticket nuevo empieza con Gate "validating". Antes de
+                // reintentar cualquier sección POST-GATE hay que registrar
+                // SUNARP para ese mismo ticket; de otro modo espera 65 s y
+                // termina en GATE-WAIT-TIMEOUT aunque la placa ya se consultó.
+                const preGateSections = new Set(['sunarp', 'soat_detallado', 'placas_pe']);
+                if (ownsRetryTicket && !preGateSections.has(cardId)) {
+                    showRetryNotice('<span class="text-sky-700 font-bold"><i class="fas fa-shield-halved mr-1"></i>Validando el nuevo turno con SUNARP...</span>');
+                    const gateResult = await fetchSUNARP(plate);
+                    if (gateResult?.validation_status === 'not_found') {
+                        throw new Error('SUNARP no encontró la placa; no se puede ejecutar esta sección.');
+                    }
+                }
+
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
                 else if (cardId === 'historial_dueños') {
                     const rawRetryOffice = (
@@ -1857,8 +1870,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('sutran', () => fetchSutran(plate)),
                             () => runSectionSafely('fise', () => fetchFISE(plate)),
                             () => runSectionSafely('gnv', () => fetchGNV(plate)),
-                            // Grupo estándar.
-                            () => runSectionSafely('callao', () => fetchCallao(plate)),
+                            // Grupo estándar. Callao se ejecuta en segundo plano:
+                            // una caída de su portal no debe retrasar la fase avanzada.
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
                             () => runSectionSafely('valor_venal', async () => {
                                 const pdData = sectionResults.placas_pe?.data || {};
@@ -1874,6 +1887,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         const variableSectionsPromise = runInBatches([
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
                             () => runSectionSafely('lunas', () => fetchLunas(plate)),
+                            () => runSectionSafely('callao', () => fetchCallao(plate)),
                         ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
 
                         // Antes de fuentes registrales avanzadas sí necesitamos el resultado
