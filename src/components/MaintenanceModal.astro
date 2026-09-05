@@ -152,13 +152,42 @@
 
     (window as any).showMaintenanceModal = openModal;
     (window as any).closeMaintenanceModal = closeModal;
+    (window as any).__maintenanceMode = false;
 
-    // Modo mantenimiento desactivado: el modal no se abre automáticamente
-    // Se mantiene la función window.showMaintenanceModal() disponible por si se requiere
+    async function checkMaintenanceStatus() {
+        try {
+            const backendUrl = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                ? 'http://localhost:8000'
+                : 'https://backend-consultarvehiculos-production.up.railway.app';
+            const res = await fetch(`${backendUrl}/api/v1/maintenance-status`, {
+                signal: AbortSignal.timeout(5000)
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            (window as any).__maintenanceMode = data.maintenance_mode === true;
+            if (data.maintenance_mode) {
+                openModal();
+                document.querySelectorAll('#submit-btn, #query-form button[type="submit"]').forEach((btn: Element) => {
+                    (btn as HTMLButtonElement).disabled = true;
+                    (btn as HTMLButtonElement).classList.add('opacity-60', 'cursor-not-allowed');
+                    (btn as HTMLButtonElement).innerHTML = '<i class="fas fa-wrench"></i> Mantenimiento';
+                });
+                const qs = document.getElementById('query-status');
+                if (qs) {
+                    qs.innerHTML = '<span class="text-amber-500 font-bold"><i class="fas fa-wrench mr-1"></i>Sistema en mantenimiento. Las consultas están deshabilitadas.</span>';
+                    qs.classList.remove('opacity-0');
+                }
+            }
+        } catch (e) {
+            console.warn('[MAINTENANCE] No se pudo verificar estado:', e);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const close = document.getElementById('mnt-close');
         const backdrop = document.getElementById('mnt-backdrop');
         if (close) close.addEventListener('click', closeModal);
         if (backdrop) backdrop.addEventListener('click', closeModal);
+        void checkMaintenanceStatus();
     });
 </script>

@@ -1717,6 +1717,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                 if (isSubmitting) return;
 
+                if ((window as any).__maintenanceMode) {
+                    (window as any).showMaintenanceModal?.();
+                    return;
+                }
+
                 const plate = plateInput.value.trim().toUpperCase();
                 if (!plate) return;
 
