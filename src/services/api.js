@@ -40,7 +40,9 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
 
     try {
         let cap = null, dep = null, satLastError = null;
-        const SAT_BUDGET_MS = 170000;
+        // El backend combinado reserva 170 s de trabajo más 5 s de cierre.
+        // El cliente conserva margen adicional para recibir la respuesta final.
+        const SAT_BUDGET_MS = 180000;
         const satStart = Date.now();
 
         const requestSAT = async (path) => {
@@ -71,7 +73,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
                 renderSatCaptura(cap, plate), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
         } else {
-            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || satLastError || 'No se pudo consultar', plate);
+            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', (cap && cap.error) || satLastError || 'No se pudo consultar', plate, cap);
         }
 
         if (dep && dep.success) {
@@ -88,54 +90,6 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
         callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
-    }
-}
-
-export async function runFetchSATCaptura(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
-    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
-    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/sat/captura/${plate}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const cap = data.captura;
-        if (cap && cap.success) {
-            const tiene = !!cap.tiene;
-            callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
-                renderSatCaptura(cap, plate), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
-            return data;
-        } else {
-            throw new Error((cap && cap.error) || 'No se pudo consultar orden de captura');
-        }
-    } catch (err) {
-        callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', err.message || 'Error de conexión', plate);
-        return { success: false, error: err.message };
-    }
-}
-
-export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
-    callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
-    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
-    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
-
-    try {
-        const res = await secureFetch(`${BACKEND_URL}/sat/deposito/${plate}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const dep = data.deposito;
-        if (dep && dep.success) {
-            const internado = !!dep.internado;
-            callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
-                renderSatDeposito(dep, plate), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
-            return data;
-        } else {
-            throw new Error((dep && dep.error) || 'No se pudo consultar internamiento en depósito');
-        }
-    } catch (err) {
-        callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', err.message || 'Error de conexión', plate);
-        return { success: false, error: err.message };
     }
 }
 
@@ -392,7 +346,12 @@ export async function runFetchLima(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('lima', 'Papeletas Lima (SAT)', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', content, true, hasData, badge);
             return data;
         } else {
-            callbacks.setCardError('lima', 'Papeletas Lima (SAT)', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', data.error || 'Error al consultar papeletas SAT Lima', plate);
+            if (res.headers.get('X-Provider-Status') === 'timeout') {
+                data.code = data.code || 'LIMA_TIMEOUT';
+                data.outcome = data.outcome || 'TIMEOUT';
+                data.providerStatus = 'timeout';
+            }
+            callbacks.setCardError('lima', 'Papeletas Lima (SAT)', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima', data.error || 'Error al consultar papeletas SAT Lima', plate, data);
             return data;
         }
     } catch (err) {
@@ -446,6 +405,18 @@ export function buildSPRLStatusBadge(data) {
     const etapas = data?.resumen?.etapas_titularidad ?? ownership.stage_count ?? (Array.isArray(ownership.stages) ? ownership.stages.length : null);
     const totalDuenos = etapas || (anteriores > 0 ? anteriores + 1 : null) || data?.resumen?.total_propietarios || data?.resumen?.total_duenos;
 
+    const verifiedRegistry = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.registry_record || '').toUpperCase());
+    const verifiedSeats = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.seat_list || '').toUpperCase());
+    const verifiedOwnership = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.ownership_history || '').toUpperCase());
+    const verifiedEncumbrances = ['VERIFIED', 'VERIFIED_NONE', 'PARTIAL', 'FOUND'].includes(String(encumbrancesStatus).toUpperCase());
+    const hasVerifiedRegistryData = verifiedRegistry || verifiedSeats || verifiedOwnership || verifiedEncumbrances;
+    if (!hasVerifiedRegistryData) {
+        return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-slate-600 text-center leading-none">
+            <span class="text-[9px] font-black">REGISTRO NO VERIFICADO</span>
+            <span class="text-[8px] font-bold tracking-tight text-slate-100 mt-0.5">SIN ASIENTOS CONFIRMADOS</span>
+        </span>`;
+    }
+
     const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
     const num = totalDuenos || anteriores || totalAsientos || 1;
 
@@ -457,8 +428,16 @@ export function buildSPRLStatusBadge(data) {
         </span>`;
     }
 
-    // Sin gravámenes: Muestra directamente "[N] DUEÑOS" con "ANTERIORES" en salto abajo, sin la frase "sin gravamenes"
-    return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-emerald-600 text-center leading-none">
+    const verifiedNone = encumbrancesStatus === 'VERIFIED' || encumbrancesStatus === 'VERIFIED_NONE';
+    if (!verifiedNone) {
+        return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-amber-500 text-center leading-none">
+            <span class="text-[9px] font-black">GRAVÁMENES PENDIENTES</span>
+            <span class="text-[8px] font-bold tracking-tight text-amber-100 mt-0.5">${num} DUEÑO${num === 1 ? '' : 'S'} ANTERIORES</span>
+        </span>`;
+    }
+
+    return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-emerald-500 text-center leading-none">
+        <span class="text-[9px] font-black">SIN GRAVÁMENES VERIFICADO</span>
         <span class="text-[10px] font-black">${num} DUEÑO${num === 1 ? '' : 'S'}</span>
         <span class="text-[8px] font-bold tracking-tight text-emerald-100 mt-0.5">ANTERIORES</span>
     </span>`;
@@ -488,6 +467,16 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
             debugSteps.forEach(step => console.log(`[SPRL-PROCESO] ${step}`));
         }
 
+        const verification = data.verification || {};
+        const hasVerifiedRegistryData = ['VERIFIED', 'PARTIAL'].includes(String(verification.registry_record || '').toUpperCase()) ||
+            ['VERIFIED', 'PARTIAL'].includes(String(verification.seat_list || '').toUpperCase()) ||
+            ['VERIFIED', 'PARTIAL'].includes(String(verification.ownership_history || '').toUpperCase()) ||
+            ['VERIFIED', 'VERIFIED_NONE', 'PARTIAL', 'FOUND'].includes(String(verification.encumbrances_history || '').toUpperCase());
+        if (data.status === 'PARTIAL_RESULT' && !hasVerifiedRegistryData) {
+            const message = 'SUNARP confirmó los datos base del vehículo, pero no fue posible verificar la partida registral, los asientos ni los gravámenes. No se muestran titulares ni afectaciones sin confirmación oficial.';
+            callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', message, plate, data);
+            return { ...data, success: false, error: message };
+        }
         if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
             const content = renderHistorialDuenos(data, plate);
             const badge = buildSPRLStatusBadge(data);

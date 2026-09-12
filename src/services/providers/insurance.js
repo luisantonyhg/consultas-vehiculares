@@ -12,6 +12,12 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!data.success && (res.headers.get('X-Provider-Status') === 'timeout' || data.code === 'CITV_TIMEOUT' || data.outcome === 'TIMEOUT')) {
+            data.timeout = true;
+            data.code = 'CITV_TIMEOUT';
+            data.outcome = 'TIMEOUT';
+            data.providerStatus = 'timeout';
+        }
         if (data.success && Array.isArray(data.data)) {
             rawData = data.data;
         } else if (!data.success) {
@@ -191,7 +197,7 @@ export async function runFetchCITV(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', content, true, data.data?.length > 0, customBadge);
             return data;
         } else {
-            callbacks.setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate);
+            callbacks.setCardError('citv', 'Inspección Técnica Vehicular', '', 'fas fa-clipboard-check', '', 'MTC', data.error || 'Error de captcha MTC', plate, data);
             return data;
         }
     } catch (err) {

@@ -339,7 +339,6 @@ export function reorderCards() {
             'sbs-card-container',
             'valor_venal-card-container',
             'citv-card-container',
-            'atu-card-container',
             'gnv-card-container',
             'fise-card-container',
             'osinergmin-card-container',
@@ -352,7 +351,7 @@ export function reorderCards() {
             'sat_captura-card-container',
             'sat_deposito-card-container',
             'lunas-card-container',
-            // Secciones futuras:
+            // Secciones informativas antes del diagnóstico final:
             'sat_deuda-card-container',
             // ANÁLISIS INTELIGENTE DEL VEHÍCULO: evaluación final consolidada de todo el peritaje
             'score-card-container'
@@ -373,15 +372,16 @@ export function reorderCards() {
         }
     }
 
-    // ANÁLISIS INTELIGENTE DEL VEHÍCULO: Ubicado al final de todas las consultas activas (antes de Próximamente)
-    const scoreCard = document.getElementById('score-card-container');
-    if (scoreCard?.parentElement === wrapper) {
-        wrapper.appendChild(scoreCard);
-    }
-
-    // Secciones informativas 'PRÓXIMAMENTE': Siempre se ubican al final absoluto de la pantalla.
+    // Deuda SAT se muestra antes del diagnóstico final para que este quede junto a ATU.
     const satDebtCard = document.getElementById('sat_deuda-card-container');
     if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
+
+    // El diagnóstico cierra las consultas activas y ATU se mantiene como la última tarjeta informativa.
+    const scoreCard = document.getElementById('score-card-container');
+    if (scoreCard?.parentElement === wrapper) wrapper.appendChild(scoreCard);
+
+    const atuCard = document.getElementById('atu-card-container');
+    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {

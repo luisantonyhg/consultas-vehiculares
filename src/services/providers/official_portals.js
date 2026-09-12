@@ -1,28 +1,44 @@
 import { renderLunas, renderCallao, renderSutran, renderCinemometro, renderAtu, renderSBS } from '../../utils/renderers.js';
 import { secureFetch } from '../transport.js';
 
-export async function runFetchLunas(plate, BACKEND_URL, callbacks) {
+export async function runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefresh = false } = {}) {
     callbacks.setCardLoading('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 165000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/lunas/${plate}`, { signal: controller.signal });
+        const query = forceRefresh ? '?force_refresh=true' : '';
+        const res = await secureFetch(`${BACKEND_URL}/lunas/${plate}${query}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!data.success && (res.headers.get('X-Provider-Status') === 'captcha_error' || data.code === 'LUNAS_CAPTCHA_ERROR' || data.outcome === 'CAPTCHA_ERROR')) {
+            data.code = 'LUNAS_CAPTCHA_ERROR';
+            data.outcome = 'CAPTCHA_ERROR';
+        }
+        if (!data.success && (res.headers.get('X-Provider-Status') === 'timeout' || data.code === 'LUNAS_TIMEOUT' || data.outcome === 'TIMEOUT')) {
+            data.code = 'LUNAS_TIMEOUT';
+            data.outcome = 'TIMEOUT';
+        }
+        if (!data.success && res.headers.get('X-Provider-Status') === 'retryable_error') {
+            data.code = 'LUNAS_RETRYABLE_ERROR';
+            data.outcome = 'retryable_error';
+        }
         if (data.success) {
             const content = renderLunas(data.data, plate);
             callbacks.setCardData('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', content, true, data.data && data.data.length > 0);
             return data;
         } else {
-            callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', data.error || 'Error en consulta de lunas PNP', plate);
+            callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', data.error || 'Error en consulta de lunas PNP', plate, data);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (165s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', msg, plate);
-        return { success: false, error: msg };
+        const result = { success: false, error: msg };
+        if (err?.code) result.code = err.code;
+        if (err?.outcome) result.outcome = err.outcome;
+        return result;
     }
 }
 
@@ -44,7 +60,14 @@ export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', content, true, data.data?.length > 0);
             return data;
         } else {
-            callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || 'Error al consultar papeletas', plate);
+            // Preserva el contrato estructurado de timeout para que la política
+            // de retry pueda distinguir una demora del portal de una red caída.
+            if (res.headers.get('X-Provider-Status') === 'timeout') {
+                data.code = data.code || 'CALLAO_TIMEOUT';
+                data.outcome = data.outcome || 'TIMEOUT';
+                data.providerStatus = 'timeout';
+            }
+            callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || 'Error al consultar papeletas', plate, data);
             return data;
         }
     } catch (err) {
@@ -83,7 +106,10 @@ export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
 export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 65000);
+    // El route mantiene un presupuesto de 80 s y single-flight permite a un
+    // follower esperar hasta 90 s. El cliente debe dejar un margen de red para
+    // no abortar una respuesta válida antes de que el backend la entregue.
+    const timeoutId = setTimeout(() => controller.abort(), 95000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/cinemometro/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
