@@ -64,8 +64,9 @@ export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
     // Lima ya agota sus intentos CapSolver dentro del backend. Repetir toda la
     // sección desde el navegador duplica coste y puede crear más tokens, sin
     // aportar una señal nueva; queda disponible el reintento manual.
-    const retryableTimeout = new Set(['sunarp', 'fise']);
-    if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || isCallaoTimeout(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
+    // Callao: OCR.Space puede ser lento (~6-10s); reintento automático 1 vez.
+    const retryableTimeout = new Set(['sunarp', 'fise', 'callao']);
+    if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
     if (isLunasRetryableError(cardId, error)) return { retry: attempt < Math.max(maxAttempts, 2), effectiveMaxAttempts: Math.max(maxAttempts, 2) };
     const effectiveMaxAttempts = backpressure ? Math.max(maxAttempts, 3) : isConnection ? Math.max(maxAttempts, 2) : maxAttempts;
     return { retry: attempt < effectiveMaxAttempts, effectiveMaxAttempts };
