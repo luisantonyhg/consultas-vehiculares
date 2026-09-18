@@ -687,11 +687,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             releaseConsultationSlot,
             createConsultationId,
             setConsultationId,
-            setConsultationTicket
+            setConsultationTicket,
+            setManualRetrySection
         } from '../services/api.js';
         import { initVisits } from '../ui/visits.js';
         import { setupCaptcha } from '../ui/captcha.js';
         import { setupSatTicketModal } from '../ui/sat_ticket_modal.js';
+        import { renderPdfInto } from '../ui/pdf_viewer.js';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
         import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes, splitPrioritySections } from '../services/execution_plan.js';
         import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../services/execution_scheduler.js';
@@ -941,7 +943,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const effectiveMaxAttempts = retryDecision.effectiveMaxAttempts;
                     if (attempt < effectiveMaxAttempts) {
                         retryScheduled = true;
-                        const delay = isBackpressure
+                        const requestedRetryAfter = Number(errorMeta?.retry_after_seconds || 0) * 1000;
+                        const delay = requestedRetryAfter > 0
+                            ? Math.min(Math.max(requestedRetryAfter, 1000), 15000)
+                            : isBackpressure
                             ? Math.min(5000 * attempt, 10000)
                             : attempt === 1 ? 1500 : 3500;
                         const scheduledAt = Date.now();
@@ -1257,7 +1262,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // reintentar cualquier sección POST-GATE hay que registrar
                 // SUNARP para ese mismo ticket; de otro modo espera 65 s y
                 // termina en GATE-WAIT-TIMEOUT aunque la placa ya se consultó.
-                const preGateSections = new Set(['sunarp', 'soat_detallado', 'placas_pe']);
+                // Estas fuentes no dependen del registro SUNARP. Conservar el
+                // ticket/cola, pero no volver a consumir SUNARP en un reintento.
+                const directRetrySections = new Set(['fise', 'callao', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal']);
+                const preGateSections = new Set(['sunarp', ...directRetrySections]);
                 if (ownsRetryTicket && !preGateSections.has(cardId)) {
                     showRetryNotice('<span class="text-sky-700 font-bold"><i class="fas fa-shield-halved mr-1"></i>Validando el nuevo turno con SUNARP...</span>');
                     const gateResult = await fetchSUNARP(plate);
@@ -1266,6 +1274,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
                 }
 
+                setManualRetrySection(cardId);
+                console.info('[MANUAL-RETRY]', {
+                    plate,
+                    section: cardId,
+                    consultationTicket: activeConsultationTicket,
+                    newTicket: ownsRetryTicket,
+                });
+                showRetryNotice(`<span class="text-sky-700 font-bold"><i class="fas fa-rotate-right mr-1"></i>Reintentando ${cardId.replaceAll('_', ' ')}…</span>`);
                 if (cardId === 'sunarp')           await fetchSUNARP(plate);
                 else if (cardId === 'historial_dueños') {
                     const rawRetryOffice = (
@@ -1296,6 +1312,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
                 showRetryNotice(`<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>${(e as any)?.message || 'No se pudo reintentar la sección.'}</span>`);
             } finally {
+                setManualRetrySection(null);
                 if (ownsRetryTicket && activeConsultationTicket) {
                     const retryTicket = activeConsultationTicket;
                     activeConsultationTicket = null;
@@ -2176,6 +2193,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const error = document.getElementById('modal-error')!;
             const errorMsg = document.getElementById('modal-error-msg')!;
             const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const pdfCanvasViewer = document.getElementById('pdf-canvas-viewer') as HTMLDivElement;
             const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
 
             const nroPapeleta = String(rawNroPapeleta || '').trim().split('/').pop()?.split('?')[0] || rawNroPapeleta;
@@ -2190,6 +2208,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             loading.classList.remove('hidden');
             error.classList.add('hidden');
             pdfViewer.classList.add('hidden');
+            pdfCanvasViewer.classList.add('hidden');
+            pdfCanvasViewer.replaceChildren();
             imgViewer.classList.add('hidden');
             pdfViewer.src = "";
             imgViewer.src = "";
@@ -2217,11 +2237,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             }
                             const blob = new Blob([byteNumbers], { type: 'application/pdf' });
                             currentPapeletaBlobUrl = URL.createObjectURL(blob);
-                            pdfViewer.src = currentPapeletaBlobUrl;
-                            pdfViewer.classList.remove('hidden');
+                            await renderPdfInto(pdfCanvasViewer, blob);
                         } catch (bErr) {
-                            pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
-                            pdfViewer.classList.remove('hidden');
+                            throw new Error('No se pudo renderizar el PDF oficial. Puedes intentar descargarlo nuevamente.');
                         }
                     } else if (isPng || isJpg) {
                         const mime = isPng ? 'image/png' : 'image/jpeg';
@@ -2240,11 +2258,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 }
                                 const blob = new Blob([byteNumbers], { type: 'application/pdf' });
                                 currentPapeletaBlobUrl = URL.createObjectURL(blob);
-                                pdfViewer.src = currentPapeletaBlobUrl;
-                                pdfViewer.classList.remove('hidden');
+                                await renderPdfInto(pdfCanvasViewer, blob);
                             } catch (_) {
-                                pdfViewer.src = `data:application/pdf;base64,${base64Data}`;
-                                pdfViewer.classList.remove('hidden');
+                                throw new Error('El documento no tiene un formato PDF o imagen reconocido.');
                             }
                         }
                     }
@@ -2297,6 +2313,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const loading = document.getElementById('modal-loading')!;
             const error = document.getElementById('modal-error')!;
             const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const pdfCanvasViewer = document.getElementById('pdf-canvas-viewer') as HTMLDivElement;
             const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
 
             title.textContent = titleText;
@@ -2304,6 +2321,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             loading.classList.add('hidden');
             error.classList.add('hidden');
             pdfViewer.classList.add('hidden');
+            pdfCanvasViewer.classList.add('hidden');
+            pdfCanvasViewer.replaceChildren();
             
             imgViewer.src = imgSrc;
             imgViewer.classList.remove('hidden');
@@ -2316,12 +2335,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const error = document.getElementById('modal-error')!;
             const errorMsg = document.getElementById('modal-error-msg')!;
             const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const pdfCanvasViewer = document.getElementById('pdf-canvas-viewer') as HTMLDivElement;
             const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
 
             title.textContent = `Foto Probatoria - Papeleta N° ${nroPapeleta}`;
             modal.classList.remove('hidden');
             error.classList.add('hidden');
             pdfViewer.classList.add('hidden');
+            pdfCanvasViewer.classList.add('hidden');
+            pdfCanvasViewer.replaceChildren();
             imgViewer.classList.add('hidden');
             pdfViewer.src = "";
             imgViewer.src = "";
@@ -2363,8 +2385,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const modal = document.getElementById('papeleta-modal')!;
             modal.classList.add('hidden');
             const pdfViewer = document.getElementById('pdf-viewer') as HTMLIFrameElement;
+            const pdfCanvasViewer = document.getElementById('pdf-canvas-viewer') as HTMLDivElement;
             const imgViewer = document.getElementById('image-viewer') as HTMLImageElement;
             pdfViewer.src = "";
+            pdfCanvasViewer.replaceChildren();
+            pdfCanvasViewer.classList.add('hidden');
             imgViewer.src = "";
         };
 
@@ -2392,6 +2417,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <p id="modal-error-msg" class="text-xs text-slate-500 mt-1 font-inter"></p>
                 </div>
                 <iframe id="pdf-viewer" class="hidden w-full h-[65vh] border-0 rounded-lg shadow-sm" src=""></iframe>
+                <div id="pdf-canvas-viewer" class="hidden w-full max-h-[65vh] overflow-auto rounded-lg bg-slate-200 p-2"></div>
                 <img id="image-viewer" class="hidden max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm" alt="Papeleta" />
             </div>
         </div>

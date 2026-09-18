@@ -40,6 +40,17 @@ export function isCallaoTimeout(cardId, errorOrMessage = '') {
     );
 }
 
+export function isFiseRetryableError(cardId, errorOrMessage = '') {
+    if (cardId !== 'fise') return false;
+    return errorOrMessage?.retryable === true || [
+        'FISE_NETWORK_ERROR',
+        'FISE_UPSTREAM_ERROR',
+        'FISE_PORT_UNREACHABLE',
+        'FISE_CLIENT_TIMEOUT',
+        'FISE_CLIENT_NETWORK_ERROR',
+    ].includes(errorOrMessage?.code);
+}
+
 export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
     const message = String(error?.message ?? error ?? '');
     const normalized = message.toLowerCase();
@@ -67,7 +78,11 @@ export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
     // Callao: OCR.Space puede ser lento (~6-10s); reintento automático 1 vez.
     const retryableTimeout = new Set(['sunarp', 'fise', 'callao']);
     if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
-    if (isLunasRetryableError(cardId, error)) return { retry: attempt < Math.max(maxAttempts, 2), effectiveMaxAttempts: Math.max(maxAttempts, 2) };
+    if (isLunasRetryableError(cardId, error) || isFiseRetryableError(cardId, error)) {
+        // Un segundo intento FISE crea un token CAPTCHA nuevo y no repite el
+        // POST con uno potencialmente consumido. El límite es deliberadamente 2.
+        return { retry: attempt < Math.max(maxAttempts, 2), effectiveMaxAttempts: Math.max(maxAttempts, 2) };
+    }
     const effectiveMaxAttempts = backpressure ? Math.max(maxAttempts, 3) : isConnection ? Math.max(maxAttempts, 2) : maxAttempts;
     return { retry: attempt < effectiveMaxAttempts, effectiveMaxAttempts };
 }

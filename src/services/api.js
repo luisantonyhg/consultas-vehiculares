@@ -13,7 +13,7 @@ import {
 } from '../utils/renderers.js';
 import { secureFetch } from './transport.js';
 export { runFetchSIGM } from './providers/sigm.js';
-export { createConsultationId, setConsultationId, setConsultationTicket } from './transport.js';
+export { createConsultationId, setConsultationId, setConsultationTicket, setManualRetrySection } from './transport.js';
 export {
     acquireConsultationSlot,
     waitForConsultationSlot,

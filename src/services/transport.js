@@ -1,6 +1,7 @@
 /** Transporte HTTP compartido por todos los proveedores vehiculares. */
 let activeConsultationTicket = null;
 let activeConsultationId = null;
+let manualRetrySection = null;
 const sectionPerformanceSamples = [];
 
 function sectionFromUrl(url) {
@@ -34,6 +35,10 @@ export function setConsultationId(consultationId) {
     activeConsultationId = consultationId || null;
 }
 
+export function setManualRetrySection(sectionId) {
+    manualRetrySection = sectionId || null;
+}
+
 export function createConsultationId() {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
     return `cv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -48,6 +53,7 @@ export async function secureFetch(url, options = {}) {
         ...(clientSecret ? { 'X-Client-Secret': clientSecret } : {}),
         ...(activeConsultationTicket ? { 'X-Consultation-Ticket': activeConsultationTicket } : {}),
         ...(activeConsultationId ? { 'X-Consultation-Id': activeConsultationId } : {}),
+        ...(manualRetrySection ? { 'X-Manual-Retry': '1', 'X-Manual-Retry-Section': manualRetrySection } : {}),
     };
     const section = sectionFromUrl(url);
     const startedAt = performance.now();

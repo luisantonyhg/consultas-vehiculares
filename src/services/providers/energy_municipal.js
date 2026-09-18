@@ -81,14 +81,24 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
             callbacks.setCardData('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', content, true, hasData, customBadge);
             return data;
         } else {
-            callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', data.error || 'Error al consultar FISE', plate);
+            // Conserva el resultado tipado del backend: la política de reintentos
+            // distingue un corte de red del portal de un CAPTCHA rechazado.
+            callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', data.error || 'Error al consultar FISE', plate, data);
             return data;
         }
     } catch (err) {
         clearTimeout(timeoutId);
         const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (45s).' : (err.message || 'Error de conexión');
-        callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', msg, plate);
-        return { success: false, error: msg };
+        const errorMeta = {
+            success: false,
+            error: msg,
+            code: err.name === 'AbortError' ? 'FISE_CLIENT_TIMEOUT' : 'FISE_CLIENT_NETWORK_ERROR',
+            outcome: err.name === 'AbortError' ? 'TIMEOUT' : 'RETRYABLE_ERROR',
+            retryable: true,
+            retry_after_seconds: 8,
+        };
+        callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', msg, plate, errorMeta);
+        return errorMeta;
     }
 }
 
