@@ -695,7 +695,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { setupSatTicketModal } from '../ui/sat_ticket_modal.js';
         import { renderPdfInto } from '../ui/pdf_viewer.js';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
-        import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes, splitPrioritySections } from '../services/execution_plan.js';
+        import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes } from '../services/execution_plan.js';
         import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../services/execution_scheduler.js';
         import { shouldAutoRetry } from '../services/sat_retry_policy.js';
         import { calculateVehicleScore, buildConsolidatedPayload } from '../services/vehicle_score.js';
@@ -2031,14 +2031,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 5)');
 
                         console.info('[ORDEN-CONSULTA] 21 consultas automáticas:', ENABLED_EXECUTION_ORDER);
-                        // P0.3: SPRL es el job más largo y solo necesita placa +
-                        // oficina (ya resueltos por SUNARP). Corre en carril
-                        // prioritario propio desde heavy-ready, en paralelo al
-                        // resto avanzado. ADVANCED_EXECUTION_ORDER no se toca.
-                        const { standard: standardAdvancedOrder } = splitPrioritySections(
-                            ADVANCED_EXECUTION_ORDER,
-                            ['historial_dueños'],
-                        );
                         const advancedJobs: Record<string, () => Promise<any>> = {
                             sbs: () => fetchSBS(plate),
                             soat: () => fetchSOAT(plate),
@@ -2047,22 +2039,17 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 return fetchLima(plate);
                             },
                             sigm: () => fetchSIGM(plate),
+                            historial_dueños: () => {
+                                queryStatus.textContent = 'Analizando historial de dueños y asientos registrales...';
+                                setCardLoading('historial_dueños', 'Historial de Dueños y Gravámenes', 'Analizando asientos y transferencias oficiales...', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
+                                return fetchHistorialDuenos(plate, detectedOffice);
+                            },
                             municipal: () => fetchMunicipal(plate),
                             sat: () => fetchSAT(plate),
                         };
-                        const sprlScheduledAt = Date.now();
-                        console.info(`[SPRL-SCHEDULER] plate=${plate} gate_to_schedule_ms=${Math.round(sprlScheduledAt - heavyGateKnownAt)} scheduled=true`);
-                        queryStatus.textContent = 'Analizando historial de dueños y asientos registrales...';
-                        setCardLoading('historial_dueños', 'Historial de Dueños y Gravámenes', 'Analizando asientos y transferencias oficiales...', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
-                        const historialPromise = runSectionSafely('historial_dueños', () => fetchHistorialDuenos(plate, detectedOffice));
-                        // Dos carriles por consulta: con dos fases pesadas activas se
-                        // ocupan como máximo los cuatro slots globales de navegador.
-                        // En modo protegido se degrada automáticamente a un solo carril.
-                        // P0.4.1: scheduling por SECCIÓN con dependencias. Cada worker
-                        // toma una sección y LIBERA el slot al terminarla (nunca se
-                        // reserva un worker para una cadena). SBS espera a SOAT y
-                        // Depósito a Captura por finalización; al desbloquearse
-                        // compiten al final de la cola (fairness). Pico = 2 secciones.
+                        // SIGM puede ejecutarse junto con Lima. Las secciones que usan
+                        // Chromium quedan encadenadas conforme al plan declarado: así
+                        // la cola global no decide el orden por azar.
                         const advancedConcurrency = admission?.load_mode === 'protected' ? 1 : 2;
                         const runAdvancedSection = async (sectionId: string) => {
                             const startedAt = performance.now();
@@ -2071,7 +2058,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
                             return result;
                         };
-                        const advancedNodes = buildAdvancedNodes(standardAdvancedOrder);
+                        const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
                         const advancedBatchStartedAt = Date.now();
                         console.info(`[ADVANCED-SCHEDULE] heavy_ready order=${advancedNodes.map((node: any) => node.id).join(',')} deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
                         const advancedPromise = runSectionsWithDependencies(
@@ -2094,10 +2081,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 ),
                             },
                         );
-                        // Supervisión independiente: un fallo en SPRL no cancela el
-                        // batch ni viceversa (runSectionSafely nunca rechaza).
-                        // Pero el score/complete esperan ambos resultados.
-                        await historialPromise;
                         await advancedPromise;
 
                         // P0.3 (corrige P0.2): el score necesita TODAS las secciones,

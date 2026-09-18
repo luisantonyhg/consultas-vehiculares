@@ -410,6 +410,16 @@ export function buildSPRLStatusBadge(data) {
     const verifiedOwnership = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.ownership_history || '').toUpperCase());
     const verifiedEncumbrances = ['VERIFIED', 'VERIFIED_NONE', 'PARTIAL', 'FOUND'].includes(String(encumbrancesStatus).toUpperCase());
     const hasVerifiedRegistryData = verifiedRegistry || verifiedSeats || verifiedOwnership || verifiedEncumbrances;
+    const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
+    // Un PARTIAL con asientos reportados ya aporta evidencia registral, pero
+    // jamás permite inferir que no existen gravámenes. Debe verse como una
+    // verificación pendiente, no como "registro no verificado" ni como cero.
+    if (data?.status === 'PARTIAL_RESULT' && totalAsientos && !verifiedEncumbrances) {
+        return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-amber-500 text-center leading-none">
+            <span class="text-[9px] font-black">GRAVÁMENES PENDIENTES</span>
+            <span class="text-[8px] font-bold tracking-tight text-amber-100 mt-0.5">${totalAsientos} ASIENTO${totalAsientos === 1 ? '' : 'S'} PARCIAL${totalAsientos === 1 ? '' : 'ES'}</span>
+        </span>`;
+    }
     if (!hasVerifiedRegistryData) {
         return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-slate-600 text-center leading-none">
             <span class="text-[9px] font-black">REGISTRO NO VERIFICADO</span>
@@ -417,7 +427,6 @@ export function buildSPRLStatusBadge(data) {
         </span>`;
     }
 
-    const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
     const num = totalDuenos || anteriores || totalAsientos || 1;
 
     // Solo cuando tiene gravámenes vigentes se pinta en rojo con CON GRAVÁMENES

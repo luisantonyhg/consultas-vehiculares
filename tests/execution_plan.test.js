@@ -9,25 +9,22 @@ import {
   splitPrioritySections,
 } from '../src/services/execution_plan.js';
 
-test('mantiene 20 secciones automáticas habilitadas en orden explícito (ATU informativa)', () => {
-  assert.equal(ENABLED_EXECUTION_ORDER.length, 20);
-  assert.deepEqual(
-    ENABLED_EXECUTION_ORDER.map(item => item.position),
-    Array.from({ length: 20 }, (_, index) => index + 1),
-  );
+test('mantiene las 18 secciones automáticas habilitadas en orden explícito (ATU informativa)', () => {
+  // SAT se consulta como una sección unificada y ATU sigue informativa: por
+  // eso el plan real actual tiene 18, no las 20 entradas históricas.
+  assert.equal(ENABLED_EXECUTION_ORDER.length, 18);
+  assert.equal(new Set(ENABLED_EXECUTION_ORDER.map(item => item.id)).size, 18);
+  assert.ok(ENABLED_EXECUTION_ORDER.every(item => Number.isInteger(item.position) && item.position > 0));
 });
 
-test('SBS se ejecuta al final y no bloquea las otras secciones avanzadas', () => {
+test('las secciones con navegador siguen el orden de prioridad de producción', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'sigm', 'lima', 'municipal', 'soat', 'historial_dueños', 'sat_captura', 'sat_deposito', 'sbs',
+    'sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
-  assert.ok(ids.indexOf('lima') < ids.indexOf('sat_captura'));
-  assert.ok(ids.indexOf('lunas') < ids.indexOf('sat_captura'));
-  assert.ok(ids.indexOf('sigm') < ids.indexOf('sat_captura'));
-  assert.ok(ids.indexOf('historial_dueños') < ids.indexOf('sat_captura'));
+  assert.ok(ids.indexOf('lima') < ids.indexOf('historial_dueños'));
+  assert.ok(ids.indexOf('historial_dueños') < ids.indexOf('sat'));
   assert.equal(ids.includes('atu'), false);
-  assert.ok(ids.indexOf('sat_captura') < ids.indexOf('sat_deposito'));
   assert.equal(ids.at(-1), 'sbs');
 });
 
@@ -44,15 +41,11 @@ test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzad
   assert.ok(callao.position < ENABLED_EXECUTION_ORDER.find(item => item.id === 'sigm').position);
 });
 
-test('P0.3: historial sale a carril prioritario sin alterar el resto del orden', () => {
-  const { priority, standard } = splitPrioritySections(ADVANCED_EXECUTION_ORDER, ['historial_dueños']);
-  assert.deepEqual(priority, ['historial_dueños']);
-  assert.deepEqual(standard, ['sigm', 'lima', 'municipal', 'soat', 'sat_captura', 'sat_deposito', 'sbs']);
-  // Cada id exactamente una vez entre ambas listas.
-  assert.deepEqual(
-    [...priority, ...standard].sort(),
-    [...ADVANCED_EXECUTION_ORDER].sort(),
-  );
+test('P0.3: historial espera Lima en vez de ocupar primero el navegador global', () => {
+  const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
+  const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
+  assert.deepEqual(deps.historial_dueños, ['lima']);
+  assert.deepEqual(deps.sbs, ['soat', 'historial_dueños']);
 });
 
 test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
@@ -64,17 +57,19 @@ test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
   assert.deepEqual(empty.standard, ['a', 'b']);
 });
 
-test('P0.4.1: nodos con dependencias SOAT→SBS y Captura→Depósito, resto intacto', () => {
-  const standard = ['sigm', 'lima', 'municipal', 'soat', 'sat_captura', 'sat_deposito', 'sbs'];
+test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', () => {
+  const standard = ['sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal'];
   const nodes = buildAdvancedNodes(standard);
-  assert.deepEqual(nodes.map(node => node.id), [
-    'soat', 'sat_captura', 'sigm', 'lima', 'municipal', 'sbs', 'sat_deposito',
-  ]);
+  assert.deepEqual(nodes.map(node => node.id), standard);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.sbs, ['soat']);
-  assert.deepEqual(deps.sat_deposito, ['sat_captura']);
+  assert.deepEqual(deps.historial_dueños, ['lima']);
+  assert.deepEqual(deps.sbs, ['soat', 'historial_dueños']);
+  assert.deepEqual(deps.sat, ['sbs']);
+  assert.deepEqual(deps.municipal, ['sat']);
   assert.deepEqual(deps.soat, []);
-  assert.deepEqual(ADVANCED_DEPENDENCIES, { sbs: ['soat'], sat_deposito: ['sat_captura'] });
+  assert.deepEqual(ADVANCED_DEPENDENCIES, {
+    historial_dueños: ['lima'], sbs: ['soat', 'historial_dueños'], sat: ['sbs'], municipal: ['sat'],
+  });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());
   assert.equal(new Set(ids).size, ids.length);

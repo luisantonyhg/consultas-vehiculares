@@ -83,6 +83,9 @@ export const SOURCE_URLS = {
     osinergmin: 'https://pvo.osinergmin.gob.pe/msfh5/registroHidrocarburos.xhtml?method=buscar',
     sat_captura: 'https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx',
     sat_deposito: 'https://www.sat.gob.pe/VirtualSAT/modulos/ConsultaDeposito.aspx',
+    // SAT se ejecuta hoy como consulta unificada; conserva una fuente oficial
+    // verificable para la tarjeta consolidada.
+    sat: 'https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx',
     sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/'
 };
 

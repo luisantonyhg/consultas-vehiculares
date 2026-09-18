@@ -27,11 +27,11 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
     'lima',
-    'municipal',
     'soat',
     'historial_dueños',
-    'sat',  // SAT unificado
     'sbs',
+    'sat',  // SAT unificado
+    'municipal',
 ]);
 
 /**
@@ -58,7 +58,14 @@ export function splitPrioritySections(order, priorityIds = []) {
  * sección su slot se libera y el dependiente compite al final de la cola.
  */
 export const ADVANCED_DEPENDENCIES = Object.freeze({
-    sbs: Object.freeze(['soat']),
+    // Railway opera con un único navegador global. Estas dependencias no
+    // eliminan ninguna fuente: hacen explícito el orden que la cola ya estaba
+    // imponiendo de forma accidental, dejando primero los resultados de mayor
+    // valor y evitando que SPRL bloquee Lima desde el inicio.
+    historial_dueños: Object.freeze(['lima']),
+    sbs: Object.freeze(['soat', 'historial_dueños']),
+    sat: Object.freeze(['sbs']),
+    municipal: Object.freeze(['sat']),
 });
 
 /**

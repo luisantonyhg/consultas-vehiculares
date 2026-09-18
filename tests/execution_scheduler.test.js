@@ -98,8 +98,8 @@ test('las secciones avanzadas usan dos carriles y modo protegido usa solo uno', 
 
 test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () => {
   // NUNCA un lane-cadena reteniendo un worker: cada sección libera su slot.
-  const nodesPos = consultaSource.indexOf('const advancedNodes = buildAdvancedNodes(standardAdvancedOrder);');
-  assert.ok(nodesPos >= 0, 'los nodos derivan del orden estándar sin historial');
+  const nodesPos = consultaSource.indexOf('const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);');
+  assert.ok(nodesPos >= 0, 'los nodos derivan del orden estratégico completo');
   assert.match(
     consultaSource,
     /const advancedPromise = runSectionsWithDependencies\(\s*advancedNodes\.map\(\(node/,
@@ -107,19 +107,19 @@ test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () =>
   assert.ok(!consultaSource.includes('advancedLanes.map((entry'), 'sin lanes que reserven workers');
 });
 
-test('P0.3: el batch avanzado deriva de ADVANCED_EXECUTION_ORDER sin historial', () => {
-  // El orden canónico no se reescribe; historial sale a carril propio.
-  assert.match(
-    consultaSource,
-    /splitPrioritySections\(\s*ADVANCED_EXECUTION_ORDER,\s*\['historial_dueños'\]/,
+test('el historial no adelanta a Lima y el navegador sigue un orden determinista', () => {
+  const nodes = buildAdvancedNodes([
+    'sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal',
+  ]);
+  assert.deepEqual(
+    Object.fromEntries(nodes.map(node => [node.id, node.deps])),
+    {
+      sigm: [], lima: [], soat: [], historial_dueños: ['lima'],
+      sbs: ['soat', 'historial_dueños'], sat: ['sbs'], municipal: ['sat'],
+    },
   );
-  assert.match(
-    consultaSource,
-    /const historialPromise = runSectionSafely\('historial_dueños'/,
-  );
-  // Ambas ramas se esperan antes del score; ninguna cancela a la otra.
-  const scorePos = consultaSource.indexOf('renderVehicleScore(plate);');
-  assert.ok(consultaSource.indexOf('await historialPromise;', scorePos - 600) >= 0);
+  assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);
+  assert.doesNotMatch(consultaSource, /splitPrioritySections/);
 });
 
 test('FISE reintenta una validación no concluyente y nunca depende de un solo token', () => {
