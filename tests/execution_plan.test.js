@@ -19,20 +19,20 @@ test('mantiene las 18 secciones automáticas habilitadas en orden explícito (AT
 
 test('las secciones con navegador siguen el orden de prioridad de producción', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal',
+    'sigm', 'lima', 'soat', 'sbs', 'sat', 'municipal', 'historial_dueños',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('historial_dueños'));
-  assert.ok(ids.indexOf('historial_dueños') < ids.indexOf('sat'));
+  assert.ok(ids.indexOf('sat') < ids.indexOf('historial_dueños'));
   assert.equal(ids.includes('atu'), false);
-  assert.equal(ids.at(-1), 'sbs');
+  assert.equal(ids.at(-1), 'historial_dueños');
 });
 
-test('LUNAS se ejecuta temprano y siniestralidad queda absolutamente al final', () => {
+test('LUNAS se ejecuta temprano e historial registral queda absolutamente al final', () => {
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'background');
   assert.ok(ids.indexOf('lunas') < ids.indexOf('lima'));
-  assert.equal(ids.at(-1), 'sbs');
+  assert.equal(ids.at(-1), 'historial_dueños');
 });
 
 test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzada', () => {
@@ -41,11 +41,11 @@ test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzad
   assert.ok(callao.position < ENABLED_EXECUTION_ORDER.find(item => item.id === 'sigm').position);
 });
 
-test('P0.3: historial espera Lima en vez de ocupar primero el navegador global', () => {
+test('historial espera toda la ruta pesada antes de ocupar el navegador global', () => {
   const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.historial_dueños, ['lima']);
-  assert.deepEqual(deps.sbs, ['soat', 'historial_dueños']);
+  assert.deepEqual(deps.sbs, ['soat']);
+  assert.deepEqual(deps.historial_dueños, ['municipal']);
 });
 
 test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
@@ -58,17 +58,17 @@ test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
 });
 
 test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', () => {
-  const standard = ['sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal'];
+  const standard = ['sigm', 'lima', 'soat', 'sbs', 'sat', 'municipal', 'historial_dueños'];
   const nodes = buildAdvancedNodes(standard);
   assert.deepEqual(nodes.map(node => node.id), standard);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.historial_dueños, ['lima']);
-  assert.deepEqual(deps.sbs, ['soat', 'historial_dueños']);
+  assert.deepEqual(deps.sbs, ['soat']);
   assert.deepEqual(deps.sat, ['sbs']);
   assert.deepEqual(deps.municipal, ['sat']);
+  assert.deepEqual(deps.historial_dueños, ['municipal']);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
-    historial_dueños: ['lima'], sbs: ['soat', 'historial_dueños'], sat: ['sbs'], municipal: ['sat'],
+    sbs: ['soat'], sat: ['sbs'], municipal: ['sat'], historial_dueños: ['municipal'],
   });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());

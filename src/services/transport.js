@@ -39,6 +39,14 @@ export function setManualRetrySection(sectionId) {
     manualRetrySection = sectionId || null;
 }
 
+function isManualRetryTarget(section) {
+    // Las consultas normales pueden seguir en vuelo mientras el usuario pulsa
+    // "Reintentar" en una tarjeta. La marca manual no puede ser global: de
+    // otro modo esas peticiones ajenas heredan X-Manual-Retry y contaminan el
+    // trazado y la política de admisión del backend.
+    return Boolean(manualRetrySection && section === manualRetrySection);
+}
+
 export function createConsultationId() {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
     return `cv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -48,14 +56,16 @@ export async function secureFetch(url, options = {}) {
     const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET)
         ? import.meta.env.PUBLIC_CLIENT_SECRET
         : 'VehicularPESecretSecure2026';
+    const section = sectionFromUrl(url);
     const headers = {
         ...options.headers,
         ...(clientSecret ? { 'X-Client-Secret': clientSecret } : {}),
         ...(activeConsultationTicket ? { 'X-Consultation-Ticket': activeConsultationTicket } : {}),
         ...(activeConsultationId ? { 'X-Consultation-Id': activeConsultationId } : {}),
-        ...(manualRetrySection ? { 'X-Manual-Retry': '1', 'X-Manual-Retry-Section': manualRetrySection } : {}),
+        ...(isManualRetryTarget(section)
+            ? { 'X-Manual-Retry': '1', 'X-Manual-Retry-Section': manualRetrySection }
+            : {}),
     };
-    const section = sectionFromUrl(url);
     const startedAt = performance.now();
     try {
         const res = await fetch(url, { ...options, headers });

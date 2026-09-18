@@ -17,21 +17,24 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 13, id: 'sigm', phase: 'advanced' },
     { position: 14, id: 'lima', phase: 'advanced' },
     { position: 15, id: 'municipal', phase: 'advanced' },
-    { position: 16, id: 'historial_dueños', phase: 'registry' },
-    { position: 17, id: 'sat', phase: 'advanced' },  // SAT unificado (captura + deposito en una sola sesión)
-    { position: 18, id: 'sbs', phase: 'final' },  // SBS ya incluye SOAT en su vuelo compartido
+    { position: 16, id: 'sat', phase: 'advanced' },  // SAT unificado (captura + deposito en una sola sesión)
+    { position: 17, id: 'sbs', phase: 'final' },  // SBS ya incluye SOAT en su vuelo compartido
+    // SPRL es valioso, pero es el proveedor más variable y costoso. Se deja
+    // al final para que no retenga los resultados principales.
+    { position: 18, id: 'historial_dueños', phase: 'registry' },
 ]);
 
-// LUNAS ya se lanzó en segundo plano. SBS queda al final porque su navegador
-// fue la consulta avanzada más lenta que bloqueaba resultados más útiles.
+// LUNAS ya se lanzó en segundo plano. Historial de dueños queda al final:
+// su navegador puede tardar más de un minuto y no debe bloquear Lima, SBS o
+// SAT, que aportan resultados principales antes.
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
     'lima',
     'soat',
-    'historial_dueños',
     'sbs',
     'sat',  // SAT unificado
     'municipal',
+    'historial_dueños',
 ]);
 
 /**
@@ -62,10 +65,10 @@ export const ADVANCED_DEPENDENCIES = Object.freeze({
     // eliminan ninguna fuente: hacen explícito el orden que la cola ya estaba
     // imponiendo de forma accidental, dejando primero los resultados de mayor
     // valor y evitando que SPRL bloquee Lima desde el inicio.
-    historial_dueños: Object.freeze(['lima']),
-    sbs: Object.freeze(['soat', 'historial_dueños']),
+    sbs: Object.freeze(['soat']),
     sat: Object.freeze(['sbs']),
     municipal: Object.freeze(['sat']),
+    historial_dueños: Object.freeze(['municipal']),
 });
 
 /**

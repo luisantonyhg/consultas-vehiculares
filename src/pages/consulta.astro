@@ -1293,6 +1293,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     await fetchHistorialDuenos(plate, sedecaptadodelaseccionsunarp);
                 }
                 else if (cardId === 'soat')        await fetchSOAT(plate);
+                else if (cardId === 'fise')        await fetchFISE(plate);
                 else if (cardId === 'soat_detallado') await fetchSOATDetallado(plate);
                 else if (cardId === 'citv')        await fetchCITV(plate);
                 else if (cardId === 'callao')      await fetchCallao(plate);
@@ -2021,7 +2022,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
                         // Estado visual bonito para la cola secuencial
-                        setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Turno 3)');
+                        setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Verificación avanzada final)');
                         setCardWaiting('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', 'En espera (Turno 1)');
                         setCardWaiting('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', 'En espera (Fase pesada)');
                         setCardWaiting('soat', 'Historial SOAT', 'Pólizas y vigencia', 'fas fa-shield-halved', '', 'SBS', 'En espera (Fase pesada)');
@@ -2059,10 +2060,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             return result;
                         };
                         const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
+                        // SPRL no comparte la ruta crítica visual. Se programa
+                        // deliberadamente después del resto de la cola pesada,
+                        // pero el ticket y heartbeat siguen vivos hasta su final.
+                        // Municipal puede abrir Playwright para algunos portales.
+                        // Igual que SPRL, no debe retener la experiencia principal.
+                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['municipal', 'historial_dueños'].includes(node.id));
+                        const municipalNode = advancedNodes.find((node: any) => node.id === 'municipal');
+                        const historialNode = advancedNodes.find((node: any) => node.id === 'historial_dueños');
                         const advancedBatchStartedAt = Date.now();
-                        console.info(`[ADVANCED-SCHEDULE] heavy_ready order=${advancedNodes.map((node: any) => node.id).join(',')} deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
+                        console.info(`[ADVANCED-SCHEDULE] heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
                         const advancedPromise = runSectionsWithDependencies(
-                            advancedNodes.map((node: any) => ({
+                            coreAdvancedNodes.map((node: any) => ({
                                 ...node,
                                 run: () => runAdvancedSection(node.id),
                             })),
@@ -2113,8 +2122,60 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             renderVehicleScore(plate);
                         }
 
-                        // Guardar snapshot de resultados en localStorage
+                        // El informe principal ya está listo: no ocultar sus
+                        // tarjetas detrás del loader por una única verificación
+                        // registral lenta. El ticket permanece activo para SPRL.
+                        queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado...';
+                        hideLoadingOverlay();
                         saveToCache(plate);
+
+                        if (municipalNode) {
+                            console.info('[SCHEDULER] provider=municipal priority=90 reason=background_after_sat state=queued');
+                            await runSectionsWithDependencies([
+                                {
+                                    ...municipalNode,
+                                    // SAT terminó en el lote principal; este
+                                    // scheduler independiente no conoce sus
+                                    // dependencias ya satisfechas.
+                                    deps: [],
+                                    run: () => runAdvancedSection(municipalNode.id),
+                                },
+                            ], 1, {
+                                onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=90 state=started queue_ms=${Math.round(queue_wait_ms)}`
+                                ),
+                                onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=90 state=${status} duration_ms=${Math.round(processing_ms)}`
+                                ),
+                            });
+                        }
+
+                        // `runSectionsWithDependencies` aísla un error/PARTIAL
+                        // municipal como resultado; nunca cancela SPRL ni el
+                        // ticket de la consulta.
+                        if (historialNode) {
+                            console.info('[SCHEDULER] provider=historial_dueños priority=100 reason=advanced_last state=queued');
+                            await runSectionsWithDependencies([
+                                {
+                                    ...historialNode,
+                                    // Las dependencias ya se completaron en el
+                                    // lote principal; conservarlas aquí haría
+                                    // que un scheduler nuevo las considere
+                                    // inexistentes.
+                                    deps: [],
+                                    run: () => runAdvancedSection(historialNode.id),
+                                },
+                            ], 1, {
+                                onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=100 state=started queue_ms=${Math.round(queue_wait_ms)}`
+                                ),
+                                onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=100 state=${status} duration_ms=${Math.round(processing_ms)}`
+                                ),
+                            });
+                            renderVehicleScore(plate);
+                            saveToCache(plate);
+                        }
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);

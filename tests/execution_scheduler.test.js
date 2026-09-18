@@ -92,7 +92,7 @@ test('las secciones avanzadas usan dos carriles y modo protegido usa solo uno', 
   );
   assert.match(
     consultaSource,
-    /runSectionsWithDependencies\(\s*advancedNodes\.map\(\(node[\s\S]*?advancedConcurrency,/,
+    /runSectionsWithDependencies\(\s*coreAdvancedNodes\.map\(\(node[\s\S]*?advancedConcurrency,/,
   );
 });
 
@@ -102,24 +102,54 @@ test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () =>
   assert.ok(nodesPos >= 0, 'los nodos derivan del orden estratégico completo');
   assert.match(
     consultaSource,
-    /const advancedPromise = runSectionsWithDependencies\(\s*advancedNodes\.map\(\(node/,
+    /const advancedPromise = runSectionsWithDependencies\(\s*coreAdvancedNodes\.map\(\(node/,
   );
   assert.ok(!consultaSource.includes('advancedLanes.map((entry'), 'sin lanes que reserven workers');
 });
 
-test('el historial no adelanta a Lima y el navegador sigue un orden determinista', () => {
+test('el historial queda después de la ruta pesada y no bloquea el informe principal', () => {
   const nodes = buildAdvancedNodes([
-    'sigm', 'lima', 'soat', 'historial_dueños', 'sbs', 'sat', 'municipal',
+    'sigm', 'lima', 'soat', 'sbs', 'sat', 'municipal', 'historial_dueños',
   ]);
   assert.deepEqual(
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
-      sigm: [], lima: [], soat: [], historial_dueños: ['lima'],
-      sbs: ['soat', 'historial_dueños'], sat: ['sbs'], municipal: ['sat'],
+      sigm: [], lima: [], soat: [], sbs: ['soat'], sat: ['sbs'],
+      municipal: ['sat'], historial_dueños: ['municipal'],
     },
   );
   assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);
+  assert.match(consultaSource, /const coreAdvancedNodes = advancedNodes\.filter/);
+  assert.match(consultaSource, /!\['municipal', 'historial_dueños'\]\.includes\(node\.id\)/);
+  assert.match(consultaSource, /Resultados principales listos\. Verificando historial registral avanzado/);
+  assert.match(consultaSource, /provider=municipal priority=90 reason=background_after_sat state=queued/);
+  assert.match(consultaSource, /priority=100 reason=advanced_last state=queued/);
   assert.doesNotMatch(consultaSource, /splitPrioritySections/);
+});
+
+test('un Municipal rechazado no impide el Historial posterior', async () => {
+  const started = [];
+  const municipal = await runSectionsWithDependencies([
+    { id: 'municipal', deps: [], run: async () => { throw new Error('portal municipal parcial'); } },
+  ], 1);
+  assert.equal(municipal.results.municipal.status, 'rejected');
+
+  const historial = await runSectionsWithDependencies([
+    { id: 'historial_dueños', deps: [], run: async () => { started.push('historial'); return 'ok'; } },
+  ], 1);
+  assert.equal(historial.results.historial_dueños.status, 'fulfilled');
+  assert.deepEqual(started, ['historial']);
+});
+
+test('el ticket se completa solo después de Municipal e Historial', () => {
+  const municipalStart = consultaSource.indexOf("if (municipalNode) {");
+  const historialStart = consultaSource.indexOf("if (historialNode) {");
+  const release = consultaSource.indexOf('await releaseConsultationSlot(BACKEND_URL, ticketToRelease);');
+  const loader = consultaSource.indexOf('hideLoadingOverlay();', consultaSource.indexOf('Resultados principales listos.'));
+
+  assert.ok(loader >= 0 && municipalStart > loader, 'el loader se oculta antes de Municipal');
+  assert.ok(historialStart > municipalStart, 'Historial debe iniciar después de Municipal');
+  assert.ok(release > historialStart, 'el ticket se libera tras Historial');
 });
 
 test('FISE reintenta una validación no concluyente y nunca depende de un solo token', () => {
