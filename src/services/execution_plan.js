@@ -9,7 +9,8 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 7, id: 'gnv', phase: 'fast' },
     { position: 8, id: 'cinemometro', phase: 'fast' },
     { position: 9, id: 'valor_venal', phase: 'fast' },
-    { position: 10, id: 'citv', phase: 'background' },
+    { position: 10, id: 'atu_infracciones', phase: 'fast' },
+    { position: 11, id: 'citv', phase: 'background' },
     // Callao es corto si OCR remoto falla rápido; Lunas es costoso y queda al
     // final de este carril para no retrasar una fuente municipal útil.
     { position: 11, id: 'callao', phase: 'background' },

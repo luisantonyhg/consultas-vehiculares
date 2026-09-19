@@ -28,6 +28,13 @@ if (typeof document !== 'undefined' && !window.__canitaResultActionsInstalled) {
                 decodeActionValue(button.dataset.target),
                 decodeActionValue(button.dataset.plate)
             );
+        } else if (action === 'atu-infracciones-acta') {
+            // La sección es experimental: el visor se inyecta únicamente en
+            // su laboratorio, nunca inicia una descarga ni abre pagos solo.
+            window.openAtuInfraccionActa?.(
+                decodeActionValue(button.dataset.actaId),
+                decodeActionValue(button.dataset.acta)
+            );
         }
     });
 }
@@ -42,6 +49,7 @@ export const LOGO_MAPPING = {
     sutran: '/assets/sutran.png',
     cinemometro: '/assets/sutran.png',
     atu: '/assets/atu.png',
+    atu_infracciones: '/assets/atu.png',
     gnv: '/assets/infogas.png',
     sbs: '/assets/sbs.png',
     sunarp: '/assets/sunarp.jpeg',
@@ -72,6 +80,7 @@ export const SOURCE_URLS = {
     sutran: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmRecordInfracciones.aspx',
     cinemometro: 'https://webexterno.sutran.gob.pe/WebExterno/Pages/frmPapeletasCinemometro.aspx',
     atu: 'https://soluciones.atu.gob.pe/ConsultaVehiculo/',
+    atu_infracciones: 'https://pasarela.atu.gob.pe/',
     gnv: 'https://vh.infogas.com.pe/',
     fise: 'https://fise.minem.gob.pe:23308/consulta-taller/pages/consultaTaller/inicio',
     sigm: 'https://sigm.sunarp.gob.pe/garantias-mobiliarias/inicio',
@@ -521,8 +530,8 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
         if (customBadge) {
             badgeHTML = DOMPurify.sanitize(String(customBadge));
         } else if (hasData) {
-            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') {
-                const text = cardId === 'cinemometro' ? 'CON INFRACCIONES' : 'CON PAPELETAS';
+            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro' || cardId === 'atu_infracciones') {
+                const text = cardId === 'cinemometro' ? 'CON INFRACCIONES' : (cardId === 'atu_infracciones' ? 'CON REGISTRO' : 'CON PAPELETAS');
                 badgeHTML = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-triangle-exclamation"></i> ${text}
                 </span>`;
@@ -537,7 +546,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             }
         } else {
             let text = 'SIN REGISTROS';
-            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro') text = 'SIN PAPELETAS';
+            if (cardId === 'callao' || cardId === 'sutran' || cardId === 'lima' || cardId === 'cinemometro' || cardId === 'atu_infracciones') text = 'SIN PAPELETAS';
             if (cardId === 'atu') text = 'NO INSCRITO COMO TAXI';
             if (cardId === 'lunas') text = 'SIN PERMISO';
             if (cardId === 'citv') text = 'SIN INSPECCIÓN';

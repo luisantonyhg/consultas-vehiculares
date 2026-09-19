@@ -10,3 +10,4 @@ export * from './fise.js';
 export * from './sigm.js';
 export * from './pnp.js';
 export * from './historial_duenos.js';
+export * from './atu_infracciones.js';

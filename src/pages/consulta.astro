@@ -187,7 +187,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
 <body class="bg-slate-50 text-slate-800 transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10">
 
-    <!-- Modal de Novedades y Actualizaciones (Diseño Limpio, Blanco y Compacto) -->
+    {/* Modal de Novedades y Actualizaciones (Desactivado/Comentado)
     <div id="updates-modal" class="fixed inset-0 z-[140] hidden items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm transition-all duration-300 font-poppins" role="dialog" aria-modal="true" aria-labelledby="updates-modal-title">
         <div class="relative w-full max-w-[460px] overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl border border-slate-200">
             <!-- Header Blanco y Elegante -->
@@ -289,6 +289,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             </div>
         </div>
     </div>
+    */}
 
     <main class="w-full flex-1 flex flex-col items-center">
         {/* Banner Section */}
@@ -623,6 +624,57 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         </div>
     </div>
 
+    <!-- Modal Oficial de Visualización de Acta de Fiscalización ATU -->
+    <div id="atu-acta-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
+        <div class="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] font-poppins">
+            <!-- Header del Modal -->
+            <div class="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900 text-white border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400">
+                        <i class="fas fa-file-pdf text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white">Acta Oficial de Fiscalización ATU</h3>
+                        <p class="text-[10px] text-slate-400 font-mono" id="atu-modal-doc-title">Documento: —</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="atu-modal-download-btn" href="#" download="Acta_ATU.pdf" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer">
+                        <i class="fas fa-download text-xs"></i> <span class="hidden sm:inline">Descargar PDF</span>
+                    </a>
+                    <button type="button" id="atu-modal-close-btn" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer" title="Cerrar (Esc)">
+                        <i class="fas fa-xmark text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenido / Visualizador -->
+            <div class="relative flex-1 overflow-auto p-3 sm:p-5 flex items-center justify-center bg-slate-100 dark:bg-slate-950 min-h-[400px]">
+                <div id="atu-modal-loader" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs z-10">
+                    <i class="fas fa-circle-notch fa-spin text-2xl text-sky-600"></i>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Cargando acta oficial desde la pasarela ATU...</span>
+                </div>
+                <div id="atu-modal-error" class="hidden flex-col items-center justify-center gap-2 text-center p-6">
+                    <i class="fas fa-triangle-exclamation text-3xl text-rose-500"></i>
+                    <p class="text-sm font-extrabold text-slate-800 dark:text-slate-200">No se pudo cargar la vista previa del acta</p>
+                    <p id="atu-modal-error-msg" class="text-xs text-slate-500">Puedes intentar descargar el archivo directamente con el botón superior.</p>
+                </div>
+                <div id="atu-modal-canvas-viewer" class="hidden w-full max-h-[68vh] overflow-auto rounded-lg bg-slate-200 p-2"></div>
+                <iframe id="atu-modal-frame" src="about:blank" class="w-full h-[68vh] rounded-lg border border-slate-200 dark:border-slate-800 hidden"></iframe>
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+                <span class="flex items-center gap-1.5"><i class="fas fa-shield-halved text-emerald-500"></i> Documento oficial ATU emitido por la autoridad</span>
+                <button type="button" id="atu-modal-close-footer" class="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-extrabold uppercase tracking-wider text-[10px] cursor-pointer">
+                    Volver a la Consulta
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         import { setupSectionExport } from '../ui/section_export';
         import {
@@ -666,6 +718,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchCinemometro,
             runFetchGNV,
             runFetchATU,
+            runFetchAtuInfracciones,
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
@@ -693,6 +746,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { initVisits } from '../ui/visits.js';
         import { setupCaptcha } from '../ui/captcha.js';
         import { setupSatTicketModal } from '../ui/sat_ticket_modal.js';
+        import { setupAtuActaModal } from '../ui/atu_acta_modal.js';
         import { renderPdfInto } from '../ui/pdf_viewer.js';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
         import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes } from '../services/execution_plan.js';
@@ -711,6 +765,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 : 'https://backend-consultarvehiculos-production.up.railway.app/api/v1'
         );
         const WHATSAPP_NUMBER = String(import.meta.env.PUBLIC_WHATSAPP_NUMBER || '51928701061').replace(/\D/g, '') || '51928701061';
+        /* Modal de Novedades y Actualizaciones (Desactivado/Comentado)
         const updatesModal = document.getElementById('updates-modal');
         const closeUpdatesModal = () => {
             updatesModal?.classList.add('hidden');
@@ -730,6 +785,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             document.getElementById('updates-modal-accept')?.addEventListener('click', closeUpdatesModal);
             updatesModal.addEventListener('click', (event) => { if (event.target === updatesModal) closeUpdatesModal(); });
         }
+        */
         let activeConsultationTicket: string | null = null;
         let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
         let consultationGeneration = 0;
@@ -753,6 +809,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // MODAL SAT LIMA - VISUALIZADOR DE COPIA DE PAPELETA
         // ====================================================
         setupSatTicketModal();
+
+        // ====================================================
+        // MODAL ATU - VISUALIZADOR DE ACTA DE FISCALIZACIÓN
+        // ====================================================
+        setupAtuActaModal(BACKEND_URL);
 
         // ====================================================
         // CAPTCHA DE SEGURIDAD
@@ -1177,6 +1238,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
 
+        async function fetchAtuInfracciones(plate: string) {
+            return runFetchWithRetry('atu_infracciones', (callbacks) => runFetchAtuInfracciones(plate, BACKEND_URL, callbacks), plate);
+        }
+
         async function fetchSBS(plate: string) {
             return runExclusive('sbs', () =>
                 runFetchWithRetry('sbs', (callbacks) => runFetchSBS(plate, BACKEND_URL, callbacks), plate));
@@ -1306,6 +1371,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
                 else if (cardId === 'sbs')         await fetchSBS(plate);
                 else if (cardId === 'atu')         await fetchATU(plate);
+                else if (cardId === 'atu_infracciones') await fetchAtuInfracciones(plate);
                 else if (cardId === 'sat')         await fetchSAT(plate);
                 else if (cardId === 'lima')        await fetchLima(plate);
                 else if (cardId === 'lunas')       await fetchLunas(plate);
@@ -1582,6 +1648,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <div id="sutran-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="cinemometro-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="municipal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
+                    <div id="atu_infracciones-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sigm-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                     <!-- 6. Seguridad y Combustible -->
                     <div id="gnv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -1641,6 +1708,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
                 setCardLoading('cinemometro', 'Cinemómetro SUTRAN', 'Papeletas de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
                 setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
+                setCardLoading('atu_infracciones', 'Papeletas e Infracciones ATU', 'Actas de fiscalización oficial · Lima y Callao', 'fas fa-receipt', '', 'ATU');
                 setCardLoading('placas_pe', 'Registro Vehicular AAP', 'Estado de Placa', 'fas fa-car', '', 'AAP');
                 setCardLoading('valor_venal', 'Valor Comercial Referencial', 'APESEG', 'fas fa-tag', '', 'APESEG');
                 setCardLoading('osinergmin', 'Registro Oficial de Tanque / Hidrocarburos', 'OSINERGMIN', 'fas fa-gas-pump', '', 'OSINERGMIN');
@@ -1947,6 +2015,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             // Grupo estándar. Callao se ejecuta en segundo plano:
                             // una caída de su portal no debe retrasar la fase avanzada.
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
+                            () => runSectionSafely('atu_infracciones', () => fetchAtuInfracciones(plate)),
                             () => runSectionSafely('valor_venal', async () => {
                                 const pdData = sectionResults.placas_pe?.data || {};
                                 const reference = resolveVehicleReference(pdData, vehicleData);

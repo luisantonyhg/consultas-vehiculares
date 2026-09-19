@@ -31,6 +31,7 @@ export {
     runFetchATU,
     runFetchSBS,
 } from './providers/official_portals.js';
+export { runFetchAtuInfracciones } from './providers/atu_infracciones_provider.js';
 export { runFetchGNV, runFetchFISE, runFetchMunicipal } from './providers/energy_municipal.js';
 export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');

@@ -20,32 +20,122 @@ export function renderCallao(data, plate, total) {
             <p class="text-xs text-slate-400 dark:text-slate-500">No se registraron infracciones para <strong class="text-slate-600 dark:text-slate-300">${plate}</strong> en el Callao</p>
         </div>`;
     }
+
+    const totalInsolutoNum = data.reduce((acc, r) => acc + (parseFloat(String(r.insoluto || r.importe || 0).replace(/,/g, '')) || 0), 0);
+    const totalVoluntarioNum = total ? parseFloat(String(total).replace(/,/g, '')) : data.reduce((acc, r) => acc + (parseFloat(String(r.pagoVoluntario || r.totalPagar || r.total || 0).replace(/,/g, '')) || 0), 0);
+    const totalInsolutoFmt = totalInsolutoNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const totalVoluntarioFmt = totalVoluntarioNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     const rows = data.map((p) => {
         const docIdentifier = p.nroPapeleta || p.detalleUrl || '';
-        const insoluto = p.importe || p.insoluto || p.total || '0.00';
-        const totalPagar = p.totalPagar || p.total || insoluto;
+        const insoluto = p.insoluto || p.importe || '0.00';
+        const pagoVoluntario = p.pagoVoluntario || p.totalPagar || p.total || insoluto;
         const fecha = p.fechaInfraccion || p.fecha || '-';
+        const rawCuota = (p.nroCuota !== undefined && p.nroCuota !== null && p.nroCuota !== '') ? String(p.nroCuota) : '0';
+        const hasDscto = p.dsctoPorVencer || rawCuota.includes('*') || String(p.total || '').includes('*') || String(p.pagoVoluntario || '').includes('*');
+        const cuotaClean = rawCuota.replace('*', '').trim() || '0';
+        const fraccionar = p.fraccionar || 'Transito';
+        const placaVal = p.placa || plate || '-';
+
         return `
-        <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-red-50/50 dark:hover:bg-rose-950/10 transition-colors duration-150 font-poppins">
-            <td class="py-2 px-2 text-[10px] md:text-xs font-black text-slate-900 dark:text-slate-100 border-r border-slate-100 dark:border-slate-800 leading-tight">
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] font-bold text-slate-800 dark:text-slate-200">${p.nroPapeleta || '-'}</span>
-                ${p.nroCuota ? `<span class="block text-[8px] text-slate-400 font-medium">Cuota: ${p.nroCuota}</span>` : ''}
+        <tr class="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-red-50/40 dark:hover:bg-rose-950/10 transition-colors duration-150 font-poppins text-[11px]">
+            <!-- 1. Placa -->
+            <td class="py-2.5 px-2 font-mono font-bold text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">${escapeHTML(placaVal)}</td>
+            <!-- 2. Código -->
+            <td class="py-2.5 px-2 font-extrabold text-amber-600 dark:text-amber-400 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">${escapeHTML(p.codigo || '-')}</td>
+            <!-- 3. N° Papeleta -->
+            <td class="py-2.5 px-2 font-mono font-black text-slate-900 dark:text-slate-100 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-800 dark:text-slate-200">${escapeHTML(p.nroPapeleta || '-')}</span>
             </td>
-            <td class="py-2 px-2 text-[10px] md:text-xs font-extrabold text-amber-700 dark:text-amber-400 border-r border-slate-100 dark:border-slate-800 leading-tight">${p.codigo || '-'}</td>
-            <td class="py-2 px-2 text-[10px] md:text-xs text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 leading-tight whitespace-nowrap">${fecha}</td>
-            <td class="py-2 px-2 text-[10px] md:text-xs font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${insoluto}</td>
-            <td class="py-2 px-2 text-[10px] md:text-xs font-black text-red-600 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 leading-tight">S/ ${totalPagar}</td>
-            <td class="py-2 px-2 text-center">
+            <!-- 4. Fecha Infracción -->
+            <td class="py-2.5 px-2 text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">${escapeHTML(fecha)}</td>
+            <!-- 5. Importe (100% insoluto) -->
+            <td class="py-2.5 px-2 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">S/ ${escapeHTML(insoluto)}</td>
+            <!-- 6. PAGO VOLUNTARIO DS 017-2026-MTC -->
+            <td class="py-2.5 px-2 font-black text-red-600 dark:text-red-400 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">S/ ${escapeHTML(pagoVoluntario)}</td>
+            <!-- 7. N° Cuota -->
+            <td class="py-2.5 px-2 text-center border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                ${hasDscto ? `<span class="text-red-600 dark:text-red-400 font-black text-xs mr-0.5">*</span>` : ''}
+                <span class="font-bold text-slate-700 dark:text-slate-300">${escapeHTML(cuotaClean)}</span>
+            </td>
+            <!-- 8. Detalle -->
+            <td class="py-2.5 px-2 text-center border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">
                 ${docIdentifier ? `
                     <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}"
-                        class="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-xs text-[10px] font-bold"
-                        title="Ver Documento de la Papeleta ${docIdentifier}">
+                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-xs text-[10px] font-bold cursor-pointer"
+                        title="Ver Documento Oficial de la Papeleta ${docIdentifier}">
                         <i class="fas fa-file-pdf text-[11px]"></i>
-                        <span class="hidden sm:inline">Ver</span>
+                        <span>Ver</span>
                     </button>
                 ` : '<span class="text-slate-300 dark:text-slate-700 text-[10px]">—</span>'}
             </td>
+            <!-- 9. Fraccionar -->
+            <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">${escapeHTML(fraccionar)}</span>
+            </td>
         </tr>`;
+    }).join('');
+
+    // Tarjetas optimizadas para móviles
+    const mobileCards = data.map((p) => {
+        const docIdentifier = p.nroPapeleta || p.detalleUrl || '';
+        const insoluto = p.insoluto || p.importe || '0.00';
+        const pagoVoluntario = p.pagoVoluntario || p.totalPagar || p.total || insoluto;
+        const fecha = p.fechaInfraccion || p.fecha || '-';
+        const rawCuota = (p.nroCuota !== undefined && p.nroCuota !== null && p.nroCuota !== '') ? String(p.nroCuota) : '0';
+        const hasDscto = p.dsctoPorVencer || rawCuota.includes('*') || String(p.total || '').includes('*') || String(p.pagoVoluntario || '').includes('*');
+        const cuotaClean = rawCuota.replace('*', '').trim() || '0';
+        const fraccionar = p.fraccionar || 'Transito';
+        const placaVal = p.placa || plate || '-';
+
+        return `
+        <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col gap-2 font-poppins">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-900 text-white dark:bg-slate-800 tracking-wider font-mono">
+                        ${escapeHTML(placaVal)}
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50">
+                        ${escapeHTML(p.codigo || '-')}
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        ${escapeHTML(p.nroPapeleta || '-')}
+                    </span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    ${escapeHTML(fraccionar)}
+                </span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-[11px] py-1">
+                <div>
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Fecha Infracción</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(fecha)}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">N° Cuota</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-200">${hasDscto ? '<span class="text-red-500 font-black">*</span>' : ''}${escapeHTML(cuotaClean)}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block">Importe (100% Insoluto)</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-300">S/ ${escapeHTML(insoluto)}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] uppercase font-bold text-red-500 dark:text-red-400 block">Pago Voluntario DS 017-2026</span>
+                    <span class="font-black text-red-600 dark:text-red-400 text-xs">S/ ${escapeHTML(pagoVoluntario)}</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 mt-0.5">
+                <span class="text-[10px] text-slate-400">Papeleta oficial Callao</span>
+                ${docIdentifier ? `
+                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] uppercase tracking-wide transition-all shadow-xs active:scale-95 cursor-pointer">
+                        <i class="fas fa-file-pdf"></i> Ver Documento
+                    </button>
+                ` : `<span class="text-[10px] text-slate-400 italic">Sin documento</span>`}
+            </div>
+        </div>`;
     }).join('');
 
     return `
@@ -55,26 +145,57 @@ export function renderCallao(data, plate, total) {
                 <p class="text-xl font-bold text-red-600 dark:text-red-500 leading-tight">${data.length} papeleta${data.length > 1 ? 's' : ''}</p>
             </div>
             <div class="text-right">
-                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total adeudado</p>
-                <p class="text-xl font-bold text-red-750 dark:text-red-400 leading-tight">S/ ${total || '0.00'}</p>
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total adeudado con descuento</p>
+                <p class="text-xl font-bold text-red-600 dark:text-red-400 leading-tight">S/ ${totalVoluntarioFmt}</p>
                 <p class="text-[8px] text-red-500 mt-0.5 font-bold uppercase tracking-wider">⚠ PAGA O EVITA EMBARGO</p>
             </div>
         </div>
-        <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm">
+
+        <!-- Tabla completa oficial (Desktop / Tablet) -->
+        <div class="hidden md:block rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-sm mb-3">
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 min-w-[580px]">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900 min-w-[760px]">
                     <thead>
-                        <tr class="bg-slate-900 dark:bg-slate-955 text-white">
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Papeleta</th>
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Código</th>
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Fecha Infracción</th>
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Insoluto</th>
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Total a Pagar</th>
-                            <th class="py-2 px-2 text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-center">Documento</th>
+                        <tr class="bg-slate-900 dark:bg-slate-950 text-white text-[9px]">
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Placa</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Código</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">N° Papeleta</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Fecha Infracción</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800">Importe (100% insoluto)</th>
+                            <th class="py-1 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 text-center">
+                                <div class="bg-blue-600 text-white text-[8.5px] font-extrabold px-1.5 py-0.5 rounded leading-tight">
+                                    PAGO VOLUNTARIO<br><span class="text-[7.5px] font-medium opacity-90">DS 017-2026-MTC</span>
+                                </div>
+                            </th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 text-center">N° Cuota</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider border-r border-white/10 dark:border-slate-800 text-center">Detalle</th>
+                            <th class="py-2.5 px-2 font-bold uppercase tracking-wider text-center">Fraccionar</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Tarjetas adaptadas para Móvil (Móvil) -->
+        <div class="md:hidden flex flex-col gap-2.5 mb-3">
+            ${mobileCards}
+        </div>
+
+        <!-- Footer Informativo y Alerta Oficial -->
+        <div class="flex flex-wrap items-center justify-between gap-2.5 pt-3 px-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-poppins">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 font-extrabold text-[9px] uppercase tracking-wide">
+                    <span class="font-black">*</span> → DSCTO. POR VENCER
+                </span>
+                <span class="text-slate-500 dark:text-slate-400 text-[10px]">
+                    Total Insoluto: <strong class="text-slate-800 dark:text-slate-200">S/ ${totalInsolutoFmt}</strong>
+                </span>
+            </div>
+            <div>
+                <span class="inline-flex items-center gap-1 text-[9px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 px-2 py-0.5 rounded">
+                    <i class="fas fa-circle-exclamation text-rose-600"></i> PRECAUCIÓN: PAGA O EVITA MEDIDAS DE EMBARGO
+                </span>
             </div>
         </div>`;
 }

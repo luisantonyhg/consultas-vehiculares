@@ -13,6 +13,7 @@ function sectionFromUrl(url) {
         if (provider === 'sunarp' && rest[1] === 'historial') return 'historial_dueños';
         if (provider === 'sat' && ['captura', 'deposito', 'deuda'].includes(rest[1])) return `sat_${rest[1]}`;
         if (provider === 'apeseg' && rest[1] === 'precio') return 'valor_venal';
+        if (provider === 'laboratory' && rest[1]) return rest[1].replaceAll('-', '_');
         return provider.replaceAll('-', '_');
     } catch (_) {
         return 'gateway';

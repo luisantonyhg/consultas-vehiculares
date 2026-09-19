@@ -123,7 +123,8 @@ test('el historial queda después de la ruta pesada y no bloquea el informe prin
   assert.match(consultaSource, /!\['municipal', 'historial_dueños'\]\.includes\(node\.id\)/);
   assert.match(consultaSource, /Resultados principales listos\. Verificando historial registral avanzado/);
   assert.match(consultaSource, /provider=municipal priority=90 reason=background_after_sat state=queued/);
-  assert.match(consultaSource, /priority=100 reason=advanced_last state=queued/);
+  assert.match(consultaSource, /provider=historial_dueños priority=100 reason=advanced_last state=queued/);
+  assert.match(consultaSource, /\[ADVANCED-SCHEDULE\] consultation_id=\$\{activeConsultationId\}/);
   assert.doesNotMatch(consultaSource, /splitPrioritySections/);
 });
 
@@ -150,6 +151,36 @@ test('el ticket se completa solo después de Municipal e Historial', () => {
   assert.ok(loader >= 0 && municipalStart > loader, 'el loader se oculta antes de Municipal');
   assert.ok(historialStart > municipalStart, 'Historial debe iniciar después de Municipal');
   assert.ok(release > historialStart, 'el ticket se libera tras Historial');
+});
+
+test('la UI registra el tiempo útil y el cierre total de la misma consulta', () => {
+  assert.match(consultaSource, /\[UI-MAIN-READY\]/);
+  assert.match(consultaSource, /last_core_provider:\s*'sat'/);
+  assert.match(consultaSource, /consultation_id:\s*activeConsultationId/);
+  assert.match(consultaSource, /\[CONSULTATION-FULL-COMPLETE\]/);
+  assert.match(consultaSource, /municipal_ms:\s*municipalElapsedMs/);
+  assert.match(consultaSource, /sprl_ms:\s*historialElapsedMs/);
+});
+
+test('un Historial fallido no borra los resultados principales ni impide el cierre', async () => {
+  const visibleResults = ['sunarp', 'sat', 'soat'];
+  const historial = await runSectionsWithDependencies([
+    { id: 'historial_dueños', deps: [], run: async () => { throw new Error('SPRL no disponible'); } },
+  ], 1);
+  assert.equal(historial.results.historial_dueños.status, 'rejected');
+  assert.deepEqual(visibleResults, ['sunarp', 'sat', 'soat']);
+  assert.ok(
+    consultaSource.indexOf('await releaseConsultationSlot(BACKEND_URL, ticketToRelease);') >
+      consultaSource.indexOf('if (historialNode) {'),
+    'el ciclo se cierra incluso después del intento de Historial',
+  );
+});
+
+test('el aviso visual de fondo no cancela Municipal ni Historial', () => {
+  assert.match(consultaSource, /La verificación registral está tardando más de lo esperado/);
+  assert.match(consultaSource, /\}, 45000\);/);
+  assert.match(consultaSource, /if \(backgroundStatusNotice\) clearTimeout\(backgroundStatusNotice\);/);
+  assert.doesNotMatch(consultaSource, /AbortController\(\).*backgroundStatusNotice/s);
 });
 
 test('FISE reintenta una validación no concluyente y nunca depende de un solo token', () => {
