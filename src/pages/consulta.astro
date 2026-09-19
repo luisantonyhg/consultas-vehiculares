@@ -1881,7 +1881,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 currentSunarpValidation = 'indeterminate';
                 consultationGeneration += 1;
                 consultationLifecycle = 'active';
-                setConsultationId(createConsultationId());
+                const activeConsultationId = createConsultationId();
+                const consultationStartedAt = performance.now();
+                setConsultationId(activeConsultationId);
 
                 const captchaProof = captcha.getProof(captchaInput?.value || '');
                 if (!captchaProof.valid) {
@@ -1914,6 +1916,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // ====================================================
                 (async () => {
                     let queueError = false;
+                    let municipalElapsedMs = 0;
+                    let historialElapsedMs = 0;
+                    let backgroundStatusNotice: ReturnType<typeof setTimeout> | null = null;
                     try {
                         // Un turno representa a la persona y protege el fan-out
                         queryStatus.innerHTML = '<i class="fas fa-ticket mr-1"></i> Reservando turno de consulta...';
@@ -2015,7 +2020,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             // Grupo estándar. Callao se ejecuta en segundo plano:
                             // una caída de su portal no debe retrasar la fase avanzada.
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
-                            () => runSectionSafely('atu_infracciones', () => fetchAtuInfracciones(plate)),
                             () => runSectionSafely('valor_venal', async () => {
                                 const pdData = sectionResults.placas_pe?.data || {};
                                 const reference = resolveVehicleReference(pdData, vehicleData);
@@ -2035,6 +2039,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             // retrase un resultado municipal independiente.
                             () => runSectionSafely('lunas', () => fetchLunas(plate)),
                         ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
+
+                        // ATU queda aislada del lote rápido hasta confirmar su
+                        // estabilidad en producción. Sigue ejecutándose dentro
+                        // del mismo ticket, pero no bloquea el inicio de la
+                        // fase pesada ni la aparición de resultados principales.
+                        const atuInfraccionesPromise = runSectionSafely(
+                            'atu_infracciones',
+                            () => fetchAtuInfracciones(plate),
+                        );
 
                         queryStatus.textContent = currentSunarpValidation === 'found'
                             ? 'Placa confirmada. Preparando secciones avanzadas...'
@@ -2138,7 +2151,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         const municipalNode = advancedNodes.find((node: any) => node.id === 'municipal');
                         const historialNode = advancedNodes.find((node: any) => node.id === 'historial_dueños');
                         const advancedBatchStartedAt = Date.now();
-                        console.info(`[ADVANCED-SCHEDULE] heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
+                        console.info(`[ADVANCED-SCHEDULE] consultation_id=${activeConsultationId} heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
                         const advancedPromise = runSectionsWithDependencies(
                             coreAdvancedNodes.map((node: any) => ({
                                 ...node,
@@ -2197,8 +2210,26 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado...';
                         hideLoadingOverlay();
                         saveToCache(plate);
+                        console.info('[UI-MAIN-READY]', {
+                            elapsed_ms: Math.round(performance.now() - consultationStartedAt),
+                            last_core_provider: 'sat',
+                            consultation_id: activeConsultationId,
+                        });
+                        backgroundStatusNotice = setTimeout(() => {
+                            if (consultationLifecycle === 'active') {
+                                queryStatus.textContent = 'La verificación registral está tardando más de lo esperado. Puedes seguir viendo los resultados principales.';
+                                queryStatus.classList.remove('opacity-0');
+                            }
+                        }, 45000);
+
+                        // El usuario ya puede ver el informe. Esperamos ATU
+                        // únicamente para mantener el ticket vivo y completar
+                        // el ciclo de observabilidad, no para bloquear la UI.
+                        await atuInfraccionesPromise;
+                        renderVehicleScore(plate);
 
                         if (municipalNode) {
+                            const municipalStartedAt = performance.now();
                             console.info('[SCHEDULER] provider=municipal priority=90 reason=background_after_sat state=queued');
                             await runSectionsWithDependencies([
                                 {
@@ -2217,12 +2248,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                     `[SCHEDULER] provider=${id} priority=90 state=${status} duration_ms=${Math.round(processing_ms)}`
                                 ),
                             });
+                            municipalElapsedMs = Math.round(performance.now() - municipalStartedAt);
                         }
 
                         // `runSectionsWithDependencies` aísla un error/PARTIAL
                         // municipal como resultado; nunca cancela SPRL ni el
                         // ticket de la consulta.
                         if (historialNode) {
+                            const historialStartedAt = performance.now();
                             console.info('[SCHEDULER] provider=historial_dueños priority=100 reason=advanced_last state=queued');
                             await runSectionsWithDependencies([
                                 {
@@ -2242,6 +2275,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                     `[SCHEDULER] provider=${id} priority=100 state=${status} duration_ms=${Math.round(processing_ms)}`
                                 ),
                             });
+                            historialElapsedMs = Math.round(performance.now() - historialStartedAt);
                             renderVehicleScore(plate);
                             saveToCache(plate);
                         }
@@ -2255,6 +2289,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             queryStatus.classList.remove('opacity-0');
                         }
                     } finally {
+                        if (backgroundStatusNotice) clearTimeout(backgroundStatusNotice);
+                        console.info('[CONSULTATION-FULL-COMPLETE]', {
+                            consultation_id: activeConsultationId,
+                            total_ms: Math.round(performance.now() - consultationStartedAt),
+                            municipal_ms: municipalElapsedMs,
+                            sprl_ms: historialElapsedMs,
+                        });
                         consultationLifecycle = 'completed';
                         clearTimeout(safetyLoaderTimeout);
                         hideLoadingOverlay();

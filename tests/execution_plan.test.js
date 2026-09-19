@@ -9,11 +9,11 @@ import {
   splitPrioritySections,
 } from '../src/services/execution_plan.js';
 
-test('mantiene las 18 secciones automáticas habilitadas en orden explícito (ATU informativa)', () => {
-  // SAT se consulta como una sección unificada y ATU sigue informativa: por
-  // eso el plan real actual tiene 18, no las 20 entradas históricas.
-  assert.equal(ENABLED_EXECUTION_ORDER.length, 18);
-  assert.equal(new Set(ENABLED_EXECUTION_ORDER.map(item => item.id)).size, 18);
+test('mantiene las 19 secciones automáticas habilitadas en orden explícito (ATU aislada)', () => {
+  // SAT se consulta como una sección unificada. ATU está habilitada, pero
+  // aislada en background hasta confirmar estabilidad de proxy y memoria.
+  assert.equal(ENABLED_EXECUTION_ORDER.length, 19);
+  assert.equal(new Set(ENABLED_EXECUTION_ORDER.map(item => item.id)).size, 19);
   assert.ok(ENABLED_EXECUTION_ORDER.every(item => Number.isInteger(item.position) && item.position > 0));
 });
 

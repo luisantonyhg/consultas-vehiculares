@@ -10,15 +10,22 @@ export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
     const subtitle = 'Actas de fiscalización oficial · Lima y Callao';
     callbacks.setCardLoading('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    // El backend tiene un presupuesto total de 28 s; dejamos margen de red
+    // sin permitir que ATU bloquee el carril rápido durante un minuto.
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
     const startMs = performance.now();
     try {
         console.info(`[ATU-INFRACCIONES] Iniciando consulta oficial para placa ${plate}...`);
         const res = await secureFetch(`${BACKEND_URL}/atu-infracciones/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const elapsed = Math.round(performance.now() - startMs);
+        if (!res.ok) {
+            const message = data?.error || data?.detail || `HTTP ${res.status}`;
+            console.warn(`[ATU-INFRACCIONES] ⚠ Respuesta no disponible en ${elapsed}ms: ${message}`);
+            callbacks.setCardError('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU', message, plate);
+            return data;
+        }
         if (data.success) {
             const hasData = Array.isArray(data.data) && data.data.length > 0;
             console.info(`[ATU-INFRACCIONES] ✓ Consulta exitosa en ${elapsed}ms: ${data.data?.length || 0} actas encontradas. Total: S/ ${data.total_pagar || '0.00'}`);
@@ -33,7 +40,7 @@ export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
     } catch (err) {
         clearTimeout(timeoutId);
         const elapsed = Math.round(performance.now() - startMs);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado al consultar ATU (45s).' : (err.message || 'Error de conexión con ATU');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado al consultar ATU (35s).' : (err.message || 'Error de conexión con ATU');
         console.error(`[ATU-INFRACCIONES] ✗ Error tras ${elapsed}ms: ${msg}`);
         callbacks.setCardError('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU', msg, plate);
         return { success: false, error: msg };
