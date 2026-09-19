@@ -40,6 +40,13 @@ export function isCallaoTimeout(cardId, errorOrMessage = '') {
     );
 }
 
+export function isCallaoCleanupPending(cardId, errorOrMessage = '') {
+    return cardId === 'callao' && (
+        errorOrMessage?.code === 'CALLAO_CLEANUP_PENDING' ||
+        errorOrMessage?.providerStatus === 'cleanup_pending'
+    );
+}
+
 export function isFiseRetryableError(cardId, errorOrMessage = '') {
     if (cardId !== 'fise') return false;
     return errorOrMessage?.retryable === true || [
@@ -75,9 +82,10 @@ export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
     // Lima ya agota sus intentos CapSolver dentro del backend. Repetir toda la
     // sección desde el navegador duplica coste y puede crear más tokens, sin
     // aportar una señal nueva; queda disponible el reintento manual.
-    // Callao: OCR.Space puede ser lento (~6-10s); reintento automático 1 vez.
-    const retryableTimeout = new Set(['sunarp', 'fise', 'callao']);
-    if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
+    // Callao deja OCR cooperativo terminando en segundo plano cuando vence su
+    // presupuesto. El siguiente intento solo debe ser manual y aislado.
+    const retryableTimeout = new Set(['sunarp', 'fise']);
+    if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || isCallaoCleanupPending(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
     if (isLunasRetryableError(cardId, error) || isFiseRetryableError(cardId, error)) {
         // Un segundo intento FISE crea un token CAPTCHA nuevo y no repite el
         // POST con uno potencialmente consumido. El límite es deliberadamente 2.

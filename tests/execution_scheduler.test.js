@@ -114,7 +114,7 @@ test('el historial queda después de la ruta pesada y no bloquea el informe prin
   assert.deepEqual(
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
-      sigm: [], lima: [], soat: [], sbs: ['soat'], sat: ['sbs'],
+      sigm: [], lima: [], soat: [], sbs: [], sat: ['sbs'],
       municipal: ['sat'], historial_dueños: ['municipal'],
     },
   );
@@ -245,7 +245,8 @@ test('P0.4.1 CRÍTICO: singles no esperan cadenas completas; pico <= 2 secciones
   const { results, peakActiveSections } = await runSectionsWithDependencies(nodes, 2);
   assert.ok(peak <= 2, `pico de secciones ${peak} excede el máximo`);
   assert.ok(peakActiveSections <= 2);
-  assert.ok(events.indexOf('end-soat') < events.indexOf('start-sbs'), 'SBS solo tras SOAT');
+  // SOAT y SBS pueden entrar al mismo vuelo compartido; el single-flight
+  // evita duplicar proveedor y el bulkhead limita Chromium a uno.
   assert.ok(events.indexOf('end-sat_captura') < events.indexOf('start-sat_deposito'), 'Depósito solo tras Captura');
   // Fairness: lima/municipal arrancan sin esperar las 4 operaciones largas.
   const latestLongEnd = Math.max(events.indexOf('end-sbs'), events.indexOf('end-sat_deposito'));

@@ -49,8 +49,22 @@ export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
     try {
         const res = await secureFetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!res.ok) {
+            const providerStatus = res.headers.get('X-Provider-Status');
+            if (providerStatus === 'timeout') {
+                data.code = data.code || 'CALLAO_TIMEOUT';
+                data.outcome = data.outcome || 'TIMEOUT';
+                data.providerStatus = 'timeout';
+            } else if (providerStatus === 'cleanup_pending') {
+                data.code = data.code || 'CALLAO_CLEANUP_PENDING';
+                data.outcome = data.outcome || 'RETRYABLE_ERROR';
+                data.providerStatus = 'cleanup_pending';
+                data.retry_after_seconds = Number(res.headers.get('Retry-After') || 5);
+            }
+            callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.error || `HTTP ${res.status}`, plate, data);
+            return data;
+        }
         if (data.success) {
             if (data.mantenimiento) {
                 callbacks.setCardError('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao', data.mensaje || 'El portal oficial de la Municipalidad del Callao se encuentra temporalmente en mantenimiento.', plate);

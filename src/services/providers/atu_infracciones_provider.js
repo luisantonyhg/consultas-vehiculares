@@ -10,9 +10,10 @@ export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
     const subtitle = 'Actas de fiscalización oficial · Lima y Callao';
     callbacks.setCardLoading('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU');
     const controller = new AbortController();
-    // El backend tiene un presupuesto total de 28 s; dejamos margen de red
-    // sin permitir que ATU bloquee el carril rápido durante un minuto.
-    const timeoutId = setTimeout(() => controller.abort(), 35000);
+    // ATU incluye CapSolver + sesión oficial + POST. El proveedor permanece
+    // fuera de la ruta crítica, por lo que este margen no bloquea las demás
+    // secciones y evita abortar antes que el backend.
+    const timeoutId = setTimeout(() => controller.abort(), 85000);
     const startMs = performance.now();
     try {
         console.info(`[ATU-INFRACCIONES] Iniciando consulta oficial para placa ${plate}...`);
@@ -40,7 +41,7 @@ export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
     } catch (err) {
         clearTimeout(timeoutId);
         const elapsed = Math.round(performance.now() - startMs);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado al consultar ATU (35s).' : (err.message || 'Error de conexión con ATU');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado al consultar ATU (85s).' : (err.message || 'Error de conexión con ATU');
         console.error(`[ATU-INFRACCIONES] ✗ Error tras ${elapsed}ms: ${msg}`);
         callbacks.setCardError('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU', msg, plate);
         return { success: false, error: msg };

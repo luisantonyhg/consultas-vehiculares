@@ -14,7 +14,7 @@ export async function runFetchSOAT(plate, BACKEND_URL, callbacks) {
         const data = await res.json();
         if (!data.success && (res.headers.get('X-Provider-Status') === 'timeout' || data.code === 'CITV_TIMEOUT' || data.outcome === 'TIMEOUT')) {
             data.timeout = true;
-            data.code = 'CITV_TIMEOUT';
+            data.code = 'SOAT_TIMEOUT';
             data.outcome = 'TIMEOUT';
             data.providerStatus = 'timeout';
         }

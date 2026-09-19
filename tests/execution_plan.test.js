@@ -44,7 +44,7 @@ test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzad
 test('historial espera toda la ruta pesada antes de ocupar el navegador global', () => {
   const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.sbs, ['soat']);
+  assert.deepEqual(deps.sbs, []);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
 });
 
@@ -62,13 +62,13 @@ test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', (
   const nodes = buildAdvancedNodes(standard);
   assert.deepEqual(nodes.map(node => node.id), standard);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.sbs, ['soat']);
+  assert.deepEqual(deps.sbs, []);
   assert.deepEqual(deps.sat, ['sbs']);
   assert.deepEqual(deps.municipal, ['sat']);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
-    sbs: ['soat'], sat: ['sbs'], municipal: ['sat'], historial_dueños: ['municipal'],
+    sbs: [], sat: ['sbs'], municipal: ['sat'], historial_dueños: ['municipal'],
   });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());

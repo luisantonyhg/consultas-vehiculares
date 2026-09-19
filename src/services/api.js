@@ -478,14 +478,19 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
 
         const verification = data.verification || {};
-        const hasVerifiedRegistryData = ['VERIFIED', 'PARTIAL'].includes(String(verification.registry_record || '').toUpperCase()) ||
+        // registry_record puede venir confirmado por el fallback de SUNARP,
+        // aunque SPRL no haya devuelto una sola fila. Para la tarjeta de
+        // historial eso no es evidencia suficiente: debe existir al menos una
+        // fila/asiento o un dominio registral realmente obtenido de SPRL.
+        const hasSprlEvidence = (Array.isArray(data.asientos) && data.asientos.length > 0) ||
             ['VERIFIED', 'PARTIAL'].includes(String(verification.seat_list || '').toUpperCase()) ||
+            ['VERIFIED', 'PARTIAL'].includes(String(verification.seat_details || '').toUpperCase()) ||
             ['VERIFIED', 'PARTIAL'].includes(String(verification.ownership_history || '').toUpperCase()) ||
             ['VERIFIED', 'VERIFIED_NONE', 'PARTIAL', 'FOUND'].includes(String(verification.encumbrances_history || '').toUpperCase());
-        if (data.status === 'PARTIAL_RESULT' && !hasVerifiedRegistryData) {
-            const message = 'SUNARP confirmó los datos base del vehículo, pero no fue posible verificar la partida registral, los asientos ni los gravámenes. No se muestran titulares ni afectaciones sin confirmación oficial.';
+        if (data.status === 'PARTIAL_RESULT' && !hasSprlEvidence) {
+            const message = 'No se pudo verificar el historial registral porque el portal SUNARP no entregó asientos ni gravámenes en esta consulta. Puedes reintentarlo.';
             callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', message, plate, data);
-            return { ...data, success: false, error: message };
+            return { ...data, success: false, retryable: true, code: 'SPRL_NO_REGISTRY_ROWS', error: message };
         }
         if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
             const content = renderHistorialDuenos(data, plate);

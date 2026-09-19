@@ -32,6 +32,7 @@ export async function waitForConsultationSlot(BACKEND_URL, initialState, onUpdat
     if (!initialState?.supported || initialState.status === 'active') return initialState;
     let state = initialState;
     const deadline = Date.now() + 210000;
+    let backoffMs = 1000;
     while (state.status === 'queued') {
         if (Date.now() >= deadline) {
             const err = new Error('La espera está tomando más de lo previsto. Inténtalo nuevamente en unos segundos.');
@@ -39,7 +40,10 @@ export async function waitForConsultationSlot(BACKEND_URL, initialState, onUpdat
             throw err;
         }
         if (onUpdate) onUpdate(state);
-        await new Promise(resolve => setTimeout(resolve, Math.max(750, state.poll_after_ms || 1500)));
+        const suggested = Number(state.poll_after_ms || 0);
+        const delay = Math.max(750, suggested || backoffMs);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        backoffMs = Math.min(5000, Math.round(backoffMs * 1.5));
         const res = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(state.ticket_id)}`);
         if (res.status === 404) {
             const err = new Error('Tu turno expiró antes de comenzar. Inténtalo nuevamente.');
@@ -68,6 +72,7 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
     if (!reserve.ok) throw new Error(`No se pudo reservar la fase avanzada (HTTP ${reserve.status}).`);
     let state = await reserve.json();
     const deadline = Date.now() + 12 * 60 * 1000;
+    let backoffMs = 1500;
     while (state.heavy_status === 'queued') {
         if (onUpdate) onUpdate(state);
         if (Date.now() >= deadline) {
@@ -75,7 +80,10 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
             err.name = 'ConsultationQueueTimeout';
             throw err;
         }
-        await new Promise(resolve => setTimeout(resolve, Math.max(1000, state.poll_after_ms || 1500)));
+        const suggested = Number(state.poll_after_ms || 0);
+        const delay = Math.max(1000, suggested || backoffMs);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        backoffMs = Math.min(8000, Math.round(backoffMs * 1.35));
         const current = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}`);
         if (!current.ok) throw new Error(`El turno de la fase avanzada expiró (HTTP ${current.status}).`);
         state = await current.json();

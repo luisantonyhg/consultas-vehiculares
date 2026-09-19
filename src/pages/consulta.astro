@@ -1329,7 +1329,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // termina en GATE-WAIT-TIMEOUT aunque la placa ya se consultó.
                 // Estas fuentes no dependen del registro SUNARP. Conservar el
                 // ticket/cola, pero no volver a consumir SUNARP en un reintento.
-                const directRetrySections = new Set(['fise', 'callao', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal']);
+                const directRetrySections = new Set(['fise', 'callao', 'atu_infracciones', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal']);
                 const preGateSections = new Set(['sunarp', ...directRetrySections]);
                 if (ownsRetryTicket && !preGateSections.has(cardId)) {
                     showRetryNotice('<span class="text-sky-700 font-bold"><i class="fas fa-shield-halved mr-1"></i>Validando el nuevo turno con SUNARP...</span>');
@@ -2181,32 +2181,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         renderVehicleScore(plate);
 
                         // Lunas ya intentó temprano en su carril de fondo para
-                        // aprovechar un CAPTCHA favorable, sin frenar la fase pesada.
-                        // Si agotó su presupuesto o el portal rechazó todos sus
-                        // CAPTCHA, se concede UNA nueva sesión al final: el usuario
-                        // ya ve el resto del informe y un BotDetect nuevo puede ser
-                        // sustancialmente más fácil. Nunca se reintenta de inmediato.
+                        // aprovechar un CAPTCHA favorable. El reintento diferido
+                        // no puede bloquear la UI principal: se lanza después de
+                        // marcar la consulta como lista y conserva el ticket vivo.
                         const lunasInitial = sectionResults.lunas;
                         const lunasCaptchaRejected = !lunasInitial?.success && (
                             lunasInitial?.code === 'LUNAS_CAPTCHA_ERROR' ||
                             lunasInitial?.outcome === 'CAPTCHA_ERROR' ||
                             lunasInitial?.providerStatus === 'captcha_error'
                         );
-                        // Un CAPTCHA rechazado agotó sus cuatro intentos internos,
-                        // pero no indica un problema de red ni de timeout. Una sola
-                        // sesión PNP nueva al final puede recibir un CAPTCHA distinto
-                        // sin retrasar las demás secciones. Los TIMEOUT permanecen
-                        // terminales y el usuario conserva Reintentar manual.
-                        if (lunasCaptchaRejected && consultationLifecycle === 'active' && activeConsultationTicket) {
-                            console.info('[LUNAS-DEFERRED-RETRY] reason=captcha_error attempt=1/1 force_refresh=false');
-                            queryStatus.textContent = 'Resultados principales listos. Verificando nuevamente Lunas Oscurecidas...';
-                            await runSectionSafely('lunas', () => fetchLunas(plate));
-                            renderVehicleScore(plate);
-                        }
 
                         // El informe principal ya está listo: no ocultar sus
-                        // tarjetas detrás del loader por una única verificación
-                        // registral lenta. El ticket permanece activo para SPRL.
+                        // tarjetas por una única verificación lenta (Lunas/SPRL).
+                        // El ticket permanece activo para los trabajos de fondo.
                         queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado...';
                         hideLoadingOverlay();
                         saveToCache(plate);
@@ -2215,6 +2202,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             last_core_provider: 'sat',
                             consultation_id: activeConsultationId,
                         });
+
+                        // Un CAPTCHA rechazado agotó sus intentos internos, pero
+                        // una sesión PNP nueva puede recibir un desafío distinto.
+                        // Ejecutarlo sin await evita que vuelva a bloquear la
+                        // experiencia principal; el ciclo completo lo espera al
+                        // final para liberar el ticket de forma ordenada.
+                        let lunasDeferredRetry = Promise.resolve();
+                        if (lunasCaptchaRejected && consultationLifecycle === 'active' && activeConsultationTicket) {
+                            lunasDeferredRetry = (async () => {
+                                const retryStartedAt = performance.now();
+                                console.info('[LUNAS-DEFERRED-RETRY] reason=captcha_error attempt=1/1 force_refresh=false state=started');
+                                try {
+                                    const result = await runSectionSafely('lunas', () => fetchLunas(plate));
+                                    console.info('[LUNAS-DEFERRED-RETRY] state=finished success=%s duration_ms=%d', Boolean(result?.success), Math.round(performance.now() - retryStartedAt));
+                                    renderVehicleScore(plate);
+                                    return result;
+                                } catch (error) {
+                                    console.warn('[LUNAS-DEFERRED-RETRY] state=failed duration_ms=%d error=%s', Math.round(performance.now() - retryStartedAt), error instanceof Error ? error.message : String(error));
+                                    return { success: false, error: error instanceof Error ? error.message : String(error) };
+                                }
+                            })();
+                        }
                         backgroundStatusNotice = setTimeout(() => {
                             if (consultationLifecycle === 'active') {
                                 queryStatus.textContent = 'La verificación registral está tardando más de lo esperado. Puedes seguir viendo los resultados principales.';
@@ -2279,6 +2288,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             renderVehicleScore(plate);
                             saveToCache(plate);
                         }
+                        await lunasDeferredRetry;
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);

@@ -58,17 +58,17 @@ export function splitPrioritySections(order, priorityIds = []) {
 
 /**
  * P0.4.1: dependencias de la fase avanzada (DAG mínimo).
- * - sbs espera a soat: SBS reutiliza la caché granular que SOAT acaba de
- *   poblar → un solo Chromium SBS por placa, nunca simultáneos.
- * La espera es por FINALIZACIÓN, no por reserva de worker: al terminar una
- * sección su slot se libera y el dependiente compite al final de la cola.
+ * - SOAT y SBS pueden solicitar el mismo vuelo compartido. Single-flight
+ *   coalescea la fuente y el bulkhead global mantiene un solo Chromium.
+ *   SBS no debe esperar a que el endpoint SOAT termine, porque SOAT puede
+ *   estar esperando precisamente el resultado temprano de ese vuelo.
  */
 export const ADVANCED_DEPENDENCIES = Object.freeze({
     // Railway opera con un único navegador global. Estas dependencias no
     // eliminan ninguna fuente: hacen explícito el orden que la cola ya estaba
     // imponiendo de forma accidental, dejando primero los resultados de mayor
     // valor y evitando que SPRL bloquee Lima desde el inicio.
-    sbs: Object.freeze(['soat']),
+    sbs: Object.freeze([]),
     sat: Object.freeze(['sbs']),
     municipal: Object.freeze(['sat']),
     historial_dueños: Object.freeze(['municipal']),
