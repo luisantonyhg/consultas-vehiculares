@@ -13,10 +13,8 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     // de su consumo de memoria. No debe bloquear el carril rápido.
     { position: 10, id: 'atu_infracciones', phase: 'background' },
     { position: 11, id: 'citv', phase: 'background' },
-    // Callao es corto si OCR remoto falla rápido; Lunas es costoso y queda al
-    // final de este carril para no retrasar una fuente municipal útil.
+    // Callao queda fuera de la ruta crítica visual.
     { position: 11, id: 'callao', phase: 'background' },
-    { position: 12, id: 'lunas', phase: 'background' },
     { position: 13, id: 'sigm', phase: 'advanced' },
     { position: 14, id: 'lima', phase: 'advanced' },
     { position: 15, id: 'municipal', phase: 'advanced' },
@@ -25,11 +23,12 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     // SPRL es valioso, pero es el proveedor más variable y costoso. Se deja
     // al final para que no retenga los resultados principales.
     { position: 18, id: 'historial_dueños', phase: 'registry' },
+    // Lunas corre después del historial para no retrasar resultados principales.
+    { position: 19, id: 'lunas', phase: 'final' },
 ]);
 
-// LUNAS ya se lanzó en segundo plano. Historial de dueños queda al final:
-// su navegador puede tardar más de un minuto y no debe bloquear Lima, SBS o
-// SAT, que aportan resultados principales antes.
+// Historial cierra la fase avanzada. Lunas queda aún después, programada por
+// el flujo de consulta, para aislar su CAPTCHA de la ruta crítica visual.
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
     'lima',

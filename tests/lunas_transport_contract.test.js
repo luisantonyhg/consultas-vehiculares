@@ -57,11 +57,10 @@ test('Lunas deferred retry uses a new official session only when explicitly requ
     } finally { globalThis.fetch = oldFetch; }
 });
 
-test('CAPTCHA_ERROR gets exactly one deferred normal session after the primary report', () => {
-    assert.match(consultationSource, /\[LUNAS-DEFERRED-RETRY\].*attempt=1\/1/s);
-    assert.match(consultationSource, /reason=captcha_error attempt=1\/1 force_refresh=false/);
-    assert.match(consultationSource, /await runSectionSafely\('lunas', \(\) => fetchLunas\(plate\)\)/);
-    assert.match(consultationSource, /const lunasCaptchaRejected = !lunasInitial\?\.success/);
-    assert.match(consultationSource, /lunasInitial\?\.code === 'LUNAS_CAPTCHA_ERROR'/);
-    assert.doesNotMatch(consultationSource, /lunasTimedOut \|\| lunasCaptchaRejected/);
+test('Lunas tiene una sola ejecución automática final y el reintento manual fuerza fuente oficial', () => {
+    assert.match(consultationSource, /provider=lunas priority=110 reason=final_after_historial state=started/);
+    assert.match(consultationSource, /runFetchWithRetry\('lunas',[\s\S]*?callbacks, \{ forceRefresh \}\), plate\)\);/);
+    assert.match(consultationSource, /cardId === 'lunas'\)\s+await fetchLunas\(plate, \{ forceRefresh: true \}\)/);
+    assert.doesNotMatch(consultationSource, /lunasCaptchaRejected/);
+    assert.doesNotMatch(consultationSource, /LUNAS-DEFERRED-RETRY/);
 });

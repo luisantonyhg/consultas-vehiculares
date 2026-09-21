@@ -25,14 +25,14 @@ test('las secciones con navegador siguen el orden de prioridad de producción', 
   assert.ok(ids.indexOf('lima') < ids.indexOf('historial_dueños'));
   assert.ok(ids.indexOf('sat') < ids.indexOf('historial_dueños'));
   assert.equal(ids.includes('atu'), false);
-  assert.equal(ids.at(-1), 'historial_dueños');
+  assert.equal(ids.at(-1), 'lunas');
 });
 
-test('LUNAS se ejecuta temprano e historial registral queda absolutamente al final', () => {
-  const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
-  assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'background');
-  assert.ok(ids.indexOf('lunas') < ids.indexOf('lima'));
-  assert.equal(ids.at(-1), 'historial_dueños');
+test('LUNAS se ejecuta al cierre, después del historial registral', () => {
+    const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
+    assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'final');
+    assert.ok(ids.indexOf('lunas') > ids.indexOf('historial_dueños'));
+    assert.equal(ids.at(-1), 'lunas');
 });
 
 test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzada', () => {

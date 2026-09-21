@@ -153,6 +153,35 @@ test('el ticket se completa solo después de Municipal e Historial', () => {
   assert.ok(release > historialStart, 'el ticket se libera tras Historial');
 });
 
+test('Lunas se ejecuta al final y el ticket no se libera antes de terminarla', () => {
+  const historialStart = consultaSource.indexOf("if (historialNode) {");
+  const lunasStart = consultaSource.indexOf('provider=lunas priority=110 reason=final_after_historial state=started');
+  const release = consultaSource.indexOf('await releaseConsultationSlot(BACKEND_URL, ticketToRelease);');
+  const variableBlock = consultaSource.slice(
+    consultaSource.indexOf('const variableSectionsPromise = runInBatches'),
+    consultaSource.indexOf('const atuInfraccionesPromise'),
+  );
+
+  assert.ok(lunasStart > historialStart, 'Lunas debe comenzar después de Historial');
+  assert.ok(release > lunasStart, 'el ticket se libera únicamente después de Lunas');
+  assert.doesNotMatch(variableBlock, /fetchLunas\(plate\)/, 'Lunas no pertenece al lote variable temprano');
+});
+
+test('SOAT e Historial no reciben un segundo intento automático desde el navegador', () => {
+  const soatFunction = consultaSource.slice(
+    consultaSource.indexOf('async function fetchSOAT('),
+    consultaSource.indexOf('async function fetchSOATDetallado('),
+  );
+  const historialFunction = consultaSource.slice(
+    consultaSource.indexOf('async function fetchHistorialDuenos('),
+    consultaSource.indexOf('async function fetchGNV('),
+  );
+  assert.match(soatFunction, /runFetchWithRetry\('soat',[\s\S]*?\), plate\);/);
+  assert.match(historialFunction, /runFetchWithRetry\('historial_dueños',[\s\S]*?\), plate\);/);
+  assert.doesNotMatch(soatFunction, /plate, 1, 2\);/);
+  assert.doesNotMatch(historialFunction, /plate, 1, 2\);/);
+});
+
 test('la UI registra el tiempo útil y el cierre total de la misma consulta', () => {
   assert.match(consultaSource, /\[UI-MAIN-READY\]/);
   assert.match(consultaSource, /last_core_provider:\s*'sat'/);

@@ -1180,7 +1180,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         async function fetchSOAT(plate: string) {
             // La ruta /soat recibe el ticket activo y abre el vuelo SBS
             // compartido; /sbs se sumará luego como follower del mismo browser.
-            return runFetchWithRetry('soat', (callbacks) => runFetchSOAT(plate, BACKEND_URL, callbacks), plate, 1, 2);
+            // SBS ya tiene su propio vuelo compartido y presupuesto. Reintentar
+            // desde el navegador crea un segundo follower cuando el primero aún
+            // está cerrando, prolonga el ticket y puede duplicar la presión de
+            // Chromium. El usuario conserva el reintento manual independiente.
+            return runFetchWithRetry('soat', (callbacks) => runFetchSOAT(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchSOATDetallado(plate: string) {
@@ -1193,7 +1197,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
         async function fetchLunas(plate: string, { forceRefresh = false }: { forceRefresh?: boolean } = {}) {
             return runExclusive('lunas', () =>
-                runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefresh }), plate, 1, 2));
+                // El proveedor ya agota un presupuesto interno de CAPTCHA. No
+                // volver a repetirlo automáticamente desde la UI: el siguiente
+                // intento debe ser consciente y manual.
+                runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefresh }), plate));
         }
 
         async function fetchCallao(plate: string) {
@@ -1248,7 +1255,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchHistorialDuenos(plate: string, oficina: string = '') {
-            return runFetchWithRetry('historial_dueños', (callbacks) => runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina), plate, 1, 2);
+            // Un PARTIAL de SPRL puede costar varios minutos. No se debe iniciar
+            // una segunda sesión automáticamente: dejar la tarjeta en estado
+            // recuperable para que el usuario decida el reintento manual.
+            return runFetchWithRetry('historial_dueños', (callbacks) => runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, oficina), plate);
         }
 
         async function fetchGNV(plate: string) {
@@ -1259,8 +1269,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runFetchWithRetry('atu', (callbacks) => runFetchATU(plate, BACKEND_URL, callbacks), plate);
         }
 
-        async function fetchAtuInfracciones(plate: string) {
-            return runFetchWithRetry('atu_infracciones', (callbacks) => runFetchAtuInfracciones(plate, BACKEND_URL, callbacks), plate);
+        async function fetchAtuInfracciones(plate: string, { forceRefresh = false }: { forceRefresh?: boolean } = {}) {
+            return runFetchWithRetry('atu_infracciones', (callbacks) => runFetchAtuInfracciones(plate, BACKEND_URL, callbacks, { forceRefresh }), plate);
         }
 
         async function fetchSBS(plate: string) {
@@ -1392,10 +1402,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'valor_venal') await fetchEstadoPlacaYValor(plate);
                 else if (cardId === 'sbs')         await fetchSBS(plate);
                 else if (cardId === 'atu')         await fetchATU(plate);
-                else if (cardId === 'atu_infracciones') await fetchAtuInfracciones(plate);
+                else if (cardId === 'atu_infracciones') await fetchAtuInfracciones(plate, { forceRefresh: true });
                 else if (cardId === 'sat')         await fetchSAT(plate);
                 else if (cardId === 'lima')        await fetchLima(plate);
-                else if (cardId === 'lunas')       await fetchLunas(plate);
+                else if (cardId === 'lunas')       await fetchLunas(plate, { forceRefresh: true });
             } catch (e) {
                 console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
                 showRetryNotice(`<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>${(e as any)?.message || 'No se pudo reintentar la sección.'}</span>`);
@@ -1502,6 +1512,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // Caché efímera en memoria (TTL 5 min): no persiste placas ni HTML.
         // ====================================================
         const resultCache = new Map<string, any>();
+        const cachePlateToken = (plate: string) => {
+            let hash = 2166136261;
+            for (const char of plate.replace(/[-\s]/g, '').toUpperCase()) {
+                hash ^= char.charCodeAt(0);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(16).padStart(8, '0');
+        };
         function saveToCache(plate: string) {
             // Solo se reutiliza un informe si SUNARP confirmó la existencia. Así una
             // falla temporal nunca se convierte en una validación persistente.
@@ -1509,8 +1527,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             const cards = [
                 'sunarp', 'historial_dueños', 'placas_pe', 'soat', 'soat_detallado',
                 'citv', 'valor_venal', 'sbs', 'lima', 'callao', 'sutran',
-                'cinemometro', 'municipal', 'gnv', 'osinergmin', 'sat_captura',
-                'sat_deposito', 'lunas', 'atu'
+                'cinemometro', 'municipal', 'gnv', 'fise', 'osinergmin', 'sat_captura',
+                'sat_deposito', 'lunas', 'atu', 'atu_infracciones'
             ];
             const cacheData: any = {
                 version: 3,
@@ -1530,19 +1548,31 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 }
             });
             resultCache.set(plate, cacheData);
+            console.info('[CACHE-DECISION]', {
+                source: 'frontend-memory',
+                action: 'WRITE',
+                plate_hash: cachePlateToken(plate),
+                sections: Object.keys(cacheData.cards).length,
+                ttl_ms: 5 * 60 * 1000,
+            });
         }
 
         function loadFromCache(plate: string): boolean {
             const cacheData = resultCache.get(plate);
-            if (!cacheData) return false;
+            if (!cacheData) {
+                console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'MISS', plate_hash: cachePlateToken(plate) });
+                return false;
+            }
             try {
                 if (cacheData.version !== 3 || cacheData.sunarpValidation !== 'found' || !cacheData.cards?.sunarp) {
                     resultCache.delete(plate);
+                    console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'SKIP_INVALID', plate_hash: cachePlateToken(plate) });
                     return false;
                 }
                 const age = Date.now() - cacheData.timestamp;
                 if (age > 5 * 60 * 1000) { // 5 minutes TTL
                     resultCache.delete(plate);
+                    console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'STALE', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: 5 * 60 * 1000 });
                     return false;
                 }
                 
@@ -1570,6 +1600,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     const dateStr = new Date(cacheData.timestamp).toLocaleString('es-PE');
                     lastQueryTimeEl.innerHTML = `${dateStr} <span class="text-emerald-500 font-bold ml-1">(Desde Caché ⚡)</span>`;
                 }
+
+                console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'HIT', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: 5 * 60 * 1000 });
                 
                 return true;
             } catch (e) {
@@ -2049,17 +2081,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             }),
                         ], fastBatchSize);
 
-                        // FASE 1B: solo fuentes sin Chromium continúan en segundo
-                        // plano. SOAT simple y Municipal pueden abrir navegadores de
-                        // respaldo y por eso deben respetar el cupo de fase pesada.
+                        // FASE 1B: fuentes independientes de prioridad secundaria.
+                        // Lunas se deja deliberadamente para el cierre: un CAPTCHA
+                        // difícil no puede retrasar Lima/SBS/SAT ni Historial.
                         const variableBatchSize = admission?.load_mode === 'protected' ? 1 : 2;
                         const variableSectionsPromise = runInBatches([
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
                             () => runSectionSafely('callao', () => fetchCallao(plate)),
-                            // Lunas puede agotar su presupuesto por CAPTCHA. Va
-                            // detrás de Callao para que un intento difícil no
-                            // retrase un resultado municipal independiente.
-                            () => runSectionSafely('lunas', () => fetchLunas(plate)),
                         ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
 
                         // ATU queda aislada del lote rápido hasta confirmar su
@@ -2084,6 +2112,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         const detectedOffice = String(rawOffice).toUpperCase().trim();
                         console.log('sedecaptadodelaseccionsunarp =', detectedOffice);
                         setCardWaiting('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', 'En espera (Fase avanzada)');
+                        setCardWaiting('lunas', 'Lunas Oscurecidas', 'Permiso policial de lunas', 'fas fa-car-side', '', 'PNP', 'En espera (Verificación final)');
 
                         // P0.2: heavy-phase se SOLICITA en cuanto el Gate efectivo es
                         // OPEN (found) o degradado permitido (indeterminate), sin
@@ -2202,19 +2231,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         await variableSectionsPromise;
                         renderVehicleScore(plate);
 
-                        // Lunas ya intentó temprano en su carril de fondo para
-                        // aprovechar un CAPTCHA favorable. El reintento diferido
-                        // no puede bloquear la UI principal: se lanza después de
-                        // marcar la consulta como lista y conserva el ticket vivo.
-                        const lunasInitial = sectionResults.lunas;
-                        const lunasCaptchaRejected = !lunasInitial?.success && (
-                            lunasInitial?.code === 'LUNAS_CAPTCHA_ERROR' ||
-                            lunasInitial?.outcome === 'CAPTCHA_ERROR' ||
-                            lunasInitial?.providerStatus === 'captcha_error'
-                        );
-
                         // El informe principal ya está listo: no ocultar sus
-                        // tarjetas por una única verificación lenta (Lunas/SPRL).
+                        // tarjetas por verificaciones lentas (Lunas/SPRL).
                         // El ticket permanece activo para los trabajos de fondo.
                         queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado...';
                         hideLoadingOverlay();
@@ -2225,27 +2243,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             consultation_id: activeConsultationId,
                         });
 
-                        // Un CAPTCHA rechazado agotó sus intentos internos, pero
-                        // una sesión PNP nueva puede recibir un desafío distinto.
-                        // Ejecutarlo sin await evita que vuelva a bloquear la
-                        // experiencia principal; el ciclo completo lo espera al
-                        // final para liberar el ticket de forma ordenada.
-                        let lunasDeferredRetry = Promise.resolve();
-                        if (lunasCaptchaRejected && consultationLifecycle === 'active' && activeConsultationTicket) {
-                            lunasDeferredRetry = (async () => {
-                                const retryStartedAt = performance.now();
-                                console.info('[LUNAS-DEFERRED-RETRY] reason=captcha_error attempt=1/1 force_refresh=false state=started');
-                                try {
-                                    const result = await runSectionSafely('lunas', () => fetchLunas(plate));
-                                    console.info('[LUNAS-DEFERRED-RETRY] state=finished success=%s duration_ms=%d', Boolean(result?.success), Math.round(performance.now() - retryStartedAt));
-                                    renderVehicleScore(plate);
-                                    return result;
-                                } catch (error) {
-                                    console.warn('[LUNAS-DEFERRED-RETRY] state=failed duration_ms=%d error=%s', Math.round(performance.now() - retryStartedAt), error instanceof Error ? error.message : String(error));
-                                    return { success: false, error: error instanceof Error ? error.message : String(error) };
-                                }
-                            })();
-                        }
+                        // Lunas se programa al final, después de Municipal y
+                        // SPRL. Nunca se inicia dos veces automáticamente: su
+                        // única ejecución usa el presupuesto interno del proveedor.
+                        let lunasDeferredRetry: Promise<any> = Promise.resolve();
                         backgroundStatusNotice = setTimeout(() => {
                             if (consultationLifecycle === 'active') {
                                 queryStatus.textContent = 'La verificación registral está tardando más de lo esperado. Puedes seguir viendo los resultados principales.';
@@ -2309,6 +2310,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             historialElapsedMs = Math.round(performance.now() - historialStartedAt);
                             renderVehicleScore(plate);
                             saveToCache(plate);
+                        }
+                        if (consultationLifecycle === 'active' && activeConsultationTicket) {
+                            lunasDeferredRetry = (async () => {
+                                const startedAt = performance.now();
+                                console.info('[SCHEDULER] provider=lunas priority=110 reason=final_after_historial state=started');
+                                setCardLoading('lunas', 'Lunas Oscurecidas', 'Verificando permiso policial...', 'fas fa-car-side', '', 'PNP');
+                                const result = await runSectionSafely('lunas', () => fetchLunas(plate));
+                                console.info('[SCHEDULER] provider=lunas priority=110 state=finished success=%s duration_ms=%d', Boolean(result?.success), Math.round(performance.now() - startedAt));
+                                renderVehicleScore(plate);
+                                saveToCache(plate);
+                                return result;
+                            })();
                         }
                         await lunasDeferredRetry;
                     } catch (err) {

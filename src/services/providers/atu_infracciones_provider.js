@@ -5,7 +5,7 @@ import { secureFetch } from '../transport.js';
  * Proveedor dedicado y aislado para la consulta oficial de papeletas y actas ATU.
  * NO altera ni comparte estado con la habilitación de taxi ('atu').
  */
-export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
+export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks, { forceRefresh = false } = {}) {
     const title = 'Papeletas e Infracciones ATU';
     const subtitle = 'Actas de fiscalización oficial · Lima y Callao';
     callbacks.setCardLoading('atu_infracciones', title, subtitle, 'fas fa-receipt', '', 'ATU');
@@ -17,7 +17,8 @@ export async function runFetchAtuInfracciones(plate, BACKEND_URL, callbacks) {
     const startMs = performance.now();
     try {
         console.info(`[ATU-INFRACCIONES] Iniciando consulta oficial para placa ${plate}...`);
-        const res = await secureFetch(`${BACKEND_URL}/atu-infracciones/${plate}`, { signal: controller.signal });
+        const query = forceRefresh ? '?force_refresh=true' : '';
+        const res = await secureFetch(`${BACKEND_URL}/atu-infracciones/${plate}${query}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         const data = await res.json();
         const elapsed = Math.round(performance.now() - startMs);
