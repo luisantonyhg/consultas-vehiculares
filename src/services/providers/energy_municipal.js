@@ -63,8 +63,29 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
     try {
         const res = await secureFetch(`${BACKEND_URL}/fise/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        console.info('[FISE-OBS]', {
+            status: res.status,
+            ok: res.ok,
+            code: data?.code || '',
+            outcome: data?.outcome || '',
+            retryable: Boolean(data?.retryable),
+            retry_after_seconds: data?.retry_after_seconds ?? null,
+        });
+        // El backend devuelve 503/504 deliberadamente para no disfrazar un
+        // timeout como éxito. Conservamos el cuerpo tipado para que el botón
+        // Reintentar reciba el código real y no un genérico "HTTP 504".
+        if (!res.ok) {
+            const httpError = {
+                ...data,
+                success: false,
+                code: data?.code || `FISE_HTTP_${res.status}`,
+                outcome: data?.outcome || (res.status === 504 ? 'TIMEOUT' : 'RETRYABLE_ERROR'),
+                retryable: data?.retryable ?? res.status >= 500,
+            };
+            callbacks.setCardError('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM', httpError.error || `FISE no disponible (HTTP ${res.status})`, plate, httpError);
+            return httpError;
+        }
         if (data.success) {
             const hasData = Boolean(data.data && data.data.tiene_financiamiento);
             const content = renderFise(data.data, plate);

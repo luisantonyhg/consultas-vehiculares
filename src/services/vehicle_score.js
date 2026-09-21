@@ -21,18 +21,21 @@ export function buildConsolidatedPayload(plate, rawResults = {}) {
         'sunarp', 'soat', 'soat_detallado', 'citv', 'lunas',
         'lima', 'callao', 'sutran', 'cinemometro', 'municipal',
         'sat_captura', 'sat_deposito', 'sigm', 'sbs', 'historial_dueños',
-        'gnv', 'fise', 'osinergmin', 'placas_pe', 'valor_venal', 'atu',
+        'gnv', 'fise', 'osinergmin', 'placas_pe', 'valor_venal', 'atu_infracciones',
         'sat'
     ];
 
     knownKeys.forEach(name => {
         const item = rawResults[name];
-        const explicitStatus = String(item?.status || '').toLowerCase();
+        const explicitStatus = String(item?.status || item?.provider_status || item?.outcome || '').toLowerCase();
         const status = item === undefined
             ? 'pending'
             : explicitStatus === 'not_found'
                 ? 'not_found'
-                : item?.success === false || ['error', 'timeout', 'unavailable'].includes(explicitStatus)
+                : item?.success === false || [
+                    'error', 'timeout', 'unavailable', 'partial', 'partial_result',
+                    'degraded', 'failed', 'captcha_error', 'provider_timeout',
+                ].includes(explicitStatus)
                     ? (explicitStatus || 'error')
                     : 'success';
         sources.push({ name, status, data: item || {} });
@@ -244,7 +247,8 @@ export function calculateVehicleScore(input = {}) {
     const papeletasSutran = arrayLength(r.sutran?.data);
     const papeletasCinemometro = arrayLength(r.cinemometro?.data);
     const papeletasMunicipal = r.municipal?.con_papeletas ? safeNum(r.municipal?.total_papeletas || 1) : 0;
-    const totalPapeletas = papeletasLima + papeletasCallao + papeletasSutran + papeletasCinemometro + papeletasMunicipal;
+    const papeletasAtu = arrayLength(r.atu_infracciones?.data);
+    const totalPapeletas = papeletasLima + papeletasCallao + papeletasSutran + papeletasCinemometro + papeletasMunicipal + papeletasAtu;
 
     add(papeletasLima > 0, 'MEDIO', `Papeletas de tránsito en SAT Lima (${papeletasLima})`, 8);
     add(papeletasCallao > 0, 'MEDIO', `Papeletas de tránsito en Callao (${papeletasCallao})`, 6);
@@ -252,6 +256,9 @@ export function calculateVehicleScore(input = {}) {
         `Infracciones SUTRAN / Cinemómetro (${papeletasSutran + papeletasCinemometro})`, 8);
     add(papeletasMunicipal > 0, 'MEDIO',
         `Papeletas en municipalidades provinciales (${papeletasMunicipal})`, 6);
+    add(papeletasAtu > 0, 'MEDIO',
+        `Actas de fiscalización ATU (${papeletasAtu})`, 6,
+        'Existen actas oficiales ATU pendientes de regularización.');
 
     // Alerta consolidada si hay muchas papeletas
     if (totalPapeletas >= 5) {

@@ -281,15 +281,15 @@ export function cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeH
     return `
         <div onclick="window.toggleAccordion('${cardId}-card-container')" 
              class="accordion-header flex items-center justify-between gap-4 p-3 md:p-4 cursor-pointer select-none transition-all duration-300 ${activeHeaderClass}">
-            <div class="flex items-center gap-3 md:gap-4">
+            <div class="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
                 ${logoHTML}
-                <div class="text-left font-poppins">
+                <div class="min-w-0 text-left font-poppins">
                     <h3 class="text-xs md:text-sm tracking-wide uppercase leading-tight transition-colors ${textClass}">${title}</h3>
                     <p class="text-[9px] md:text-[10px] tracking-wider uppercase mt-0.5 transition-colors ${subtextClass}">${sourceName}</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="status-badge-container">${badgeHTML}</div>
+            <div class="flex min-w-0 max-w-[48%] shrink-0 items-center justify-end gap-2 sm:max-w-none sm:gap-3">
+                <div class="status-badge-container min-w-0 max-w-full [&>span]:max-w-full [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-center [&>span]:leading-tight">${badgeHTML}</div>
                 <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs md:text-sm ${chevronClass}"></i>
             </div>
         </div>`;
@@ -415,16 +415,16 @@ export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sour
            </div>`;
 
     container.innerHTML = `
-        <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-            <div class="flex items-center gap-3 md:gap-4">
+        <div class="flex items-center justify-between gap-2 p-3 md:gap-4 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+            <div class="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
                 ${logoHTML}
-                <div class="text-left font-poppins">
+                <div class="min-w-0 text-left font-poppins">
                     <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
                     <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-650">${sourceName}</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                ${loadingBadge}
+            <div class="flex min-w-0 max-w-[48%] shrink-0 items-center justify-end gap-2 sm:max-w-none sm:gap-3">
+                <div class="min-w-0 max-w-full [&>span]:max-w-full [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-center [&>span]:leading-tight">${loadingBadge}</div>
                 <i class="fas fa-chevron-down text-slate-300 dark:text-slate-600 text-xs"></i>
             </div>
         </div>
@@ -453,16 +453,16 @@ export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sour
            </div>`;
 
     container.innerHTML = `
-        <div class="flex items-center justify-between gap-4 p-3 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-            <div class="flex items-center gap-3 md:gap-4">
+        <div class="flex items-center justify-between gap-2 p-3 md:gap-4 md:p-4 rounded-t-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+            <div class="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
                 ${logoHTML}
-                <div class="text-left font-poppins">
+                <div class="min-w-0 text-left font-poppins">
                     <h3 class="font-bold text-xs md:text-sm tracking-wide uppercase leading-tight text-slate-400 dark:text-slate-500">${title}</h3>
                     <p class="text-[9px] md:text-[10px] font-semibold tracking-wider uppercase mt-0.5 text-slate-300 dark:text-slate-650">${sourceName}</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                ${waitingBadge}
+            <div class="flex min-w-0 max-w-[48%] shrink-0 items-center justify-end gap-2 sm:max-w-none sm:gap-3">
+                <div class="min-w-0 max-w-full [&>span]:max-w-full [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-center [&>span]:leading-tight">${waitingBadge}</div>
                 <i class="fas fa-chevron-down text-slate-300 dark:text-slate-600 text-xs"></i>
             </div>
         </div>

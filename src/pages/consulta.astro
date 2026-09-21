@@ -849,6 +849,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         let vehicleData: Record<string, any> = {};
         let sectionResults: Record<string, any> = {};
+        let activeScorePlate = '';
         let queryAttempts: Record<string, number> = {};
         let currentSunarpValidation: 'found' | 'not_found' | 'indeterminate' = 'indeterminate';
 
@@ -1100,6 +1101,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             try {
                 const result = await job();
                 sectionResults[sectionId] = result;
+                if (activeScorePlate && sectionResults.sunarp && document.getElementById('score-card-container')) {
+                    renderVehicleScore(activeScorePlate);
+                    console.info('[SCORE-UPDATE]', {
+                        section: sectionId,
+                        success: result?.success !== false,
+                        status: result?.status || result?.provider_status || 'unknown',
+                        sources_ready: Object.values(sectionResults).filter((item: any) => item && item.success !== false).length,
+                    });
+                }
                 console.info(`[SECCION-FIN] ${sectionId}`, {
                     processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
                     success: result?.success !== false,
@@ -1109,11 +1119,22 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // Una fuente externa defectuosa nunca debe impedir que las
                 // secciones posteriores continúen su turno.
                 console.error(`[SECCION ${sectionId}] Falló sin detener el informe:`, error);
+                const failedResult = { success: false, error: (error as any)?.message || 'Error inesperado' };
+                sectionResults[sectionId] = failedResult;
                 console.info(`[SECCION-FIN] ${sectionId}`, {
                     processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
                     success: false,
                 });
-                return { success: false, error: (error as any)?.message || 'Error inesperado' };
+                if (activeScorePlate && sectionResults.sunarp && document.getElementById('score-card-container')) {
+                    renderVehicleScore(activeScorePlate);
+                    console.info('[SCORE-UPDATE]', {
+                        section: sectionId,
+                        success: false,
+                        status: 'error',
+                        sources_ready: Object.values(sectionResults).filter((item: any) => item && item.success !== false).length,
+                    });
+                }
+                return failedResult;
             }
         }
 
@@ -1878,6 +1899,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // Reset vehicle info
                 vehicleData = {};
                 sectionResults = {};
+                activeScorePlate = plate;
                 currentSunarpValidation = 'indeterminate';
                 consultationGeneration += 1;
                 consultationLifecycle = 'active';
