@@ -1203,8 +1203,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 runFetchWithRetry('lunas', (callbacks) => runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefresh }), plate));
         }
 
-        async function fetchCallao(plate: string) {
-            return runFetchWithRetry('callao', (callbacks) => runFetchCallao(plate, BACKEND_URL, callbacks), plate, 1, 2);
+        async function fetchCallao(plate: string, { forceRefresh = false }: { forceRefresh?: boolean } = {}) {
+            // Callao ya tiene un ciclo interno de CAPTCHA. Repetirlo desde el
+            // navegador duplicaba hasta seis CAPTCHA y retenía la consulta por
+            // casi dos minutos. El siguiente intento debe ser explícito del
+            // usuario y forzar una llamada nueva a la fuente oficial.
+            return runFetchWithRetry(
+                'callao',
+                (callbacks) => runFetchCallao(plate, BACKEND_URL, callbacks, { forceRefresh }),
+                plate,
+                1,
+                1,
+            );
         }
 
         async function fetchLima(plate: string) {
@@ -1392,7 +1402,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'fise')        await fetchFISE(plate);
                 else if (cardId === 'soat_detallado') await fetchSOATDetallado(plate);
                 else if (cardId === 'citv')        await fetchCITV(plate);
-                else if (cardId === 'callao')      await fetchCallao(plate);
+                else if (cardId === 'callao')      await fetchCallao(plate, { forceRefresh: true });
                 else if (cardId === 'sutran')      await fetchSutran(plate);
                 else if (cardId === 'cinemometro') await fetchCinemometro(plate);
                 else if (cardId === 'municipal')   await fetchMunicipal(plate);
@@ -1994,10 +2004,14 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             });
                             setConsultationTicket(activeConsultationTicket);
                             consultationHeartbeat = setInterval(() => {
-                                if (activeConsultationTicket) {
+                                // El ticket dura 12 minutos. Evitar touches de
+                                // pestañas ocultas reduce polling duplicado;
+                                // pagehide sigue liberando el turno de forma
+                                // best-effort y la pestaña visible lo renueva.
+                                if (activeConsultationTicket && consultationLifecycle === 'active' && document.visibilityState === 'visible') {
                                     void touchConsultationSlot(BACKEND_URL, activeConsultationTicket);
                                 }
-                            }, 30000);
+                            }, 60000);
                         }
 
                         // Verificación rápida de disponibilidad del backend
@@ -2087,7 +2101,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         const variableBatchSize = admission?.load_mode === 'protected' ? 1 : 2;
                         const variableSectionsPromise = runInBatches([
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
-                            () => runSectionSafely('callao', () => fetchCallao(plate)),
                         ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
 
                         // ATU queda aislada del lote rápido hasta confirmar su
@@ -2243,6 +2256,23 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             consultation_id: activeConsultationId,
                         });
 
+                        // Callao usa CAPTCHA/OCR y puede tardar. Se inicia
+                        // después de SAT, con la interfaz ya disponible, y no
+                        // puede retrasar ni Municipal, Historial ni Lunas.
+                        const callaoBackgroundPromise = (async () => {
+                            const startedAt = performance.now();
+                            console.info('[SCHEDULER] provider=callao priority=85 reason=background_after_sat state=started');
+                            const result = await runSectionSafely('callao', () => fetchCallao(plate));
+                            console.info(
+                                '[SCHEDULER] provider=callao priority=85 state=finished success=%s duration_ms=%d',
+                                Boolean(result?.success),
+                                Math.round(performance.now() - startedAt),
+                            );
+                            renderVehicleScore(plate);
+                            saveToCache(plate);
+                            return result;
+                        })();
+
                         // Lunas se programa al final, después de Municipal y
                         // SPRL. Nunca se inicia dos veces automáticamente: su
                         // única ejecución usa el presupuesto interno del proveedor.
@@ -2324,6 +2354,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             })();
                         }
                         await lunasDeferredRetry;
+                        await callaoBackgroundPromise;
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);

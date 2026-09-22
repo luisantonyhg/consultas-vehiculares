@@ -42,12 +42,13 @@ export async function runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefres
     }
 }
 
-export async function runFetchCallao(plate, BACKEND_URL, callbacks) {
+export async function runFetchCallao(plate, BACKEND_URL, callbacks, { forceRefresh = false } = {}) {
     callbacks.setCardLoading('callao', 'Papeletas Callao', '', 'fas fa-ticket', '', 'Mun. Callao');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 165000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/callao/${plate}`, { signal: controller.signal });
+        const query = forceRefresh ? '?force_refresh=true' : '';
+        const res = await secureFetch(`${BACKEND_URL}/callao/${plate}${query}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         const data = await res.json();
         if (!res.ok) {
