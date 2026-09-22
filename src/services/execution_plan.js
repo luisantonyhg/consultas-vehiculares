@@ -16,10 +16,14 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     // Callao queda fuera de la ruta crítica visual.
     { position: 11, id: 'callao', phase: 'background' },
     { position: 13, id: 'sigm', phase: 'advanced' },
-    { position: 14, id: 'lima', phase: 'advanced' },
-    { position: 15, id: 'municipal', phase: 'advanced' },
-    { position: 16, id: 'sat', phase: 'advanced' },  // SAT unificado (captura + deposito en una sola sesión)
-    { position: 17, id: 'sbs', phase: 'final' },  // SBS ya incluye SOAT en su vuelo compartido
+    // SBS es la fuente compartida de SOAT/Vehicular/CAT. Tiene prioridad
+    // sobre Lima porque ambos pueden requerir el único Chromium global.
+    { position: 14, id: 'sbs', phase: 'advanced' },
+    { position: 15, id: 'sat', phase: 'advanced' },  // SAT unificado (captura + deposito en una sola sesión)
+    // Lima es valiosa, pero su CAPTCHA puede ser lento. Corre después de que
+    // el informe principal ya esté disponible y no debe hacer expirar SOAT.
+    { position: 16, id: 'lima', phase: 'background' },
+    { position: 17, id: 'municipal', phase: 'advanced' },
     // SPRL es valioso, pero es el proveedor más variable y costoso. Se deja
     // al final para que no retenga los resultados principales.
     { position: 18, id: 'historial_dueños', phase: 'registry' },
@@ -31,10 +35,10 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
 // el flujo de consulta, para aislar su CAPTCHA de la ruta crítica visual.
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
-    'lima',
     'soat',
     'sbs',
     'sat',  // SAT unificado
+    'lima',
     'municipal',
     'historial_dueños',
 ]);
@@ -69,6 +73,9 @@ export const ADVANCED_DEPENDENCIES = Object.freeze({
     // valor y evitando que SPRL bloquee Lima desde el inicio.
     sbs: Object.freeze([]),
     sat: Object.freeze(['sbs']),
+    // Lima comparte el presupuesto de navegador con SBS/SAT. Ejecutarla tras
+    // SAT evita que el CAPTCHA de Lima consuma el slot que necesita SOAT.
+    lima: Object.freeze(['sat']),
     municipal: Object.freeze(['sat']),
     historial_dueños: Object.freeze(['municipal']),
 });

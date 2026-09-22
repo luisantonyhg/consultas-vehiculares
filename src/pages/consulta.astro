@@ -1336,7 +1336,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // Un ticket completado ya no autoriza llamadas. Reservar uno nuevo
                 // con una prueba anti-bot válida y no continuar jamás si falla la
                 // admisión (antes se ignoraba el 422 y la fuente recibía un 403).
-                if (!activeConsultationTicket) {
+                // Un ticket puede seguir en memoria durante unos milisegundos
+                // después de /complete. No reutilizarlo: el backend ya lo
+                // cerró y respondería 403/404 sin llegar al proveedor.
+                const needsFreshRetryTicket = !activeConsultationTicket || consultationLifecycle !== 'active';
+                if (needsFreshRetryTicket) {
+                    if (activeConsultationTicket) {
+                        console.info('[MANUAL-RETRY] descartando ticket no activo antes de reservar uno nuevo', {
+                            section: cardId,
+                            lifecycle: consultationLifecycle,
+                        });
+                        activeConsultationTicket = null;
+                        setConsultationTicket(null);
+                    }
                     const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
                     let retryProof = captcha.getProof(retryCaptchaInput?.value || '');
                     if (!retryProof.valid) {
@@ -1361,6 +1373,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
                     activeConsultationTicket = admission.ticket_id;
                     ownsRetryTicket = true;
+                    consultationLifecycle = 'active';
                     setConsultationTicket(activeConsultationTicket);
                 }
 
@@ -2194,9 +2207,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             municipal: () => fetchMunicipal(plate),
                             sat: () => fetchSAT(plate),
                         };
-                        // SIGM puede ejecutarse junto con Lima. Las secciones que usan
-                        // Chromium quedan encadenadas conforme al plan declarado: así
-                        // la cola global no decide el orden por azar.
+                        // SIGM es HTTP y puede compartir el carril con SOAT. Lima,
+                        // SBS y SAT compiten por Chromium, por eso Lima queda fuera
+                        // de la ruta crítica y se inicia solo tras SAT.
                         const advancedConcurrency = admission?.load_mode === 'protected' ? 1 : 2;
                         const runAdvancedSection = async (sectionId: string) => {
                             const startedAt = performance.now();
@@ -2211,11 +2224,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // pero el ticket y heartbeat siguen vivos hasta su final.
                         // Municipal puede abrir Playwright para algunos portales.
                         // Igual que SPRL, no debe retener la experiencia principal.
-                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['municipal', 'historial_dueños'].includes(node.id));
+                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['lima', 'municipal', 'historial_dueños'].includes(node.id));
+                        const limaNode = advancedNodes.find((node: any) => node.id === 'lima');
                         const municipalNode = advancedNodes.find((node: any) => node.id === 'municipal');
                         const historialNode = advancedNodes.find((node: any) => node.id === 'historial_dueños');
                         const advancedBatchStartedAt = Date.now();
-                        console.info(`[ADVANCED-SCHEDULE] consultation_id=${activeConsultationId} heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
+                        console.info(`[ADVANCED-SCHEDULE] consultation_id=${activeConsultationId} heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=lima,municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
                         const advancedPromise = runSectionsWithDependencies(
                             coreAdvancedNodes.map((node: any) => ({
                                 ...node,
@@ -2273,6 +2287,30 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             return result;
                         })();
 
+                        // Lima usa el mismo Chromium que SBS/SAT en ocasiones.
+                        // Llegó aquí únicamente después de que SAT liberó su
+                        // ruta crítica; se completa antes de Municipal para que
+                        // no compita con sus portales Playwright.
+                        const limaBackgroundPromise = (async () => {
+                            if (!limaNode) return null;
+                            const startedAt = performance.now();
+                            console.info('[SCHEDULER] provider=lima priority=88 reason=background_after_sat state=started');
+                            const result = await runSectionsWithDependencies([
+                                {
+                                    ...limaNode,
+                                    deps: [],
+                                    run: () => runAdvancedSection(limaNode.id),
+                                },
+                            ], 1);
+                            console.info(
+                                '[SCHEDULER] provider=lima priority=88 state=finished duration_ms=%d',
+                                Math.round(performance.now() - startedAt),
+                            );
+                            renderVehicleScore(plate);
+                            saveToCache(plate);
+                            return result;
+                        })();
+
                         // Lunas se programa al final, después de Municipal y
                         // SPRL. Nunca se inicia dos veces automáticamente: su
                         // única ejecución usa el presupuesto interno del proveedor.
@@ -2289,6 +2327,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // el ciclo de observabilidad, no para bloquear la UI.
                         await atuInfraccionesPromise;
                         renderVehicleScore(plate);
+                        await limaBackgroundPromise;
 
                         if (municipalNode) {
                             const municipalStartedAt = performance.now();

@@ -19,7 +19,7 @@ test('mantiene las 19 secciones automáticas habilitadas en orden explícito (AT
 
 test('las secciones con navegador siguen el orden de prioridad de producción', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'sigm', 'lima', 'soat', 'sbs', 'sat', 'municipal', 'historial_dueños',
+    'sigm', 'soat', 'sbs', 'sat', 'lima', 'municipal', 'historial_dueños',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('historial_dueños'));
@@ -45,6 +45,7 @@ test('historial espera toda la ruta pesada antes de ocupar el navegador global',
   const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
   assert.deepEqual(deps.sbs, []);
+  assert.deepEqual(deps.lima, ['sat']);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
 });
 
@@ -58,17 +59,18 @@ test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
 });
 
 test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', () => {
-  const standard = ['sigm', 'lima', 'soat', 'sbs', 'sat', 'municipal', 'historial_dueños'];
+  const standard = ['sigm', 'soat', 'sbs', 'sat', 'lima', 'municipal', 'historial_dueños'];
   const nodes = buildAdvancedNodes(standard);
   assert.deepEqual(nodes.map(node => node.id), standard);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
   assert.deepEqual(deps.sbs, []);
   assert.deepEqual(deps.sat, ['sbs']);
+  assert.deepEqual(deps.lima, ['sat']);
   assert.deepEqual(deps.municipal, ['sat']);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
-    sbs: [], sat: ['sbs'], municipal: ['sat'], historial_dueños: ['municipal'],
+    sbs: [], sat: ['sbs'], lima: ['sat'], municipal: ['sat'], historial_dueños: ['municipal'],
   });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());
