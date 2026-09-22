@@ -1235,7 +1235,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         async function fetchFISE(plate: string) {
-            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 2);
+            // El backend ya realiza el único reintento seguro del POST usando
+            // la misma sesión oficial. Repetir desde el navegador consume otro
+            // CAPTCHA y puede prolongar la consulta casi un minuto.
+            return runFetchWithRetry('fise', (callbacks) => runFetchFISE(plate, BACKEND_URL, callbacks), plate, 1, 1);
         }
 
         async function fetchSIGM(plate: string) {
@@ -1580,24 +1583,31 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             });
         }
 
-        function loadFromCache(plate: string): boolean {
+        // Una consulta reciente se devuelve sin red. Una vencida pero aún útil
+        // se muestra de inmediato y el flujo normal la actualiza en segundo
+        // plano; así no ocultamos evidencia ya obtenida mientras un portal
+        // lento (SPRL, FISE, SAT) vuelve a responder.
+        function loadFromCache(plate: string): 'fresh' | 'stale' | 'miss' {
             const cacheData = resultCache.get(plate);
             if (!cacheData) {
                 console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'MISS', plate_hash: cachePlateToken(plate) });
-                return false;
+                return 'miss';
             }
             try {
                 if (cacheData.version !== 3 || cacheData.sunarpValidation !== 'found' || !cacheData.cards?.sunarp) {
                     resultCache.delete(plate);
                     console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'SKIP_INVALID', plate_hash: cachePlateToken(plate) });
-                    return false;
+                    return 'miss';
                 }
                 const age = Date.now() - cacheData.timestamp;
-                if (age > 5 * 60 * 1000) { // 5 minutes TTL
+                const freshTtlMs = 5 * 60 * 1000;
+                const staleRetentionMs = 30 * 60 * 1000;
+                if (age > staleRetentionMs) {
                     resultCache.delete(plate);
-                    console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'STALE', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: 5 * 60 * 1000 });
-                    return false;
+                    console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'EXPIRED', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: staleRetentionMs });
+                    return 'miss';
                 }
+                const cacheState = age > freshTtlMs ? 'stale' : 'fresh';
                 
                 // Restore vehicleData
                 vehicleData = cacheData.vehicleData || {};
@@ -1621,15 +1631,23 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 const lastQueryTimeEl = document.getElementById('last-query-time');
                 if (lastQueryTimeEl) {
                     const dateStr = new Date(cacheData.timestamp).toLocaleString('es-PE');
-                    lastQueryTimeEl.innerHTML = `${dateStr} <span class="text-emerald-500 font-bold ml-1">(Desde Caché ⚡)</span>`;
+                    lastQueryTimeEl.innerHTML = cacheState === 'fresh'
+                        ? `${dateStr} <span class="text-emerald-500 font-bold ml-1">(Desde Caché ⚡)</span>`
+                        : `${dateStr} <span class="text-amber-600 font-bold ml-1">(Mostrando último resultado · actualizando…)</span>`;
                 }
 
-                console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'HIT', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: 5 * 60 * 1000 });
+                console.info('[CACHE-DECISION]', {
+                    source: 'frontend-memory',
+                    action: cacheState === 'fresh' ? 'HIT' : 'STALE_REFRESH',
+                    plate_hash: cachePlateToken(plate),
+                    age_ms: age,
+                    ttl_ms: freshTtlMs,
+                });
                 
-                return true;
+                return cacheState;
             } catch (e) {
                 console.error("Error loading cache", e);
-                return false;
+                return 'miss';
             }
         }
 
@@ -1929,8 +1947,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 const captchaInput = document.getElementById('captcha-input') as HTMLInputElement;
 
                 // Reutilizar únicamente la caché efímera de esta pestaña.
-                const isLoadedFromCache = loadFromCache(plate);
-                if (isLoadedFromCache) {
+                const cacheState = loadFromCache(plate);
+                if (cacheState === 'fresh') {
                     if (captchaInput) captchaInput.value = '';
                     void drawCaptcha();
                     fillValorVenalSoles();
@@ -1938,6 +1956,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     scrollToResults();
                     return;
                 }
+                const isRefreshingStaleCache = cacheState === 'stale';
 
                 isSubmitting = true;
                 if (submitBtn) {
@@ -1945,14 +1964,20 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
                 }
-                queryStatus.textContent = 'Iniciando consulta multiorigen...';
+                queryStatus.textContent = isRefreshingStaleCache
+                    ? 'Mostrando el último resultado mientras actualizamos fuentes oficiales...'
+                    : 'Iniciando consulta multiorigen...';
                 queryStatus.classList.remove('opacity-0');
 
-                // Mostrar el Loader Overlay Fullscreen
-                showLoadingOverlay(plate);
+                // Un resultado vencido sigue siendo útil para el usuario. No
+                // taparlo con el overlay: cada tarjeta se reemplaza cuando su
+                // fuente oficial termina la actualización.
+                if (!isRefreshingStaleCache) showLoadingOverlay(plate);
+                else scrollToResults();
 
-                // Reset vehicle info
-                vehicleData = {};
+                // Al refrescar una copia visible preservamos su referencia
+                // vehicular hasta que SUNARP/placas.pe la reemplacen.
+                if (!isRefreshingStaleCache) vehicleData = {};
                 sectionResults = {};
                 activeScorePlate = plate;
                 currentSunarpValidation = 'indeterminate';
@@ -1978,7 +2003,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 }
                 if (captchaInput) captchaInput.value = '';
 
-                renderResultsSkeleton(plate, false);
+                if (!isRefreshingStaleCache) renderResultsSkeleton(plate, false);
 
                 // Si SUNARP demora, mantener el loader e informar. Nunca ocultarlo
                 // por reloj: debe cerrarse solo cuando la tarjeta ya esté renderizada.
@@ -2062,6 +2087,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             clearTimeout(safetyLoaderTimeout);
                             hideLoadingOverlay();
                             scrollToResults();
+                            console.info('[UI-RESULTS-REVEALED]', {
+                                elapsed_ms: Math.round(performance.now() - consultationStartedAt),
+                                trigger: 'sunarp_terminal',
+                                validation_status: validation || 'indeterminate',
+                                cache_refresh: isRefreshingStaleCache,
+                                consultation_id: activeConsultationId,
+                            });
                             return result;
                         });
 

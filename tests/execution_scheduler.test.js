@@ -225,10 +225,10 @@ test('el aviso visual de fondo no cancela Municipal ni Historial', () => {
   assert.doesNotMatch(consultaSource, /AbortController\(\).*backgroundStatusNotice/s);
 });
 
-test('FISE reintenta una validación no concluyente y nunca depende de un solo token', () => {
+test('FISE deja el único reintento automático al backend para no duplicar CAPTCHA', () => {
   assert.match(
     consultaSource,
-    /runFetchWithRetry\('fise',[\s\S]*?plate, 1, 2\);/,
+    /runFetchWithRetry\('fise',[\s\S]*?plate, 1, 1\);/,
   );
 });
 

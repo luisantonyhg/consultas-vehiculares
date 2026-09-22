@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { MUNICIPAL_SOURCE_URLS, runFetchMunicipal } from '../src/services/providers/energy_municipal.js';
 
 
-test('sin registros municipales mantiene badge verde aunque alguna fuente no esté disponible', async () => {
+test('cobertura municipal parcial informa cuántas fuentes fueron verificadas', async () => {
   const originalFetch = globalThis.fetch;
   let rendered = null;
   try {
@@ -31,8 +31,8 @@ test('sin registros municipales mantiene badge verde aunque alguna fuente no est
     assert.match(rendered.html, /Verificar portal/);
     assert.match(rendered.html, /target="_blank"/);
     assert.match(rendered.html, /rel="noopener noreferrer"/);
-    assert.match(rendered.badge, /bg-emerald-500/);
-    assert.match(rendered.badge, /SIN REGISTROS/);
+    assert.match(rendered.badge, /bg-amber-500/);
+    assert.match(rendered.badge, /7\/12 VERIFICADAS/);
   } finally {
     globalThis.fetch = originalFetch;
   }

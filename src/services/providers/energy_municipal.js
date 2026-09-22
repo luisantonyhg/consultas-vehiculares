@@ -41,6 +41,10 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
                     : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
                         <i class="fas fa-circle-xmark"></i> NO HABILITADO
                        </span>`;
+            } else if (String(data.provider_status || data.outcome || '').toUpperCase() === 'VERIFIED_NONE') {
+                customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
+                    <i class="fas fa-circle-check"></i> SIN REGISTRO GNV
+                </span>`;
             }
             callbacks.setCardData('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas', content, true, hasData, customBadge);
             return data;
@@ -59,7 +63,7 @@ export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
 export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('fise', 'Deuda GNV (FISE Ahorro GNV)', 'Programa Ahorro GNV - MINEM', 'fas fa-gas-pump', '', 'FISE MINEM');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 75000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/fise/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -109,7 +113,7 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (45s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (75s).' : (err.message || 'Error de conexión');
         const errorMeta = {
             success: false,
             error: msg,
@@ -223,9 +227,15 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
             <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-3 md:px-4 divide-y divide-slate-100 dark:divide-slate-800">${rows || '<p class="py-4 text-center text-sm text-slate-400">Sin datos.</p>'}</div>
         </div>`;
         const conPapeletas = items.some(m => m.tiene_papeletas);
+        const coverage = String(data.coverage_status || data.outcome || '').toUpperCase();
+        const verified = Number(data.municipios_verificados || 0);
+        const total = Number(data.municipios_total || items.length || 0);
         let badge = conPapeletas
             ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON REGISTROS</span>`
             : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN REGISTROS</span>`;
+        if (!conPapeletas && coverage === 'PARTIAL') {
+            badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${verified}/${total || '?'} VERIFICADAS</span>`;
+        }
         callbacks.setCardData('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', content, true, conPapeletas, badge);
         return data;
     } catch (err) {

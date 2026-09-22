@@ -65,11 +65,26 @@ export async function touchConsultationSlot(BACKEND_URL, ticketId) {
 }
 
 export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
-    const reserve = await secureFetch(
-        `${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/heavy-phase`,
-        { method: 'POST' }
-    );
-    if (!reserve.ok) throw new Error(`No se pudo reservar la fase avanzada (HTTP ${reserve.status}).`);
+    let reserve = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            reserve = await secureFetch(
+                `${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/heavy-phase`,
+                { method: 'POST' }
+            );
+            if (reserve.ok || (reserve.status !== 503 && reserve.status !== 429)) {
+                break;
+            }
+            if (attempt < 3) {
+                console.warn(`[HEAVY-PHASE] Reserva respondió HTTP ${reserve.status} (intento ${attempt}/3). Reintentando en 1s...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        } catch (fetchErr) {
+            if (attempt === 3) throw fetchErr;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    if (!reserve || !reserve.ok) throw new Error(`No se pudo reservar la fase avanzada (HTTP ${reserve?.status || '503'}).`);
     let state = await reserve.json();
     const deadline = Date.now() + 12 * 60 * 1000;
     let backoffMs = 1500;
