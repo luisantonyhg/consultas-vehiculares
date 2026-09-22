@@ -31,7 +31,7 @@ test('cobertura municipal parcial informa cuántas fuentes fueron verificadas', 
     assert.match(rendered.html, /Verificar portal/);
     assert.match(rendered.html, /target="_blank"/);
     assert.match(rendered.html, /rel="noopener noreferrer"/);
-    assert.match(rendered.badge, /bg-amber-500/);
+    assert.match(rendered.badge, /bg-emerald-500/);
     assert.match(rendered.badge, /7\/12 VERIFICADAS/);
   } finally {
     globalThis.fetch = originalFetch;

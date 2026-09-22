@@ -99,7 +99,7 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
                 const deudaVencida = Number(data.data.montoDeudaVencido || 0) > 0;
                 customBadge = deudaVencida
                     ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> DEUDA VENCIDA: S/ ${Number(data.data.montoDeudaVencido).toFixed(2)}</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-coins"></i> SALDO: S/ ${Number(pend || 0).toFixed(2)}</span>`;
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-coins"></i> SALDO: S/ ${Number(pend || 0).toFixed(2)}</span>`;
             } else {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN DEUDA FISE</span>`;
             }
@@ -234,7 +234,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
             ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> CON REGISTROS</span>`
             : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> SIN REGISTROS</span>`;
         if (!conPapeletas && coverage === 'PARTIAL') {
-            badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-info"></i> ${verified}/${total || '?'} VERIFICADAS</span>`;
+            badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${verified}/${total || '?'} VERIFICADAS</span>`;
         }
         callbacks.setCardData('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', content, true, conPapeletas, badge);
         return data;
