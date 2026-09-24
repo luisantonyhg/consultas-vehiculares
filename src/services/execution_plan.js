@@ -17,19 +17,17 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 11, id: 'citv', phase: 'background' },
     { position: 11, id: 'callao', phase: 'background' },
     { position: 13, id: 'sigm', phase: 'advanced' },
-    // SBS es la fuente compartida de SOAT/Vehicular/CAT. Tiene prioridad
-    // sobre Lima porque ambos pueden requerir el único Chromium global.
-    { position: 14, id: 'sbs', phase: 'advanced' },
-    { position: 15, id: 'sat', phase: 'advanced' },  // SAT unificado (captura + deposito en una sola sesión)
-    // Lima es valiosa, pero su CAPTCHA puede ser lento. Corre después de que
-    // el informe principal ya esté disponible y no debe hacer expirar SOAT.
-    { position: 16, id: 'lima', phase: 'background' },
-    { position: 17, id: 'municipal', phase: 'advanced' },
-    // SPRL es valioso, pero es el proveedor más variable y costoso. Se deja
-    // al final para que no retenga los resultados principales.
-    { position: 18, id: 'historial_dueños', phase: 'registry' },
-    // Lunas corre después del historial para no retrasar resultados principales.
-    { position: 19, id: 'lunas', phase: 'final' },
+    // SAT corre primero en la fase pesada: Captura y Depósito unificados se resuelven en ~18s.
+    { position: 14, id: 'sat', phase: 'advanced' },
+    // Lima es valiosa, pero su CAPTCHA puede ser lento. Corre después de SAT.
+    { position: 15, id: 'lima', phase: 'background' },
+    { position: 16, id: 'municipal', phase: 'advanced' },
+    // SPRL es valioso, pero es el proveedor más variable y costoso.
+    { position: 17, id: 'historial_dueños', phase: 'registry' },
+    // Lunas corre después del historial registral.
+    { position: 18, id: 'lunas', phase: 'final' },
+    // SBS corre al final absoluto, después de Lunas Polarizadas, para no bloquear ni retrasar ninguna otra consulta.
+    { position: 19, id: 'sbs', phase: 'post_final' },
 ]);
 
 // Historial cierra la fase avanzada. Lunas queda aún después, programada por
@@ -37,11 +35,11 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
     'soat',
-    'sbs',
     'sat',  // SAT unificado
     'lima',
     'municipal',
     'historial_dueños',
+    'sbs',
 ]);
 
 /**
@@ -68,17 +66,14 @@ export function splitPrioritySections(order, priorityIds = []) {
  *   estar esperando precisamente el resultado temprano de ese vuelo.
  */
 export const ADVANCED_DEPENDENCIES = Object.freeze({
-    // Railway opera con un único navegador global. Estas dependencias no
-    // eliminan ninguna fuente: hacen explícito el orden que la cola ya estaba
-    // imponiendo de forma accidental, dejando primero los resultados de mayor
-    // valor y evitando que SPRL bloquee Lima desde el inicio.
-    sbs: Object.freeze([]),
-    sat: Object.freeze(['sbs']),
-    // Lima comparte el presupuesto de navegador con SBS/SAT. Ejecutarla tras
-    // SAT evita que el CAPTCHA de Lima consuma el slot que necesita SOAT.
+    // SAT unificado corre de forma independiente sin esperar SBS.
+    sat: Object.freeze([]),
+    // Lima y Municipal corren tras SAT.
     lima: Object.freeze(['sat']),
     municipal: Object.freeze(['sat']),
     historial_dueños: Object.freeze(['municipal']),
+    // SBS corre al final absoluto, después de que Lunas haya completado.
+    sbs: Object.freeze(['lunas']),
 });
 
 /**

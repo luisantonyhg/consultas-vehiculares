@@ -19,20 +19,21 @@ test('mantiene las 19 secciones automáticas habilitadas en orden explícito (AT
 
 test('las secciones con navegador siguen el orden de prioridad de producción', () => {
   assert.deepEqual(ADVANCED_EXECUTION_ORDER, [
-    'sigm', 'soat', 'sbs', 'sat', 'lima', 'municipal', 'historial_dueños',
+    'sigm', 'soat', 'sat', 'lima', 'municipal', 'historial_dueños', 'sbs',
   ]);
   const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
   assert.ok(ids.indexOf('lima') < ids.indexOf('historial_dueños'));
   assert.ok(ids.indexOf('sat') < ids.indexOf('historial_dueños'));
   assert.equal(ids.includes('atu'), false);
-  assert.equal(ids.at(-1), 'lunas');
+  assert.equal(ids.at(-1), 'sbs');
 });
 
-test('LUNAS se ejecuta al cierre, después del historial registral', () => {
+test('LUNAS se ejecuta antes de SBS y después del historial registral', () => {
     const ids = ENABLED_EXECUTION_ORDER.map(item => item.id);
     assert.equal(ENABLED_EXECUTION_ORDER.find(item => item.id === 'lunas')?.phase, 'final');
     assert.ok(ids.indexOf('lunas') > ids.indexOf('historial_dueños'));
-    assert.equal(ids.at(-1), 'lunas');
+    assert.ok(ids.indexOf('sbs') > ids.indexOf('lunas'));
+    assert.equal(ids.at(-1), 'sbs');
 });
 
 test('Callao queda en segundo plano y las fuentes HTTP/OCR no ocupan Chromium', () => {
@@ -47,9 +48,10 @@ test('Callao queda en segundo plano y las fuentes HTTP/OCR no ocupan Chromium', 
 test('historial espera toda la ruta pesada antes de ocupar el navegador global', () => {
   const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.sbs, []);
+  assert.deepEqual(deps.sat, []);
   assert.deepEqual(deps.lima, ['sat']);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
+  assert.deepEqual(deps.sbs, ['lunas']);
 });
 
 test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
@@ -62,18 +64,18 @@ test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
 });
 
 test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', () => {
-  const standard = ['sigm', 'soat', 'sbs', 'sat', 'lima', 'municipal', 'historial_dueños'];
+  const standard = ['sigm', 'soat', 'sat', 'lima', 'municipal', 'historial_dueños', 'sbs'];
   const nodes = buildAdvancedNodes(standard);
   assert.deepEqual(nodes.map(node => node.id), standard);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
-  assert.deepEqual(deps.sbs, []);
-  assert.deepEqual(deps.sat, ['sbs']);
+  assert.deepEqual(deps.sat, []);
   assert.deepEqual(deps.lima, ['sat']);
   assert.deepEqual(deps.municipal, ['sat']);
   assert.deepEqual(deps.historial_dueños, ['municipal']);
+  assert.deepEqual(deps.sbs, ['lunas']);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
-    sbs: [], sat: ['sbs'], lima: ['sat'], municipal: ['sat'], historial_dueños: ['municipal'],
+    sat: [], lima: ['sat'], municipal: ['sat'], historial_dueños: ['municipal'], sbs: ['lunas'],
   });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());

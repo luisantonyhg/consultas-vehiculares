@@ -119,18 +119,18 @@ test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () =>
 
 test('el historial queda después de la ruta pesada y no bloquea el informe principal', () => {
   const nodes = buildAdvancedNodes([
-    'sigm', 'soat', 'sbs', 'sat', 'lima', 'municipal', 'historial_dueños',
+    'sigm', 'soat', 'sat', 'lima', 'municipal', 'historial_dueños', 'sbs',
   ]);
   assert.deepEqual(
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
-      sigm: [], soat: [], sbs: [], sat: ['sbs'], lima: ['sat'],
-      municipal: ['sat'], historial_dueños: ['municipal'],
+      sigm: [], soat: [], sat: [], lima: ['sat'],
+      municipal: ['sat'], historial_dueños: ['municipal'], sbs: ['lunas'],
     },
   );
   assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);
   assert.match(consultaSource, /const coreAdvancedNodes = advancedNodes\.filter/);
-  assert.match(consultaSource, /!\['lima', 'municipal', 'historial_dueños'\]\.includes\(node\.id\)/);
+  assert.match(consultaSource, /!\['sbs', 'lima', 'municipal', 'historial_dueños'\]\.includes\(node\.id\)/);
   assert.match(consultaSource, /Resultados principales listos\. Verificando historial registral avanzado/);
   assert.match(consultaSource, /provider=municipal priority=90 reason=background_after_sat state=queued/);
   assert.match(consultaSource, /provider=lima priority=88 reason=background_after_sat state=started/);

@@ -2376,7 +2376,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setCardWaiting('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', 'En espera (Fase pesada)');
                         setCardWaiting('soat', 'Historial SOAT', 'Pólizas y vigencia', 'fas fa-shield-halved', '', 'SBS', 'En espera (Fase pesada)');
                         setCardComingSoon('atu', '¿Está inscrito como taxi en ATU?', 'Autorización vehicular por placa · Lima y Callao', 'fas fa-taxi', 'ATU', 'Consulta de inscripción/autorización para servicio de taxi. Esta función estará disponible próximamente.');
-                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Turno final)');
+                        setCardWaiting('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', 'En espera (Verificación final post-lunas)');
                         setCardWaiting('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', 'En espera (Turno 4)');
                         setCardWaiting('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', 'En espera (Turno 5)');
 
@@ -2419,7 +2419,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // pero el ticket y heartbeat siguen vivos hasta su final.
                         // Municipal puede abrir Playwright para algunos portales.
                         // Igual que SPRL, no debe retener la experiencia principal.
-                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['lima', 'municipal', 'historial_dueños'].includes(node.id));
+                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['sbs', 'lima', 'municipal', 'historial_dueños'].includes(node.id));
+                        const sbsNode = advancedNodes.find((node: any) => node.id === 'sbs');
                         const limaNode = advancedNodes.find((node: any) => node.id === 'lima');
                         const municipalNode = advancedNodes.find((node: any) => node.id === 'municipal');
                         const historialNode = advancedNodes.find((node: any) => node.id === 'historial_dueños');
@@ -2578,6 +2579,29 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         }
                         await lunasDeferredRetry;
                         await callaoBackgroundPromise;
+
+                        // FASE FINAL ABSOLUTA: SBS Siniestralidad Vehicular.
+                        // Corre AL ÚLTIMO, únicamente después de que Lunas Polarizadas y el resto
+                        // de consultas hayan terminado o estén resueltas. Sus demoras, reintentos
+                        // o timeouts nunca retrasan ni bloquean ninguna otra consulta.
+                        let sbsDeferredPromise: Promise<any> = Promise.resolve();
+                        if (consultationLifecycle === 'active' && activeConsultationTicket) {
+                            sbsDeferredPromise = (async () => {
+                                const startedAt = performance.now();
+                                console.info('[SCHEDULER] provider=sbs priority=120 reason=final_after_lunas state=started');
+                                setCardLoading('sbs', 'Siniestralidad Vehicular', 'Consultando historial de siniestros...', 'fas fa-car-burst', '', 'SBS');
+                                const result = await runSectionSafely('sbs', () => fetchSBS(plate));
+                                console.info(
+                                    '[SCHEDULER] provider=sbs priority=120 state=finished success=%s duration_ms=%d',
+                                    Boolean(result?.success),
+                                    Math.round(performance.now() - startedAt),
+                                );
+                                renderVehicleScore(plate);
+                                saveToCache(plate);
+                                return result;
+                            })();
+                        }
+                        await sbsDeferredPromise;
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);
