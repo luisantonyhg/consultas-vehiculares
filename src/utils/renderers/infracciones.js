@@ -28,6 +28,7 @@ export function renderCallao(data, plate, total) {
 
     const rows = data.map((p) => {
         const docIdentifier = p.nroPapeleta || p.detalleUrl || '';
+        const documentToken = p.document_token || '';
         const insoluto = p.insoluto || p.importe || '0.00';
         const pagoVoluntario = p.pagoVoluntario || p.totalPagar || p.total || insoluto;
         const fecha = p.fechaInfraccion || p.fecha || '-';
@@ -61,7 +62,7 @@ export function renderCallao(data, plate, total) {
             <!-- 8. Detalle -->
             <td class="py-2.5 px-2 text-center border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">
                 ${docIdentifier ? `
-                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}"
+                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}" data-token="${escapeHTML(encodeURIComponent(documentToken))}"
                         class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-xs text-[10px] font-bold cursor-pointer"
                         title="Ver Documento Oficial de la Papeleta ${docIdentifier}">
                         <i class="fas fa-file-pdf text-[11px]"></i>
@@ -79,6 +80,7 @@ export function renderCallao(data, plate, total) {
     // Tarjetas optimizadas para móviles
     const mobileCards = data.map((p) => {
         const docIdentifier = p.nroPapeleta || p.detalleUrl || '';
+        const documentToken = p.document_token || '';
         const insoluto = p.insoluto || p.importe || '0.00';
         const pagoVoluntario = p.pagoVoluntario || p.totalPagar || p.total || insoluto;
         const fecha = p.fechaInfraccion || p.fecha || '-';
@@ -129,7 +131,7 @@ export function renderCallao(data, plate, total) {
             <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 mt-0.5">
                 <span class="text-[10px] text-slate-400">Papeleta oficial Callao</span>
                 ${docIdentifier ? `
-                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}"
+                    <button type="button" data-canita-action="callao-document" data-url="${escapeHTML(encodeURIComponent(docIdentifier))}" data-token="${escapeHTML(encodeURIComponent(documentToken))}"
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] uppercase tracking-wide transition-all shadow-xs active:scale-95 cursor-pointer">
                         <i class="fas fa-file-pdf"></i> Ver Documento
                     </button>
@@ -447,6 +449,7 @@ export function renderCinemometro(data, plate, infoReporte) {
             const dni = r['Dni/Ruc'] || r['dni'] || '-';
             const estado = r['Estado'] || 'PENDIENTE DE PAGO';
             const fotoTarget = r['foto_target'] || '';
+            const documentToken = r.document_token || '';
 
             if (r.foto && (r.foto.startsWith('data:') || r.foto.startsWith('http'))) {
                 if (typeof window !== 'undefined') {
@@ -497,7 +500,7 @@ export function renderCinemometro(data, plate, infoReporte) {
 
                 <div class="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                     <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">SUTRAN Cinemómetro</span>
-                    <button data-canita-action="cinemometro-photo" data-document="${escapeHTML(encodeURIComponent(nroDoc))}" data-target="${escapeHTML(encodeURIComponent(fotoTarget))}" data-plate="${escapeHTML(encodeURIComponent(plate))}"
+                    <button data-canita-action="cinemometro-photo" data-document="${escapeHTML(encodeURIComponent(nroDoc))}" data-target="${escapeHTML(encodeURIComponent(fotoTarget))}" data-plate="${escapeHTML(encodeURIComponent(plate))}" data-access-token="${escapeHTML(encodeURIComponent(documentToken))}"
                         class="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer">
                         <i class="fas fa-camera text-xs"></i> Ver Foto Probatoria
                     </button>

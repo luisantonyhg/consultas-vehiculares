@@ -54,9 +54,11 @@ export function createConsultationId() {
 }
 
 export async function secureFetch(url, options = {}) {
+    // Una variable PUBLIC_ puede ser leída por cualquiera. El backend protege
+    // consultas web con Turnstile y X-Consultation-Ticket, no con este header.
     const clientSecret = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_CLIENT_SECRET)
         ? import.meta.env.PUBLIC_CLIENT_SECRET
-        : 'VehicularPESecretSecure2026';
+        : '';
     const section = sectionFromUrl(url);
     const headers = {
         ...options.headers,

@@ -44,7 +44,9 @@ export async function waitForConsultationSlot(BACKEND_URL, initialState, onUpdat
         const delay = Math.max(750, suggested || backoffMs);
         await new Promise(resolve => setTimeout(resolve, delay));
         backoffMs = Math.min(5000, Math.round(backoffMs * 1.5));
-        const res = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(state.ticket_id)}`);
+        // La espera de admisión también debe reconciliar Redis: una lectura
+        // pasiva no puede liberar un ticket abandonado ni promover al primero.
+        const res = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(state.ticket_id)}?reconcile_heavy=true`);
         if (res.status === 404) {
             const err = new Error('Tu turno expiró antes de comenzar. Inténtalo nuevamente.');
             err.name = 'ConsultationQueueExpired';
@@ -99,7 +101,9 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
         const delay = Math.max(1000, suggested || backoffMs);
         await new Promise(resolve => setTimeout(resolve, delay));
         backoffMs = Math.min(8000, Math.round(backoffMs * 1.35));
-        const current = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}`);
+        // No es una lectura pasiva: el backend reconcilia atómicamente Redis,
+        // renueva este heartbeat y promueve el primer turno pesado disponible.
+        const current = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}?reconcile_heavy=true`);
         if (!current.ok) throw new Error(`El turno de la fase avanzada expiró (HTTP ${current.status}).`);
         state = await current.json();
     }

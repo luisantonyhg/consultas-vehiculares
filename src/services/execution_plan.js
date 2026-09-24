@@ -1,3 +1,5 @@
+import { secureFetch } from './transport.js';
+
 /** Orden de lanzamiento estratégico de las 21 consultas automáticas habilitadas. */
 export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 1, id: 'sunarp', phase: 'validation' },
@@ -13,7 +15,6 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     // de su consumo de memoria. No debe bloquear el carril rápido.
     { position: 10, id: 'atu_infracciones', phase: 'background' },
     { position: 11, id: 'citv', phase: 'background' },
-    // Callao queda fuera de la ruta crítica visual.
     { position: 11, id: 'callao', phase: 'background' },
     { position: 13, id: 'sigm', phase: 'advanced' },
     // SBS es la fuente compartida de SOAT/Vehicular/CAT. Tiene prioridad
@@ -95,4 +96,41 @@ export function buildAdvancedNodes(standardOrder) {
         id,
         deps: [...(ADVANCED_DEPENDENCIES[id] || [])],
     }));
+}
+
+/**
+ * Lee la política que el backend calculó para el ticket actual. Una caída de
+ * esta lectura nunca debe cancelar una consulta válida: el llamador conserva
+ * el plan local conservador (un carril pesado) como fallback.
+ */
+export async function fetchExecutionPlan(backendUrl, ticketId) {
+    if (!backendUrl || !ticketId) return null;
+    const response = await secureFetch(
+        `${backendUrl}/consultations/${encodeURIComponent(ticketId)}/execution-plan`,
+    );
+    if (!response.ok) throw new Error(`No se pudo obtener el plan de ejecución (HTTP ${response.status}).`);
+    const plan = await response.json();
+    if (!plan || !plan.limits || !Array.isArray(plan.sections)) {
+        throw new Error('El plan de ejecución recibido no tiene un contrato válido.');
+    }
+    return plan;
+}
+
+export function resolveExecutionLimits(plan, admission = {}) {
+    const mode = admission?.load_mode || plan?.load_mode || 'protected';
+    const fallback = mode === 'fast'
+        ? { fast_concurrency: 4, background_concurrency: 2, heavy_concurrency: 1, advanced_dispatch_concurrency: 2 }
+        : mode === 'balanced'
+            ? { fast_concurrency: 2, background_concurrency: 1, heavy_concurrency: 1, advanced_dispatch_concurrency: 2 }
+            : { fast_concurrency: 1, background_concurrency: 1, heavy_concurrency: 1, advanced_dispatch_concurrency: 1 };
+    const source = plan?.limits || {};
+    return {
+        fast_concurrency: Math.max(1, Math.min(4, Number(source.fast_concurrency) || fallback.fast_concurrency)),
+        background_concurrency: Math.max(1, Math.min(2, Number(source.background_concurrency) || fallback.background_concurrency)),
+        // El navegador está deliberadamente fijado a uno también del lado web.
+        heavy_concurrency: 1,
+        // Dos wrappers pueden iniciar/seguir un mismo vuelo SBS o esperar red.
+        // El bulkhead del backend mantiene un único Chromium físico.
+        advanced_dispatch_concurrency: Math.max(1, Math.min(2, Number(source.advanced_dispatch_concurrency) || fallback.advanced_dispatch_concurrency)),
+    };
 }

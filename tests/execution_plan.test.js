@@ -35,10 +35,13 @@ test('LUNAS se ejecuta al cierre, después del historial registral', () => {
     assert.equal(ids.at(-1), 'lunas');
 });
 
-test('Callao queda en segundo plano y su portal lento no bloquea la fase avanzada', () => {
+test('Callao queda en segundo plano y las fuentes HTTP/OCR no ocupan Chromium', () => {
   const callao = ENABLED_EXECUTION_ORDER.find(item => item.id === 'callao');
+  const citv = ENABLED_EXECUTION_ORDER.find(item => item.id === 'citv');
+  const cinemometro = ENABLED_EXECUTION_ORDER.find(item => item.id === 'cinemometro');
   assert.equal(callao?.phase, 'background');
-  assert.ok(callao.position < ENABLED_EXECUTION_ORDER.find(item => item.id === 'sigm').position);
+  assert.equal(citv?.phase, 'background');
+  assert.equal(cinemometro?.phase, 'fast');
 });
 
 test('historial espera toda la ruta pesada antes de ocupar el navegador global', () => {

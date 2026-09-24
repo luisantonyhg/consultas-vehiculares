@@ -376,7 +376,7 @@ import { SERVICES_DATA } from '../data/services';
 
         initVisits(
             BACKEND_URL,
-            import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026'
+            import.meta.env.PUBLIC_CLIENT_SECRET || ''
         );
         // --- 1. Lógica del Sistema de Favoritos (LocalStorage) ---
         function getFavorites(): string[] {

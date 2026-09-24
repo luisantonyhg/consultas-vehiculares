@@ -76,7 +76,7 @@ test('tipos verificados sin filas ni accidentes producen badge verde, no parcial
       setCardData(...args) { badge = args[9]; },
     });
 
-    assert.match(badge, /SIN SINIESTROS/);
+    assert.match(badge, /SIN REGISTROS/);
     assert.doesNotMatch(badge, /PARCIAL|SIN TOTAL OFICIAL/);
   } finally {
     globalThis.fetch = originalFetch;

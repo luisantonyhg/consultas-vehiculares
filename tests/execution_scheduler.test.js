@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../src/services/execution_scheduler.js';
-import { buildAdvancedNodes } from '../src/services/execution_plan.js';
+import { buildAdvancedNodes, resolveExecutionLimits } from '../src/services/execution_plan.js';
 
 const consultaSource = readFileSync(
   new URL('../src/pages/consulta.astro', import.meta.url),
@@ -57,14 +57,16 @@ test('SBS caído queda aislado y no detiene la siguiente fuente', async () => {
   assert.equal(result[1].value, 'historial-listo');
 });
 
-test('el modal solo se oculta desde la resolución terminal de SUNARP', () => {
+test('SUNARP lento revela tarjetas tras presupuesto visual sin lanzar fuentes dependientes', () => {
   const sunarpStart = consultaSource.indexOf('const sunarpPromise =');
   const sunarpReady = consultaSource.indexOf('const sunarpReadyPromise = sunarpPromise.then', sunarpStart);
-  const hideAfterStart = consultaSource.indexOf('hideLoadingOverlay();', sunarpStart);
+  const visualBudget = consultaSource.indexOf("revealResults('sunarp_visual_budget', 'pending')", sunarpStart);
+  const fastBatch = consultaSource.indexOf('const fastSectionsPromise = runInBatches', sunarpStart);
 
   assert.ok(sunarpStart >= 0, 'debe iniciar SUNARP como promesa independiente');
   assert.ok(sunarpReady > sunarpStart, 'debe enlazar el cierre al resultado SUNARP');
-  assert.ok(hideAfterStart > sunarpReady, 'no debe ocultar el modal antes de SUNARP');
+  assert.ok(visualBudget > sunarpStart && visualBudget < sunarpReady, 'debe revelar la UI si SUNARP supera el presupuesto visual');
+  assert.ok(fastBatch > sunarpReady, 'las fuentes dependientes siguen esperando el estado terminal SUNARP');
   assert.match(consultaSource, /const sunarpResult = await sunarpReadyPromise;/);
 });
 
@@ -75,7 +77,7 @@ test('CITV conserva un reintento completo si el proveedor agota su primer presup
   );
 });
 
-test('las fuentes variables no bloquean el inicio de las secciones avanzadas', () => {
+test('las fuentes HTTP/OCR no bloquean el inicio de las secciones avanzadas', () => {
   const backgroundStart = consultaSource.indexOf('const variableSectionsPromise = runInBatches');
   const advancedStart = consultaSource.indexOf('const advancedPromise = runSectionsWithDependencies(', backgroundStart);
   const backgroundJoin = consultaSource.indexOf('await variableSectionsPromise;', advancedStart);
@@ -85,10 +87,18 @@ test('las fuentes variables no bloquean el inicio de las secciones avanzadas', (
   assert.ok(backgroundJoin > advancedStart);
 });
 
-test('las secciones avanzadas usan dos carriles y modo protegido usa solo uno', () => {
+test('las secciones avanzadas despachan dos wrappers sin ampliar el navegador global', () => {
   assert.match(
     consultaSource,
-    /const advancedConcurrency = admission\?\.load_mode === 'protected' \? 1 : 2;/,
+    /const advancedConcurrency = executionLimits\.advanced_dispatch_concurrency;/,
+  );
+  assert.equal(
+    resolveExecutionLimits({ limits: { heavy_concurrency: 99 } }, { load_mode: 'fast' }).heavy_concurrency,
+    1,
+  );
+  assert.equal(
+    resolveExecutionLimits({ limits: { advanced_dispatch_concurrency: 99 } }, { load_mode: 'fast' }).advanced_dispatch_concurrency,
+    2,
   );
   assert.match(
     consultaSource,
@@ -129,7 +139,7 @@ test('el historial queda después de la ruta pesada y no bloquea el informe prin
   assert.doesNotMatch(consultaSource, /splitPrioritySections/);
 });
 
-test('Lima comienza tras la UI principal y antes de la cadena Municipal/Historial', () => {
+test('Lima comienza tras la UI y antes de Municipal/Historial', () => {
   const mainReadyAt = consultaSource.indexOf('[UI-MAIN-READY]');
   const limaBackgroundAt = consultaSource.indexOf('provider=lima priority=88 reason=background_after_sat state=started');
   const waitForLimaAt = consultaSource.indexOf('await limaBackgroundPromise;');

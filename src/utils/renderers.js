@@ -16,7 +16,7 @@ if (typeof document !== 'undefined' && !window.__canitaResultActionsInstalled) {
         if (!button) return;
         const action = button.dataset.canitaAction;
         if (action === 'callao-document') {
-            window.abrirModalPapeleta?.(decodeActionValue(button.dataset.url));
+            window.abrirModalPapeleta?.(decodeActionValue(button.dataset.url), decodeActionValue(button.dataset.token));
         } else if (action === 'sat-document') {
             window.openSatTicketModal?.(
                 decodeActionValue(button.dataset.url),
@@ -26,7 +26,8 @@ if (typeof document !== 'undefined' && !window.__canitaResultActionsInstalled) {
             window.abrirModalFotoCinemometro?.(
                 decodeActionValue(button.dataset.document),
                 decodeActionValue(button.dataset.target),
-                decodeActionValue(button.dataset.plate)
+                decodeActionValue(button.dataset.plate),
+                decodeActionValue(button.dataset.accessToken)
             );
         } else if (action === 'atu-infracciones-acta') {
             // La sección es experimental: el visor se inyecta únicamente en

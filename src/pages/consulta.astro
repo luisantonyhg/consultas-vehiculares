@@ -579,6 +579,44 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         </div>
     </div>
 
+    <!-- Admisión protegida: se muestra antes de iniciar consultas costosas. -->
+    <div id="consultation-queue-modal" class="fixed inset-0 z-[130] hidden items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="consultation-queue-title" aria-describedby="consultation-queue-description" aria-live="polite">
+        <section class="w-full max-w-md overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_28px_90px_rgba(15,23,42,.42)] font-poppins">
+            <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-[#123b58] px-6 pb-7 pt-6 text-white sm:px-7">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-300 shadow-inner">
+                        <i class="fas fa-users-viewfinder text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-black uppercase tracking-[.16em] text-emerald-300">Cañita protege tu turno</p>
+                        <h2 id="consultation-queue-title" class="mt-1 text-xl font-black leading-tight sm:text-2xl">Estamos atendiendo varias consultas</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-6 text-slate-700 sm:px-7">
+                <p id="consultation-queue-description" class="text-sm font-medium leading-relaxed text-slate-600">
+                    Tu turno está reservado. Espera un momento: iniciaremos automáticamente sin recargar la página.
+                </p>
+                <div class="mt-5 grid grid-cols-2 gap-3">
+                    <div class="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                        <p class="text-[9px] font-black uppercase tracking-[.13em] text-amber-700">Tu posición</p>
+                        <p id="consultation-queue-position" class="mt-1 text-2xl font-black tabular-nums text-slate-950">—</p>
+                    </div>
+                    <div class="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                        <p class="text-[9px] font-black uppercase tracking-[.13em] text-emerald-700">Espera estimada</p>
+                        <p id="consultation-queue-wait" class="mt-1 text-2xl font-black tabular-nums text-slate-950">—</p>
+                    </div>
+                </div>
+                <div class="mt-5 overflow-hidden rounded-full bg-slate-100 p-1" aria-hidden="true">
+                    <div class="h-1.5 w-2/5 animate-pulse rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500"></div>
+                </div>
+                <p class="mt-4 text-[11px] font-medium leading-relaxed text-slate-500">
+                    Esta espera evita que se saturen las fuentes oficiales y mantiene la consulta estable para todas las personas.
+                </p>
+            </div>
+        </section>
+    </div>
+
     <!-- Modal Oficial de Visualización de Copia de Papeleta SAT Lima -->
     <div id="sat-ticket-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
         <div class="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] font-poppins">
@@ -722,6 +760,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             runFetchSBS,
             runFetchSUNARP,
             runFetchSAT,
+            runFetchSATDeposito,
             runFetchMunicipal,
             runFetchFISE,
             runFetchSIGM,
@@ -749,7 +788,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         import { setupAtuActaModal } from '../ui/atu_acta_modal.js';
         import { renderPdfInto } from '../ui/pdf_viewer.js';
         import { resolveVehicleReference } from '../services/vehicle_reference.js';
-        import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes } from '../services/execution_plan.js';
+        import { ADVANCED_EXECUTION_ORDER, ENABLED_EXECUTION_ORDER, buildAdvancedNodes, fetchExecutionPlan, resolveExecutionLimits } from '../services/execution_plan.js';
         import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../services/execution_scheduler.js';
         import { shouldAutoRetry } from '../services/sat_retry_policy.js';
         import { calculateVehicleScore, buildConsolidatedPayload } from '../services/vehicle_score.js';
@@ -1305,7 +1344,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             return runExclusive('sat', () => runFetchSAT(plate, BACKEND_URL, callbacks));
         }
 
+        async function fetchSATDeposito(plate: string) {
+            const callbacks = {
+                setCardLoading: (id: string, t: string, s: string, i: string, b: string, src: string) => setCardLoading(id, t, s, i, b, src),
+                setCardData: (id: string, t: string, s: string, i: string, b: string, src: string, html: string, ok: boolean, has: boolean, badge?: string) => setCardData(id, t, s, i, b, src, html, ok, has, badge),
+                setCardError: (id: string, t: string, s: string, i: string, b: string, src: string, err: string, pl: string) => setCardError(id, t, s, i, b, src, err, pl),
+            };
+            return runExclusive('sat_deposito', () => runFetchSATDeposito(plate, BACKEND_URL, callbacks));
+        }
+
         const isRetryingCard: Record<string, boolean> = {};
+        const retryQueue: Array<{ cardId: string; plate: string }> = [];
+        let isProcessingRetryQueue = false;
 
         function showRetryNotice(html: string) {
             const status = document.getElementById('query-status');
@@ -1314,34 +1364,66 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             status.classList.remove('opacity-0');
         }
 
+        async function processRetryQueue() {
+            if (isProcessingRetryQueue || retryQueue.length === 0) return;
+            isProcessingRetryQueue = true;
+            const next = retryQueue.shift();
+            if (!next) {
+                isProcessingRetryQueue = false;
+                return;
+            }
+            try {
+                const container = document.getElementById(`${next.cardId}-card-container`);
+                if (container) {
+                    const buttons = container.querySelectorAll('button');
+                    buttons.forEach(btn => {
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reintentando carga...';
+                    });
+                }
+                await executeReintentarSeccion(next.cardId, next.plate);
+            } finally {
+                isProcessingRetryQueue = false;
+                if (retryQueue.length > 0) {
+                    window.setTimeout(processRetryQueue, 150);
+                }
+            }
+        }
+
         (window as any).reintentarSeccion = async function(cardId: string, plate: string) {
             if (isRetryingCard[cardId]) {
                 console.warn(`[RETRY-UI] Ya se está procesando el reintento para ${cardId}`);
                 return;
             }
-            // Bloquear clics múltiples y dar feedback visual inmediato en los botones de la tarjeta
             const container = document.getElementById(`${cardId}-card-container`);
             if (container) {
                 const buttons = container.querySelectorAll('button');
                 buttons.forEach(btn => {
                     btn.disabled = true;
                     btn.setAttribute('data-prev-html', btn.innerHTML);
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reintentando carga...';
                     btn.classList.add('opacity-75', 'cursor-not-allowed');
+                    if (isProcessingRetryQueue) {
+                        btn.innerHTML = '<i class="fas fa-hourglass-half mr-1"></i> En espera en cola...';
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reintentando carga...';
+                    }
                 });
             }
 
             isRetryingCard[cardId] = true;
+            retryQueue.push({ cardId, plate });
+            void processRetryQueue();
+        };
+
+        async function executeReintentarSeccion(cardId: string, plate: string) {
             queryAttempts[cardId] = 0;
             let ownsRetryTicket = false;
+            let currentRetryTicket: string | null = null;
+            const container = document.getElementById(`${cardId}-card-container`);
 
             try {
                 // Un ticket completado ya no autoriza llamadas. Reservar uno nuevo
                 // con una prueba anti-bot válida y no continuar jamás si falla la
                 // admisión (antes se ignoraba el 422 y la fuente recibía un 403).
-                // Un ticket puede seguir en memoria durante unos milisegundos
-                // después de /complete. No reutilizarlo: el backend ya lo
-                // cerró y respondería 403/404 sin llegar al proveedor.
                 const needsFreshRetryTicket = !activeConsultationTicket || consultationLifecycle !== 'active';
                 if (needsFreshRetryTicket) {
                     if (activeConsultationTicket) {
@@ -1375,18 +1457,22 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         throw new Error('No se pudo activar un turno válido para el reintento.');
                     }
                     activeConsultationTicket = admission.ticket_id;
+                    currentRetryTicket = admission.ticket_id;
                     ownsRetryTicket = true;
                     consultationLifecycle = 'active';
-                    setConsultationTicket(activeConsultationTicket);
                 }
 
-                // Un ticket nuevo empieza con Gate "validating". Antes de
-                // reintentar cualquier sección POST-GATE hay que registrar
-                // SUNARP para ese mismo ticket; de otro modo espera 65 s y
-                // termina en GATE-WAIT-TIMEOUT aunque la placa ya se consultó.
-                // Estas fuentes no dependen del registro SUNARP. Conservar el
-                // ticket/cola, pero no volver a consumir SUNARP en un reintento.
-                const directRetrySections = new Set(['fise', 'callao', 'atu_infracciones', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal']);
+                // ====================================================================
+                // NOTA CRÍTICA PARA DESARROLLADORES E IA (BYPASS DE GATE EN REINTENTOS):
+                // En el backend, el ConsultationGate retiene las consultas de secciones
+                // hijas hasta que SUNARP valida la placa. Si el usuario pulsa 'Reintentar'
+                // en una tarjeta individual (como CITV, Lunas, Callao o GNV), no se debe
+                // vincular el ticket del Gate si la sección es independiente de SUNARP.
+                // Si se vincula, el backend espera 65s por un SUNARP que nunca correrá,
+                // produciendo el error GATE-WAIT-TIMEOUT (65s desperdiciados).
+                // `directRetrySections` lista todas las secciones que se ejecutan directamente.
+                // ====================================================================
+                const directRetrySections = new Set(['fise', 'callao', 'atu_infracciones', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal', 'sat_deposito']);
                 const preGateSections = new Set(['sunarp', ...directRetrySections]);
                 if (ownsRetryTicket && !preGateSections.has(cardId)) {
                     showRetryNotice('<span class="text-sky-700 font-bold"><i class="fas fa-shield-halved mr-1"></i>Validando el nuevo turno con SUNARP...</span>');
@@ -1394,6 +1480,13 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     if (gateResult?.validation_status === 'not_found') {
                         throw new Error('SUNARP no encontró la placa; no se puede ejecutar esta sección.');
                     }
+                    setConsultationTicket(activeConsultationTicket);
+                } else if (directRetrySections.has(cardId)) {
+                    // Para secciones independientes de SUNARP, no vinculamos el ticket al gate HTTP
+                    // para evitar que el backend espere 65s por un SUNARP que no se ejecutará en este reintento.
+                    setConsultationTicket(null);
+                } else {
+                    setConsultationTicket(activeConsultationTicket);
                 }
 
                 setManualRetrySection(cardId);
@@ -1430,6 +1523,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 else if (cardId === 'atu')         await fetchATU(plate);
                 else if (cardId === 'atu_infracciones') await fetchAtuInfracciones(plate, { forceRefresh: true });
                 else if (cardId === 'sat')         await fetchSAT(plate);
+                else if (cardId === 'sat_deposito') await fetchSATDeposito(plate);
                 else if (cardId === 'lima')        await fetchLima(plate);
                 else if (cardId === 'lunas')       await fetchLunas(plate, { forceRefresh: true });
             } catch (e) {
@@ -1437,11 +1531,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 showRetryNotice(`<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>${(e as any)?.message || 'No se pudo reintentar la sección.'}</span>`);
             } finally {
                 setManualRetrySection(null);
-                if (ownsRetryTicket && activeConsultationTicket) {
-                    const retryTicket = activeConsultationTicket;
+                setConsultationTicket(null);
+                if (ownsRetryTicket && currentRetryTicket) {
                     activeConsultationTicket = null;
-                    await releaseConsultationSlot(BACKEND_URL, retryTicket);
-                    setConsultationTicket(null);
+                    await releaseConsultationSlot(BACKEND_URL, currentRetryTicket);
                 }
                 // Si salimos antes de volver a renderizar la tarjeta (por ejemplo,
                 // falta de CAPTCHA), restaurar sus botones para permitir otro clic.
@@ -1456,8 +1549,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 }
                 isRetryingCard[cardId] = false;
             }
-        };
-
+        }
         // ====================================================
         // ACCORDION TOGGLE
         // ====================================================
@@ -1827,6 +1919,32 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         let isSubmitting = false;
 
+        function showConsultationQueueModal(state: any) {
+            const modal = document.getElementById('consultation-queue-modal');
+            const position = document.getElementById('consultation-queue-position');
+            const wait = document.getElementById('consultation-queue-wait');
+            const description = document.getElementById('consultation-queue-description');
+            const queuePosition = Math.max(1, Number(state?.position) || 1);
+            const seconds = Math.max(0, Number(state?.estimated_wait_seconds) || 0);
+            const minutes = Math.max(1, Math.ceil(seconds / 60));
+            if (position) position.textContent = String(queuePosition);
+            if (wait) wait.textContent = `${minutes} min`;
+            if (description) {
+                description.textContent = `Tu turno está reservado en la posición ${queuePosition}. Iniciaremos automáticamente cuando exista capacidad, sin que tengas que recargar la página.`;
+            }
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function hideConsultationQueueModal() {
+            const modal = document.getElementById('consultation-queue-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         function showLoadingOverlay(plate: string) {
             const overlay = document.getElementById('loading-overlay');
             const badge = document.getElementById('loader-plate-badge');
@@ -2033,9 +2151,11 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             admission = await waitForConsultationSlot(BACKEND_URL, admission, (state: any) => {
                                 if (state.status === 'queued') {
                                     const wait = Math.max(1, Math.round((state.estimated_wait_seconds || 0) / 60));
+                                    showConsultationQueueModal(state);
                                     queryStatus.innerHTML = `<span class="text-amber-600 font-bold"><i class="fas fa-hourglass-half mr-1"></i> Alta demanda: estás en la posición ${state.position}. Espera estimada: ${wait} min. Tu consulta iniciará automáticamente.</span>`;
                                     updateLoadingStatus(`Alta demanda · turno ${state.position} · aprox. ${wait} min`);
                                 } else {
+                                    hideConsultationQueueModal();
                                     const modeLabel = state.load_mode === 'fast' ? 'Modo rápido' : state.load_mode === 'balanced' ? 'Modo balanceado' : 'Modo protegido';
                                     queryStatus.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fas fa-bolt mr-1"></i> Turno confirmado · ${modeLabel}. Iniciando consulta...</span>`;
                                 }
@@ -2049,8 +2169,28 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                 if (activeConsultationTicket && consultationLifecycle === 'active' && document.visibilityState === 'visible') {
                                     void touchConsultationSlot(BACKEND_URL, activeConsultationTicket);
                                 }
-                            }, 60000);
+                            }, 45000);
                         }
+
+                        // El backend es la fuente de verdad de los límites de
+                        // ejecución. Si su lectura falla, el fallback local es
+                        // restrictivo y no abre más de un carril pesado.
+                        let executionPlan: any = null;
+                        if (activeConsultationTicket) {
+                            try {
+                                executionPlan = await fetchExecutionPlan(BACKEND_URL, activeConsultationTicket);
+                                console.info('[ORCHESTRATOR-PLAN]', {
+                                    consultation_id: activeConsultationId,
+                                    version: executionPlan.version,
+                                    load_mode: executionPlan.load_mode,
+                                    limits: executionPlan.limits,
+                                    sections: executionPlan.sections.map((section: any) => section.id),
+                                });
+                            } catch (planError) {
+                                console.warn('[ORCHESTRATOR-PLAN] fallback=local reason=', (planError as any)?.message || 'unknown');
+                            }
+                        }
+                        const executionLimits = resolveExecutionLimits(executionPlan, admission);
 
                         // Verificación rápida de disponibilidad del backend
                         try {
@@ -2068,8 +2208,39 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         updateLoadingStatus('Validando la placa en SUNARP...');
                         setCardWaiting('sunarp', 'Consulta Vehicular SUNARP', 'Datos registrales oficiales', 'fas fa-car-side', '', 'SUNARP', 'Consultando en segundo plano...');
                         const sunarpPromise = runSectionSafely('sunarp', () => fetchSUNARP(plate));
+                        // ====================================================================
+                        // NOTA CRÍTICA PARA DESARROLLADORES E IA (TIMEOUT VISUAL SUNARP):
+                        // SUNARP (con Cloudflare Turnstile / CapSolver) tarda entre 25s y 35s
+                        // en resolver en producción. NUNCA REDUCIR este timeout a valores bajos
+                        // (como 8s). Un timeout de 8s cierra el modal de espera 20 segundos antes
+                        // de que SUNARP devuelva los datos, haciendo que el usuario vea la tarjeta
+                        // incompleta y piense erróneamente que la consulta falló.
+                        // El valor está configurado en 40s (40000ms) para garantizar que el modal
+                        // permanezca visible hasta que SUNARP confirme la placa o expire limpiamente.
+                        // ====================================================================
+                        let resultsRevealed = false;
+                        const revealResults = (trigger: string, validation = 'pending') => {
+                            if (resultsRevealed) return;
+                            resultsRevealed = true;
+                            clearTimeout(safetyLoaderTimeout);
+                            hideLoadingOverlay();
+                            scrollToResults();
+                            console.info('[UI-RESULTS-REVEALED]', {
+                                elapsed_ms: Math.round(performance.now() - consultationStartedAt),
+                                trigger,
+                                validation_status: validation,
+                                cache_refresh: isRefreshingStaleCache,
+                                consultation_id: activeConsultationId,
+                            });
+                        };
+                        const sunarpVisualTimeout = window.setTimeout(() => {
+                            queryStatus.textContent = 'SUNARP está tardando más de lo habitual. Mostramos el informe y continuamos verificando...';
+                            updateLoadingStatus('La validación registral continúa en segundo plano...');
+                            revealResults('sunarp_visual_budget', 'pending');
+                        }, 40000);
 
                         const sunarpReadyPromise = sunarpPromise.then(async (result: any) => {
+                            clearTimeout(sunarpVisualTimeout);
                             const validation = result?.validation_status;
                             queryStatus.textContent = validation === 'found'
                                 ? 'SUNARP confirmado. Las demás fuentes continúan actualizándose...'
@@ -2084,16 +2255,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                                         : 'SUNARP terminó con una respuesta no concluyente.'
                             );
                             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                            clearTimeout(safetyLoaderTimeout);
-                            hideLoadingOverlay();
-                            scrollToResults();
-                            console.info('[UI-RESULTS-REVEALED]', {
-                                elapsed_ms: Math.round(performance.now() - consultationStartedAt),
-                                trigger: 'sunarp_terminal',
-                                validation_status: validation || 'indeterminate',
-                                cache_refresh: isRefreshingStaleCache,
-                                consultation_id: activeConsultationId,
-                            });
+                            revealResults('sunarp_terminal', validation || 'indeterminate');
                             return result;
                         });
 
@@ -2118,9 +2280,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
                         // FASE 1A: la placa existe o SUNARP quedó indeterminado;
                         // recién ahora pueden ejecutarse fuentes independientes.
-                        const fastBatchSize = admission?.load_mode === 'protected'
-                            ? 1
-                            : admission?.load_mode === 'balanced' ? 2 : 4;
+                        const fastBatchSize = executionLimits.fast_concurrency;
                         const fastSectionsPromise = runInBatches([
                             // Grupo inmediato: normalmente entrega tarjetas antes o
                             // alrededor de la confirmación SUNARP.
@@ -2130,8 +2290,6 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('sutran', () => fetchSutran(plate)),
                             () => runSectionSafely('fise', () => fetchFISE(plate)),
                             () => runSectionSafely('gnv', () => fetchGNV(plate)),
-                            // Grupo estándar. Callao se ejecuta en segundo plano:
-                            // una caída de su portal no debe retrasar la fase avanzada.
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
                             () => runSectionSafely('valor_venal', async () => {
                                 const pdData = sectionResults.placas_pe?.data || {};
@@ -2143,7 +2301,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         // FASE 1B: fuentes independientes de prioridad secundaria.
                         // Lunas se deja deliberadamente para el cierre: un CAPTCHA
                         // difícil no puede retrasar Lima/SBS/SAT ni Historial.
-                        const variableBatchSize = admission?.load_mode === 'protected' ? 1 : 2;
+                        const variableBatchSize = executionLimits.background_concurrency;
                         const variableSectionsPromise = runInBatches([
                             () => runSectionSafely('citv', () => fetchCITV(plate)),
                         ], variableBatchSize, 'fuente HTTP/OCR en segundo plano');
@@ -2239,10 +2397,15 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             municipal: () => fetchMunicipal(plate),
                             sat: () => fetchSAT(plate),
                         };
-                        // SIGM es HTTP y puede compartir el carril con SOAT. Lima,
-                        // SBS y SAT compiten por Chromium, por eso Lima queda fuera
-                        // de la ruta crítica y se inicia solo tras SAT.
-                        const advancedConcurrency = admission?.load_mode === 'protected' ? 1 : 2;
+                        // Aunque SIGM tenga tramos HTTP, las fuentes avanzadas
+                        // terminan usando el mismo Chromium, OCR o CAPTCHA. Un
+                        // solo carril evita que una consulta abra trabajos
+                        // pesados solapados dentro de su propio ticket.
+                        // Esto limita wrappers de red, no Chromium. El backend
+                        // mantiene GLOBAL_BROWSER_CAPACITY=1; permitir dos
+                        // wrappers deja que SOAT/SBS compartan un single-flight
+                        // mientras SIGM espera su red/CAPTCHA.
+                        const advancedConcurrency = executionLimits.advanced_dispatch_concurrency;
                         const runAdvancedSection = async (sectionId: string) => {
                             const startedAt = performance.now();
                             console.info(`[ORDEN-CONSULTA] Inicio ${sectionId}`);
@@ -2302,9 +2465,8 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             consultation_id: activeConsultationId,
                         });
 
-                        // Callao usa CAPTCHA/OCR y puede tardar. Se inicia
-                        // después de SAT, con la interfaz ya disponible, y no
-                        // puede retrasar ni Municipal, Historial ni Lunas.
+                        // Callao es HTTP/OCR, no Chromium. Corre tras SAT con
+                        // la interfaz disponible y no bloquea Lima/Municipal.
                         const callaoBackgroundPromise = (async () => {
                             const startedAt = performance.now();
                             console.info('[SCHEDULER] provider=callao priority=85 reason=background_after_sat state=started');
@@ -2319,25 +2481,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             return result;
                         })();
 
-                        // Lima usa el mismo Chromium que SBS/SAT en ocasiones.
-                        // Llegó aquí únicamente después de que SAT liberó su
-                        // ruta crítica; se completa antes de Municipal para que
-                        // no compita con sus portales Playwright.
                         const limaBackgroundPromise = (async () => {
                             if (!limaNode) return null;
                             const startedAt = performance.now();
                             console.info('[SCHEDULER] provider=lima priority=88 reason=background_after_sat state=started');
-                            const result = await runSectionsWithDependencies([
-                                {
-                                    ...limaNode,
-                                    deps: [],
-                                    run: () => runAdvancedSection(limaNode.id),
-                                },
-                            ], 1);
-                            console.info(
-                                '[SCHEDULER] provider=lima priority=88 state=finished duration_ms=%d',
-                                Math.round(performance.now() - startedAt),
-                            );
+                            const result = await runSectionsWithDependencies([{ ...limaNode, deps: [], run: () => runAdvancedSection(limaNode.id) }], 1);
+                            console.info('[SCHEDULER] provider=lima priority=88 state=finished duration_ms=%d', Math.round(performance.now() - startedAt));
                             renderVehicleScore(plate);
                             saveToCache(plate);
                             return result;
@@ -2429,6 +2578,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);
+                        hideConsultationQueueModal();
                         hideLoadingOverlay();
                         queueError = (err as any)?.name?.startsWith('ConsultationQueue') || false;
                         if (queueError) {
@@ -2437,6 +2587,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         }
                     } finally {
                         if (backgroundStatusNotice) clearTimeout(backgroundStatusNotice);
+                        hideConsultationQueueModal();
                         console.info('[CONSULTATION-FULL-COMPLETE]', {
                             consultation_id: activeConsultationId,
                             total_ms: Math.round(performance.now() - consultationStartedAt),
@@ -2487,7 +2638,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
 
         let currentPapeletaBlobUrl: string | null = null;
-        (window as any).abrirModalPapeleta = async function(rawNroPapeleta: string) {
+        (window as any).abrirModalPapeleta = async function(rawNroPapeleta: string, documentToken = '') {
             const modal = document.getElementById('papeleta-modal')!;
             const title = document.getElementById('modal-papeleta-title')!;
             const loading = document.getElementById('modal-loading')!;
@@ -2515,9 +2666,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             pdfViewer.src = "";
             imgViewer.src = "";
             try {
-                const secKey = (import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026');
-                const res = await fetch(`${BACKEND_URL}/callao/pdf/${encodeURIComponent(nroPapeleta)}`, {
-                    headers: { 'X-Client-Secret': secKey }
+                const secKey = import.meta.env.PUBLIC_CLIENT_SECRET || '';
+                const tokenQuery = documentToken ? `?access_token=${encodeURIComponent(documentToken)}` : '';
+                const res = await fetch(`${BACKEND_URL}/callao/pdf/${encodeURIComponent(nroPapeleta)}${tokenQuery}`, {
+                    headers: secKey ? { 'X-Client-Secret': secKey } : {}
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const result = await res.json();
@@ -2629,7 +2781,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             imgViewer.classList.remove('hidden');
         };
 
-        (window as any).abrirModalFotoCinemometro = async function(nroPapeleta: string, fotoTarget: string, plate: string) {
+        (window as any).abrirModalFotoCinemometro = async function(nroPapeleta: string, fotoTarget: string, plate: string, documentToken = '') {
             const modal = document.getElementById('papeleta-modal')!;
             const title = document.getElementById('modal-papeleta-title')!;
             const loading = document.getElementById('modal-loading')!;
@@ -2661,9 +2813,17 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
 
             try {
                 const secKey = (import.meta.env.PUBLIC_CLIENT_SECRET || 'VehicularPESecretSecure2026');
-                const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}`;
+                const url = `${BACKEND_URL}/cinemometro/foto/${plate}?target=${encodeURIComponent(fotoTarget)}${documentToken ? `&access_token=${encodeURIComponent(documentToken)}` : ''}`;
                 const res = await fetch(url, {
-                    headers: { 'X-Client-Secret': secKey }
+                    headers: {
+                        'X-Client-Secret': secKey,
+                        // El identificador de consulta vive dentro del handler
+                        // principal y no existe en este callback global del
+                        // visor. El token efímero autoriza la foto incluso al
+                        // terminar la consulta; mientras está activa, el
+                        // ticket sí es una variable de este ámbito.
+                        ...(activeConsultationTicket ? { 'X-Consultation-Ticket': activeConsultationTicket } : {}),
+                    }
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const result = await res.json();

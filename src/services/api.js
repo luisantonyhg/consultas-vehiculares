@@ -94,6 +94,31 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     }
 }
 
+/** Reintento aislado: no vuelve a ejecutar captura cuando solo depósito falló. */
+export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/deposito/${plate}`);
+        const data = await res.json();
+        const dep = data?.deposito;
+        if (!res.ok || !dep?.success) {
+            const message = dep?.error || data?.error || `No se pudo verificar depósito (HTTP ${res.status})`;
+            callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', message, plate, dep || data);
+            return { success: false, error: message, deposito: dep };
+        }
+        const internado = !!dep.internado;
+        callbacks.setCardData('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima',
+            renderSatDeposito(dep, plate), true, internado, internado ? badBadge('INTERNADO') : okBadge('NO INTERNADO'));
+        return { success: true, deposito: dep };
+    } catch (err) {
+        const message = err?.message || 'Error de conexión al consultar depósito SAT';
+        callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', message, plate);
+        return { success: false, error: message };
+    }
+}
+
 export async function runFetchSATDeuda(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_deuda', 'Deuda Imp. Vehicular (SAT)', 'Impuesto Vehicular', 'fas fa-file-invoice-dollar', '', 'SAT Lima');
     const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;

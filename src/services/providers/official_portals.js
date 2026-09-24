@@ -211,13 +211,13 @@ export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm uppercase tracking-wider">
                     <i class="fas fa-triangle-exclamation"></i> ${totalSiniestros} SINIESTRO${totalSiniestros > 1 ? 'S' : ''}
                 </span>`;
-            } else if (tiposConError.length > 0 || tiposSinTotal.length > 0) {
+            } else if (tiposSinTotal.length > 0) {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-exclamation"></i> PARCIAL · ${tiposConError.length + tiposSinTotal.length} SIN TOTAL OFICIAL
+                    <i class="fas fa-circle-exclamation"></i> PARCIAL · ${tiposSinTotal.length} FUENTE${tiposSinTotal.length > 1 ? 'S' : ''} PENDIENTE${tiposSinTotal.length > 1 ? 'S' : ''}
                 </span>`;
             } else {
                 customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider">
-                    <i class="fas fa-circle-check"></i> SIN SINIESTROS
+                    <i class="fas fa-circle-check"></i> SIN REGISTROS
                 </span>`;
             }
             const content = renderSBS(sbsData, plate);
