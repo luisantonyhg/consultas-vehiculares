@@ -19,6 +19,7 @@ export {
     waitForConsultationSlot,
     touchConsultationSlot,
     waitForHeavyPhase,
+    releaseHeavyPhase,
     releaseConsultationSlot,
 } from './consultation_queue.js';
 

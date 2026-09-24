@@ -776,6 +776,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             waitForConsultationSlot,
             touchConsultationSlot,
             waitForHeavyPhase,
+            releaseHeavyPhase,
             releaseConsultationSlot,
             createConsultationId,
             setConsultationId,
@@ -2446,6 +2447,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             },
                         );
                         await advancedPromise;
+                        if (activeConsultationTicket) {
+                            void releaseHeavyPhase(BACKEND_URL, activeConsultationTicket);
+                        }
 
                         // P0.3 (corrige P0.2): el score necesita TODAS las secciones,
                         // incluida FASE 1A, antes de renderizar y completar.

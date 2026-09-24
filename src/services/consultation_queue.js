@@ -111,6 +111,19 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
     return state;
 }
 
+export async function releaseHeavyPhase(BACKEND_URL, ticketId) {
+    if (!ticketId) return false;
+    try {
+        const res = await secureFetch(
+            `${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/heavy-phase/complete`,
+            { method: 'POST' }
+        );
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
 export async function releaseConsultationSlot(BACKEND_URL, ticketId, keepalive = false) {
     if (!ticketId) return;
     try {
