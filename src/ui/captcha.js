@@ -159,9 +159,16 @@ export function setupCaptcha(BACKEND_URL, configuredSiteKey = '') {
     });
     return {
         refresh,
-        async waitForProof(answer, timeoutMs = 120000) {
+        consumeProof() {
+            turnstileToken = '';
+            challengeId = '';
+        },
+        async waitForProof(answer, timeoutMs = 120000, { forceReset = false } = {}) {
+            if (forceReset && siteKey) {
+                turnstileToken = '';
+            }
             const current = this.getProof(answer);
-            if (current.valid || !siteKey) return current;
+            if ((current.valid && !forceReset) || !siteKey) return current;
 
             // Preparar un reto nuevo y esperar su callback permite que el
             // reintento continúe automáticamente después de marcar Turnstile.

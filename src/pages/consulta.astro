@@ -1436,11 +1436,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         setConsultationTicket(null);
                     }
                     const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
+                    captcha.consumeProof?.();
                     let retryProof = captcha.getProof(retryCaptchaInput?.value || '');
                     if (!retryProof.valid) {
-                        showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Completa la verificación anti-bots; el reintento continuará automáticamente.</span>');
+                        showRetryNotice('<span class="text-amber-600 font-bold"><i class="fas fa-shield-halved mr-1"></i>Verificando turno de seguridad para el reintento...</span>');
                         document.getElementById('query-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        retryProof = await captcha.waitForProof(retryCaptchaInput?.value || '', 120000);
+                        retryProof = await captcha.waitForProof(retryCaptchaInput?.value || '', 120000, { forceReset: true });
                         if (!retryProof.valid) {
                             showRetryNotice('<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>La verificación expiró. Pulsa Reintentar para generar un nuevo desafío.</span>');
                             return;
@@ -1448,6 +1449,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     }
 
                     let admission = await acquireConsultationSlot(BACKEND_URL, retryProof);
+                    captcha.consumeProof?.();
                     void drawCaptcha();
                     admission = await waitForConsultationSlot(BACKEND_URL, admission, (state: any) => {
                         if (state.status === 'queued') {
@@ -1481,14 +1483,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     if (gateResult?.validation_status === 'not_found') {
                         throw new Error('SUNARP no encontró la placa; no se puede ejecutar esta sección.');
                     }
-                    setConsultationTicket(activeConsultationTicket);
-                } else if (directRetrySections.has(cardId)) {
-                    // Para secciones independientes de SUNARP, no vinculamos el ticket al gate HTTP
-                    // para evitar que el backend espere 65s por un SUNARP que no se ejecutará en este reintento.
-                    setConsultationTicket(null);
-                } else {
-                    setConsultationTicket(activeConsultationTicket);
                 }
+                // SIEMPRE enviar el ticket válido en X-Consultation-Ticket para que verify_consultation_ticket
+                // no rechace con 403 Forbidden. El backend detecta X-Manual-Retry: 1 y omite el Gate automáticamente.
+                setConsultationTicket(activeConsultationTicket || currentRetryTicket);
 
                 setManualRetrySection(cardId);
                 console.info('[MANUAL-RETRY]', {
@@ -2146,6 +2144,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         updateLoadingStatus('Preparando tu consulta...');
 
                         let admission = await acquireConsultationSlot(BACKEND_URL, captchaProof);
+                    captcha.consumeProof?.();
                         void drawCaptcha();
                         if (admission.supported) {
                             activeConsultationTicket = admission.ticket_id;
