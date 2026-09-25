@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
 
-test('un reintento nunca reutiliza un ticket completado o cancelado', () => {
+test('un reintento reutiliza el ticket completado o reserva uno nuevo sin colisiones', () => {
   assert.match(
     source,
-    /const needsFreshRetryTicket = !activeConsultationTicket \|\| consultationLifecycle !== 'active';/,
+    /const effectiveTicket = activeConsultationTicket \|\| completedConsultationTicket;/,
   );
+  assert.match(source, /const needsFreshRetryTicket = !effectiveTicket;/);
   assert.match(source, /if \(needsFreshRetryTicket\) \{/);
-  assert.match(source, /consultationLifecycle = 'active';/);
 });

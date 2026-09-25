@@ -829,6 +829,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
         */
         let activeConsultationTicket: string | null = null;
+        let completedConsultationTicket: string | null = null;
         let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
         let consultationGeneration = 0;
         let consultationLifecycle: 'idle' | 'active' | 'completed' | 'cancelled' | 'superseded' = 'idle';
@@ -1438,16 +1439,12 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // Un ticket completado ya no autoriza llamadas. Reservar uno nuevo
                 // con una prueba anti-bot válida y no continuar jamás si falla la
                 // admisión (antes se ignoraba el 422 y la fuente recibía un 403).
-                const needsFreshRetryTicket = !activeConsultationTicket || consultationLifecycle !== 'active';
+                // Reutilizar el ticket completado de la consulta si existe: el backend
+                // autoriza tickets completados con X-Manual-Retry: 1 durante 15 minutos
+                // sin requerir un nuevo Turnstile anti-bot ni generar errores 422.
+                const effectiveTicket = activeConsultationTicket || completedConsultationTicket;
+                const needsFreshRetryTicket = !effectiveTicket;
                 if (needsFreshRetryTicket) {
-                    if (activeConsultationTicket) {
-                        console.info('[MANUAL-RETRY] descartando ticket no activo antes de reservar uno nuevo', {
-                            section: cardId,
-                            lifecycle: consultationLifecycle,
-                        });
-                        activeConsultationTicket = null;
-                        setConsultationTicket(null);
-                    }
                     const retryCaptchaInput = document.getElementById('captcha-input') as HTMLInputElement | null;
                     captcha.consumeProof?.();
                     let retryProof = captcha.getProof(retryCaptchaInput?.value || '');
@@ -1499,7 +1496,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 }
                 // SIEMPRE enviar el ticket válido en X-Consultation-Ticket para que verify_consultation_ticket
                 // no rechace con 403 Forbidden. El backend detecta X-Manual-Retry: 1 y omite el Gate automáticamente.
-                setConsultationTicket(activeConsultationTicket || currentRetryTicket);
+                setConsultationTicket(effectiveTicket || activeConsultationTicket || currentRetryTicket);
 
                 setManualRetrySection(cardId);
                 console.info('[MANUAL-RETRY]', {
@@ -1541,6 +1538,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             } catch (e) {
                 console.error(`[RETRY-ERROR] Error en reintento manual de ${cardId}:`, e);
                 showRetryNotice(`<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i>${(e as any)?.message || 'No se pudo reintentar la sección.'}</span>`);
+                if ((e as any)?.status === 422 || (e as any)?.name === 'ConsultationQueueError') {
+                    retryQueue.length = 0;
+                }
             } finally {
                 setManualRetrySection(null);
                 setConsultationTicket(null);
@@ -2639,6 +2639,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         hideLoadingOverlay();
                         if (activeConsultationTicket) {
                             const ticketToRelease = activeConsultationTicket;
+                            completedConsultationTicket = ticketToRelease;
                             activeConsultationTicket = null;
                             await releaseConsultationSlot(BACKEND_URL, ticketToRelease);
                             setConsultationTicket(null);
