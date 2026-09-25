@@ -963,8 +963,21 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 if (setIfBetter('marca', data.Marca || data.marca)) updated = true;
                 if (setIfBetter('modelo', data.Modelo || data.modelo)) updated = true;
                 if (setIfBetter('color', data.Color || data.color)) updated = true;
-                if (setIfBetter('anio', data.Año || data['Año Fabricación'] || data.anio)) updated = true;
-                if (setIfBetter('propietario', data.Titular || data.Propietario || data.propietario)) updated = true;
+                if (setIfBetter('anio', data['Año Modelo'] || data.anio_modelo || data.Año || data['Año Fabricación'] || data.anio)) updated = true;
+                if (setIfBetter('propietario', data.Propietarios || data.propietarios || data.Titular || data.Propietario || data.propietario)) updated = true;
+                if (setIfBetter('sede', data.Sede || data.sede)) updated = true;
+            }
+
+            if (cardId === 'soat_detallado' && data) {
+                const certs = Array.isArray(data) ? data : (data.certificados || data.data?.certificados || []);
+                if (certs.length > 0) {
+                    const cert = certs[0];
+                    if (setIfBetter('marca', cert.Marca || cert.marca)) updated = true;
+                    if (setIfBetter('modelo', cert.ModeloVehiculo || cert.Modelo || cert.modelo)) updated = true;
+                    if (setIfBetter('categoria', cert.NombreClaseVehiculo || cert.Clase || cert.clase)) updated = true;
+                    if (setIfBetter('uso', cert.NombreUsoVehiculo || cert.Uso || cert.uso)) updated = true;
+                    if (setIfBetter('anio', cert.AnioFabricacion || cert.AñoFabricacion || cert.anio)) updated = true;
+                }
             }
 
             if (cardId === 'placas_pe' && data) {
@@ -975,8 +988,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 if (setIfBetter('uso', data.tipoUso)) updated = true;
             }
 
-            // La tarjeta "vehiculo" está en mantenimiento → no se re-renderiza aunque llegue
-            // info de CITV/ATU. (Se seguirá acumulando en vehicleData por si se reactiva.)
+            // Si valor_venal quedó en estado 'requiere marca/modelo' pero una sección posterior
+            // (SOAT Detallado, CITV, etc.) obtuvo la marca y modelo oficiales, re-ejecutar valor_venal automáticamente
+            if (updated && vehicleData.marca && vehicleData.modelo) {
+                const vvCard = sectionResults.valor_venal;
+                if (vvCard && (vvCard.sinDatos || !vvCard.success) && activeScorePlate) {
+                    console.info('[VALOR-VENAL-REACTIVE] Marca y modelo confirmados tras consulta inicial; actualizando cotización APESEG...', {
+                        marca: vehicleData.marca,
+                        modelo: vehicleData.modelo,
+                        anio: vehicleData.anio,
+                    });
+                    void fetchValorVenal(activeScorePlate, vehicleData.marca, vehicleData.modelo, vehicleData.anio);
+                }
+            }
             void updated;
         }
 
@@ -2326,7 +2350,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                             () => runSectionSafely('cinemometro', () => fetchCinemometro(plate)),
                             () => runSectionSafely('valor_venal', async () => {
                                 const pdData = sectionResults.placas_pe?.data || {};
-                                const reference = resolveVehicleReference(pdData, vehicleData);
+                                const sunarpData = sunarpResult?.datos || sectionResults.sunarp?.datos || {};
+                                const soatData = sectionResults.soat_detallado?.certificados?.[0] || sectionResults.soat?.[0] || {};
+                                const citvData = (Array.isArray(sectionResults.citv) ? sectionResults.citv[0] : sectionResults.citv?.data?.[0]) || {};
+                                const reference = resolveVehicleReference(pdData, vehicleData, sunarpData, soatData, citvData);
                                 return await fetchValorVenal(plate, reference.marca, reference.modelo, reference.anio);
                             }),
                         ], fastBatchSize);

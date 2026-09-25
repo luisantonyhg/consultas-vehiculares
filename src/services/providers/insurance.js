@@ -143,6 +143,9 @@ export async function runFetchSOATDetallado(plate, BACKEND_URL, callbacks) {
             }
         }
 
+        if (typeof callbacks.processVehicleInfo === 'function') {
+            callbacks.processVehicleInfo('soat_detallado', data);
+        }
         callbacks.setCardData('soat_detallado', 'SOAT APESEG Detallado', 'Historial de certificados y siniestros', 'fas fa-clock-rotate-left', '', 'APESEG', renderSOATDetallado(data, plate), true, certificados.length > 0 || siniestros.length > 0, badge);
         return data;
     } catch (err) {
