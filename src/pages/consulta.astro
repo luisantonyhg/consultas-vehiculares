@@ -829,7 +829,16 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         }
         */
         let activeConsultationTicket: string | null = null;
-        let completedConsultationTicket: string | null = null;
+        // ====================================================================================
+  // GESTIÓN DE TICKETS Y PERSISTENCIA DE SESIÓN PARA REINTENTOS (ZERO 422 POLICY)
+  // ====================================================================================
+  // - activeConsultationTicket: Ticket activo durante la ejecución concurrente inicial.
+  // - completedConsultationTicket: Al liberarse la consulta, el ticket se preserva aquí en
+  //   lugar de borrarse. Esto permite que los reintentos manuales de tarjetas individuales
+  //   (SBS, SAT, SUTRAN, etc.) utilicen la ventana de gracia de 15 min del backend sin
+  //   disparar un error 422 (Turnstile token consumido).
+  // ====================================================================================
+  let completedConsultationTicket: string | null = null;
         let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
         let consultationGeneration = 0;
         let consultationLifecycle: 'idle' | 'active' | 'completed' | 'cancelled' | 'superseded' = 'idle';
@@ -1429,7 +1438,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
             void processRetryQueue();
         };
 
-        async function executeReintentarSeccion(cardId: string, plate: string) {
+        // ====================================================================================
+  // FLUJO DE REINTENTO MANUAL DE SECCIÓN INDIVIDUAL (CON CONTROL DE TICKET Y COLA)
+  // ====================================================================================
+  // 1. ¿QUÉ HACE? Reejecuta la consulta de un solo proveedor (SBS, SAT, etc.) sin volver
+  //    a consultar los proveedores que ya tuvieron éxito.
+  // 2. TICKET EFECTIVO: Reutiliza activeConsultationTicket || completedConsultationTicket
+  //    junto con los headers 'X-Manual-Retry': '1' y 'X-Manual-Retry-Section'.
+  // 3. FAIL-SAFE ANTICOLISIÓN: Si el backend rechaza la petición con 422 (ej. si pasaron
+  //    más de 15 min y expiró el ticket), se vacía inmediatamente la cola de reintentos
+  //    (retryQueue.length = 0) para evitar una tormenta de errores en pantalla.
+  // ====================================================================================
+  async function executeReintentarSeccion(cardId: string, plate: string) {
             queryAttempts[cardId] = 0;
             let ownsRetryTicket = false;
             let currentRetryTicket: string | null = null;
@@ -2593,6 +2613,19 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         await lunasDeferredRetry;
                         await callaoBackgroundPromise;
 
+                        // ============================================================================
+                        // ARQUITECTURA DIFERIDA SBS: AISLAMIENTO TOTAL DE LATENCIA
+                        // ============================================================================
+                        // 1. ¿QUÉ SE HIZO AQUÍ?
+                        //    SBS (historial de siniestros SOAT) requiere DrissionPage + Headed Browser
+                        //    bajo Xvfb. Puede demorar entre 25s y 70s según la respuesta de Imperva.
+                        // 2. AISLAMIENTO: Para que el usuario vea SUNARP, Papeletas SAT, ATU, MTC
+                        //    y Lunas Polarizadas de inmediato (<3 segundos), SBS se ejecuta de forma
+                        //    DIFERIDA (deferred promise) en segundo plano.
+                        // 3. TOLERANCIA A FALLOS: Si SBS excede el tiempo o falla, solo se marca
+                        //    su tarjeta individual con opción a "Reintentar", sin afectar en lo absoluto
+                        //    el score vehicular ni las demás secciones ya exitosas.
+                        // ============================================================================
                         // FASE FINAL ABSOLUTA: SBS Siniestralidad Vehicular.
                         // Corre AL ÚLTIMO, únicamente después de que Lunas Polarizadas y el resto
                         // de consultas hayan terminado o estén resueltas. Sus demoras, reintentos
