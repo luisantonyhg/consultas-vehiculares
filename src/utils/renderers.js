@@ -637,7 +637,19 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     const safeErrorMessage = escapeHTML(errorMessage || '');
-    const isMantenimiento = (errorMessage || "").toLowerCase().includes("mantenimiento") || (errorMessage || "").toLowerCase().includes("desarrollo");
+    const errLower = (errorMessage || "").toLowerCase();
+    const isMantenimiento = errLower.includes("mantenimiento") ||
+        errLower.includes("desarrollo") ||
+        errLower.includes("no responde") ||
+        errLower.includes("no disponible") ||
+        errLower.includes("fuera de servicio") ||
+        errLower.includes("temporalmente fuera") ||
+        errLower.includes("no se pudo conectar") ||
+        errLower.includes("servidor ocupado") ||
+        errLower.includes("timeout") ||
+        errLower.includes("502") ||
+        errLower.includes("503") ||
+        errLower.includes("504");
     let badgeHTML = '';
     let rightContent = '';
 

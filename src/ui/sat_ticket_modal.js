@@ -16,8 +16,14 @@ export function setupSatTicketModal() {
             download.href = url;
             download.download = `Papeleta_SAT_${docNumber || 'oficial'}.jpg`;
         }
+        // Adaptación móvil: Si es imagen directa, mostrar con ajuste responsive
         if (url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) && image) {
             image.src = url;
+            image.style.maxWidth = "100%";
+            image.style.maxHeight = "72vh";
+            image.style.height = "auto";
+            image.style.width = "auto";
+            image.style.objectFit = "contain";
             image.onload = () => { loader?.classList.add('hidden'); image.classList.remove('hidden'); };
             image.onerror = () => {
                 loader?.classList.add('hidden');
@@ -25,6 +31,8 @@ export function setupSatTicketModal() {
             };
         } else if (frame) {
             frame.src = url;
+            frame.style.width = "100%";
+            frame.style.height = "65vh";
             frame.onload = () => { loader?.classList.add('hidden'); frame.classList.remove('hidden'); };
         }
         modal.classList.remove('hidden');

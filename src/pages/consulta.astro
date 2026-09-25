@@ -648,8 +648,10 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                     <i class="fas fa-circle-notch fa-spin text-2xl text-blue-600"></i>
                     <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Cargando copia oficial del SAT...</span>
                 </div>
-                <img id="sat-modal-img" src="" alt="Copia de papeleta SAT" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md border border-slate-200 dark:border-slate-800 hidden" />
-                <iframe id="sat-modal-frame" src="" class="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-800 hidden"></iframe>
+                <div id="sat-modal-wrapper" class="w-full h-full flex flex-col items-center justify-center overflow-auto max-w-full">
+                    <img id="sat-modal-img" src="" alt="Copia de papeleta SAT" class="w-auto h-auto max-w-full max-h-[72vh] object-contain rounded-lg shadow-md border border-slate-200 dark:border-slate-800 mx-auto hidden" />
+                    <iframe id="sat-modal-frame" src="" class="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-800 hidden bg-white"></iframe>
+                </div>
             </div>
 
             <!-- Footer del Modal -->
@@ -1025,7 +1027,18 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                         normalizedError.includes('timeout');
                     const isPermanentProxyConfig = normalizedError.includes('configure fise_proxy') ||
                         normalizedError.includes('no permite connect al puerto 23308');
-                    const isMantenimiento = (errorMessage || '').toLowerCase().includes('mantenimiento') || (errorMessage || '').toLowerCase().includes('desarrollo');
+                    const errText = (errorMessage || '').toLowerCase();
+                    const isMantenimiento = errText.includes('mantenimiento') ||
+                        errText.includes('desarrollo') ||
+                        errText.includes('no responde') ||
+                        errText.includes('no disponible') ||
+                        errText.includes('fuera de servicio') ||
+                        errText.includes('no se pudo conectar') ||
+                        errText.includes('servidor ocupado') ||
+                        errText.includes('timeout') ||
+                        errText.includes('502') ||
+                        errText.includes('503') ||
+                        errText.includes('504');
                     const retryableTimeoutProviders = new Set(['sunarp', 'lima', 'fise']);
                     const noRetry = !retryDecision.retry && retryDecision.effectiveMaxAttempts === maxAttempts;
                     if (noRetry) {
@@ -1475,9 +1488,9 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
                 // produciendo el error GATE-WAIT-TIMEOUT (65s desperdiciados).
                 // `directRetrySections` lista todas las secciones que se ejecutan directamente.
                 // ====================================================================
-                const directRetrySections = new Set(['fise', 'callao', 'atu_infracciones', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal', 'sat_deposito']);
+                const directRetrySections = new Set(['fise', 'callao', 'atu', 'atu_infracciones', 'lunas', 'soat', 'soat_detallado', 'citv', 'sutran', 'cinemometro', 'municipal', 'gnv', 'osinergmin', 'placas_pe', 'valor_venal', 'sat', 'sat_deposito', 'lima', 'sbs', 'historial_dueños']);
                 const preGateSections = new Set(['sunarp', ...directRetrySections]);
-                if (ownsRetryTicket && !preGateSections.has(cardId)) {
+                if (ownsRetryTicket && !preGateSections.has(cardId) && !vehicleData) {
                     showRetryNotice('<span class="text-sky-700 font-bold"><i class="fas fa-shield-halved mr-1"></i>Validando el nuevo turno con SUNARP...</span>');
                     const gateResult = await fetchSUNARP(plate);
                     if (gateResult?.validation_status === 'not_found') {
