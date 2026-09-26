@@ -618,46 +618,77 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
     </div>
 
     <!-- Modal Oficial de Visualización de Copia de Papeleta SAT Lima -->
-    <div id="sat-ticket-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
-        <div class="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] font-poppins">
-            <!-- Header del Modal -->
-            <div class="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900 text-white border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+    <div id="sat-ticket-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md transition-all duration-300">
+        <div class="relative w-full max-w-5xl bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden flex flex-col h-[94vh] max-h-[94vh] font-poppins">
+            <!-- Header del Modal con Toolbar de Zoom -->
+            <div class="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2.5 bg-slate-900/95 text-white border-b border-slate-800 z-20">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 shrink-0">
                         <i class="fas fa-file-invoice text-sm"></i>
                     </div>
-                    <div>
-                        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white">Copia Oficial de Papeleta SAT Lima</h3>
-                        <p class="text-[10px] text-slate-400 font-mono" id="sat-modal-doc-title">Documento: —</p>
+                    <div class="min-w-0">
+                        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white truncate">Copia Oficial de Papeleta SAT Lima</h3>
+                        <div class="flex items-center gap-2">
+                            <p class="text-[10px] text-slate-400 font-mono truncate" id="sat-modal-doc-title">Documento: —</p>
+                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-900/60 text-blue-300 border border-blue-700/50">Formato A4</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+
+                <!-- Barra de Herramientas de Zoom e Interacción -->
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <div class="flex items-center bg-slate-800/90 border border-slate-700/80 rounded-lg p-0.5 shadow-inner">
+                        <button type="button" id="sat-modal-zoom-out" class="w-7 h-7 sm:w-8 sm:h-8 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer active:scale-95" title="Alejar (-)">
+                            <i class="fas fa-magnifying-glass-minus text-xs"></i>
+                        </button>
+                        <span id="sat-modal-zoom-level" class="px-2 text-[11px] font-bold font-mono text-slate-200 select-none min-w-[42px] text-center" title="Nivel de zoom actual">100%</span>
+                        <button type="button" id="sat-modal-zoom-in" class="w-7 h-7 sm:w-8 sm:h-8 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer active:scale-95" title="Acercar (+)">
+                            <i class="fas fa-magnifying-glass-plus text-xs"></i>
+                        </button>
+                        <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+                        <button type="button" id="sat-modal-zoom-fit" class="px-2 h-7 sm:h-8 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer active:scale-95" title="Ajustar a pantalla A4">
+                            <i class="fas fa-compress text-xs"></i> <span class="hidden sm:inline">Ajustar</span>
+                        </button>
+                    </div>
+
+                    <button type="button" id="sat-modal-print-btn" class="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer" title="Imprimir papeleta">
+                        <i class="fas fa-print text-xs"></i> <span class="hidden md:inline">Imprimir</span>
+                    </button>
+
                     <a id="sat-modal-download-btn" href="#" download="Copia_Papeleta_SAT.jpg" target="_blank" rel="noopener"
-                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95">
-                        <i class="fas fa-download text-xs"></i> <span class="hidden sm:inline">Descargar Copia</span>
+                       class="h-8 inline-flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-xs active:scale-95 cursor-pointer" title="Descargar copia oficial">
+                        <i class="fas fa-download text-xs"></i> <span class="hidden sm:inline">Descargar</span>
                     </a>
+
                     <button type="button" id="sat-modal-close-btn" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer" title="Cerrar (Esc)">
                         <i class="fas fa-xmark text-base"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Contenido / Visualizador -->
-            <div class="relative flex-1 overflow-auto p-3 sm:p-5 flex items-center justify-center bg-slate-100 dark:bg-slate-950 min-h-[350px]">
-                <div id="sat-modal-loader" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs z-10">
-                    <i class="fas fa-circle-notch fa-spin text-2xl text-blue-600"></i>
-                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Cargando copia oficial del SAT...</span>
+            <!-- Viewport / Área de Trabajo A4 con Zoom y Arrastre -->
+            <div id="sat-modal-viewport" class="relative flex-1 overflow-hidden bg-slate-950 flex items-center justify-center p-3 select-none touch-none cursor-grab active:cursor-grabbing">
+                <div id="sat-modal-loader" class="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-slate-950/85 backdrop-blur-xs z-30">
+                    <i class="fas fa-circle-notch fa-spin text-3xl text-blue-500"></i>
+                    <span class="text-xs font-semibold text-slate-300">Cargando copia oficial en alta resolución...</span>
                 </div>
-                <div id="sat-modal-wrapper" class="w-full h-full flex flex-col items-center justify-center overflow-auto max-w-full">
-                    <img id="sat-modal-img" src="" alt="Copia de papeleta SAT" class="w-auto h-auto max-w-full max-h-[72vh] object-contain rounded-lg shadow-md border border-slate-200 dark:border-slate-800 mx-auto hidden" />
-                    <iframe id="sat-modal-frame" src="" class="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-800 hidden bg-white"></iframe>
+
+                <!-- Hoja A4 estilizada con sombras realistas -->
+                <div id="sat-a4-sheet" class="relative bg-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] rounded-xs border border-slate-300/80 transition-transform duration-100 ease-out origin-center overflow-hidden flex flex-col items-center justify-center" style="width: min(100%, 750px); max-height: 100%;">
+                    <img id="sat-modal-img" src="" alt="Copia oficial de papeleta SAT" class="w-full h-auto object-contain block max-h-full pointer-events-none hidden" />
+                    <iframe id="sat-modal-frame" src="" class="w-full h-[70vh] border-0 hidden bg-white"></iframe>
+                </div>
+
+                <!-- Píldora de ayuda/zoom en flotante -->
+                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-slate-300 text-[10px] pointer-events-none hidden sm:flex items-center gap-1.5 shadow-lg z-20">
+                    <i class="fas fa-hand-pointer text-[9px] text-blue-400"></i> Arrastra para desplazarte · Rueda o pellizca para Zoom
                 </div>
             </div>
 
             <!-- Footer del Modal -->
-            <div class="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
-                <span class="flex items-center gap-1.5"><i class="fas fa-shield-halved text-emerald-500"></i> Documento verificado desde servidor oficial SAT</span>
-                <button type="button" id="sat-modal-close-footer" class="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-extrabold uppercase tracking-wider text-[10px] cursor-pointer">
+            <div class="px-4 sm:px-6 py-2 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 z-20">
+                <span class="flex items-center gap-1.5"><i class="fas fa-shield-halved text-emerald-400"></i> Documento verificado desde servidor oficial SAT Lima</span>
+                <button type="button" id="sat-modal-close-footer" class="text-slate-400 hover:text-white font-extrabold uppercase tracking-wider text-[10px] cursor-pointer">
                     Volver a la Consulta
                 </button>
             </div>
@@ -860,7 +891,7 @@ import MaintenanceModal from '../components/MaintenanceModal.astro';
         // ====================================================
         // MODAL SAT LIMA - VISUALIZADOR DE COPIA DE PAPELETA
         // ====================================================
-        setupSatTicketModal();
+        setupSatTicketModal(BACKEND_URL);
 
         // ====================================================
         // MODAL ATU - VISUALIZADOR DE ACTA DE FISCALIZACIÓN
