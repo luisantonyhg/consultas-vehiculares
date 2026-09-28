@@ -30,7 +30,7 @@ test('el escáner prioriza detección automática y deja una sola acción de arc
 test('el escaneo de placa confirma rápido, limita solicitudes y se detiene al recibir 429', () => {
   assert.match(scanner, /const VOTE_RING_SIZE = 3/);
   assert.match(scanner, /const VOTES_NEEDED = 2/);
-  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 700/);
+  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 450/);
   assert.match(scanner, /const PLATE_SCAN_MAX_ATTEMPTS = 8/);
   assert.match(scanner, /res\?\.status === 429/);
 });
@@ -40,4 +40,12 @@ test('el escáner web solicita cámara trasera y guía el reverso del DNI', () =
   assert.doesNotMatch(scanner, /video:\s*true/);
   assert.match(scanner, /PDF417 al reverso del DNI/);
   assert.match(scanner, /No se ofrece cambio a cámara frontal/);
+});
+
+test('la zona que se envía al OCR se calcula desde el marco visible y object-cover', () => {
+  assert.match(scanner, /function getGuideCrop\(/);
+  assert.match(scanner, /video\.getBoundingClientRect\(\)/);
+  assert.match(scanner, /guide\.getBoundingClientRect\(\)/);
+  assert.match(scanner, /object-fit: cover|object-cover/);
+  assert.match(scanner, /ctx\.drawImage\(video, crop\.x, crop\.y, crop\.width, crop\.height/);
 });

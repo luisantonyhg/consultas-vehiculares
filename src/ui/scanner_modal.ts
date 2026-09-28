@@ -18,12 +18,11 @@ let availableVideoDevices: MediaDeviceInfo[] = [];
 let scanTimer: any = null;
 let torchOn = false;
 
-// Anillo de votación 3 de 4 (idéntico a la app móvil de Cañita)
+// Confirmación conservadora para evitar completar con una lectura aislada.
 const VOTE_RING_SIZE = 3;
 const VOTES_NEEDED = 2;
-// El OCR remoto es caro; muestreamos la vista cada 1.5 s y nunca enviamos
-// fotogramas en paralelo. La consulta vehicular solo comienza tras confirmar.
-const PLATE_SCAN_INTERVAL_MS = 700;
+// No se solapan peticiones y el tope de intentos queda bajo el rate limit.
+const PLATE_SCAN_INTERVAL_MS = 450;
 const PLATE_SCAN_MAX_ATTEMPTS = 8;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
@@ -39,6 +38,35 @@ function canvasJpeg(canvas: HTMLCanvasElement, maxEdge = PLATE_SCAN_MAX_EDGE): s
         return resized.toDataURL('image/jpeg', 0.68);
     }
     return canvas.toDataURL('image/jpeg', 0.68);
+}
+
+/** Convierte el marco visible a coordenadas del video fuente (incluye object-fit: cover). */
+function getGuideCrop(video: HTMLVideoElement, guide: HTMLElement): { x: number; y: number; width: number; height: number } | null {
+    const videoRect = video.getBoundingClientRect();
+    const guideRect = guide.getBoundingClientRect();
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    if (!sourceWidth || !sourceHeight || !videoRect.width || !videoRect.height) return null;
+
+    const scale = Math.max(videoRect.width / sourceWidth, videoRect.height / sourceHeight);
+    const renderedWidth = sourceWidth * scale;
+    const renderedHeight = sourceHeight * scale;
+    const offsetX = (videoRect.width - renderedWidth) / 2;
+    const offsetY = (videoRect.height - renderedHeight) / 2;
+    const left = (guideRect.left - videoRect.left - offsetX) / scale;
+    const top = (guideRect.top - videoRect.top - offsetY) / scale;
+    const width = guideRect.width / scale;
+    const height = guideRect.height / scale;
+
+    // Margen para movimiento de manos y pequeñas diferencias de alineación.
+    const padX = width * 0.28;
+    const padY = height * 0.42;
+    const x = Math.max(0, Math.floor(left - padX));
+    const y = Math.max(0, Math.floor(top - padY));
+    const right = Math.min(sourceWidth, Math.ceil(left + width + padX));
+    const bottom = Math.min(sourceHeight, Math.ceil(top + height + padY));
+    if (right - x < 80 || bottom - y < 40) return null;
+    return { x, y, width: right - x, height: bottom - y };
 }
 
 async function imageFileToJpeg(file: File): Promise<string> {
@@ -253,19 +281,15 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
         attempts++;
 
         try {
-            // Capturar región central del video (coincidente con el marco guía)
-            const vw = video.videoWidth || 1280;
-            const vh = video.videoHeight || 720;
-            
-            const cropW = Math.round(vw * 0.75);
-            const cropH = Math.round(cropW * 0.45);
-            const cropX = Math.round((vw - cropW) / 2);
-            const cropY = Math.round((vh - cropH) / 2);
+            // Recortar exactamente lo que se ve dentro del marco; object-cover
+            // en móviles recorta la fuente de video y el centro fijo no coincide.
+            const crop = guideFrame ? getGuideCrop(video, guideFrame) : null;
+            if (!crop) return;
 
-            canvas.width = cropW;
-            canvas.height = cropH;
+            canvas.width = crop.width;
+            canvas.height = crop.height;
             if (ctx) {
-                ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                ctx.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
                 const b64 = canvasJpeg(canvas);
 
                 // Llamar al backend YOLO11 + Tesseract
@@ -324,7 +348,7 @@ function registerPlateVote(
     }
 
     if (count >= VOTES_NEEDED) {
-        // ¡CONFIRMADO! Votación 3 de 4 alcanzada
+        // Confirmado: dos de las últimas tres lecturas coinciden.
         if (guideFrame) {
             guideFrame.className = 'w-[82%] max-w-[300px] h-[120px] relative transition-all duration-300 scale-105';
             // Turn corners emerald for confirmed state
