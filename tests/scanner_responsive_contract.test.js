@@ -32,7 +32,13 @@ test('el escaneo de placa confirma rápido, limita solicitudes y se detiene al r
   assert.match(scanner, /const VOTES_NEEDED = 2/);
   assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 450/);
   assert.match(scanner, /const PLATE_SCAN_MAX_ATTEMPTS = 8/);
+  assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 7000/);
+  assert.match(scanner, /const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500/);
+  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 450/);
+  assert.match(scanner, /Leyendo placa automáticamente/);
+  assert.match(scanner, /El detector está ocupado/);
   assert.match(scanner, /res\?\.status === 429/);
+  assert.match(scanner, /focusMode: 'continuous'/);
 });
 
 test('el escáner web solicita cámara trasera y guía el reverso del DNI', () => {

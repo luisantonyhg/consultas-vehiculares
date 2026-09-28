@@ -1,6 +1,6 @@
 // ====================================================
 // MODAL DE ESCANEO DE CÁMARA PROFESIONAL (PLACA Y DNI)
-// Misma lógica de escáner que Mobile: Votación 3/4, Detección Continua,
+// Detección continua con confirmación de placa por consenso 2/3,
 // Backend YOLO11 + Tesseract para Placas y Lector de Código de Barras PDF417 para DNI.
 // ====================================================
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -24,6 +24,8 @@ const VOTES_NEEDED = 2;
 // No se solapan peticiones y el tope de intentos queda bajo el rate limit.
 const PLATE_SCAN_INTERVAL_MS = 450;
 const PLATE_SCAN_MAX_ATTEMPTS = 8;
+const PLATE_SCAN_MAX_DURATION_MS = 7000;
+const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -240,6 +242,10 @@ async function startUniversalCamera(options: ScannerOptions) {
     // Verificar si el dispositivo soporta linterna (Torch)
     const track = stream.getVideoTracks()[0];
     const capabilities = (track as any).getCapabilities?.() || {};
+    // En móviles activa el enfoque continuo si el navegador expone el control.
+    if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
+        void track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] }).catch(() => {});
+    }
     const torchWrap = document.getElementById('scanner-torch-wrap');
     if (capabilities.torch && torchWrap) {
         torchWrap.classList.remove('hidden');
@@ -268,17 +274,19 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     let attempts = 0;
+    const scanStartedAt = performance.now();
 
     scanTimer = setInterval(async () => {
-        if (attempts >= PLATE_SCAN_MAX_ATTEMPTS) {
+        if (!video || video.readyState < 2 || isProcessingFrame) return;
+        if (attempts >= PLATE_SCAN_MAX_ATTEMPTS || performance.now() - scanStartedAt >= PLATE_SCAN_MAX_DURATION_MS) {
             if (scanTimer) clearInterval(scanTimer);
             scanTimer = null;
-            if (statusEl) statusEl.textContent = 'Aún no detectamos la placa. Acércala al marco o prueba con una foto.';
+            if (statusEl) statusEl.textContent = 'No logramos leerla rápido. Centra y acerca la placa, mejora la luz o prueba con una foto.';
             return;
         }
-        if (!video || video.readyState < 2 || isProcessingFrame) return;
         isProcessingFrame = true;
         attempts++;
+        if (statusEl) statusEl.textContent = `Leyendo placa automáticamente (${attempts}/${PLATE_SCAN_MAX_ATTEMPTS})...`;
 
         try {
             // Recortar exactamente lo que se ve dentro del marco; object-cover
@@ -297,8 +305,13 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image_base64: b64 }),
-                    signal: AbortSignal.timeout(5000)
+                    signal: AbortSignal.timeout(PLATE_SCAN_REQUEST_TIMEOUT_MS)
                 }).catch(() => null);
+
+                console.info('[SCANNER] plate frame', {
+                    attempt: attempts,
+                    status: res?.status ?? 'network-error'
+                });
 
                 if (res?.status === 429) {
                     if (scanTimer) clearInterval(scanTimer);
@@ -306,8 +319,15 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                     if (statusEl) statusEl.textContent = 'Límite temporal de escaneo alcanzado. Espera un momento antes de volver a intentar.';
                     return;
                 }
+                if (res?.status === 503 && statusEl) {
+                    statusEl.textContent = 'El detector está ocupado; reintentando automáticamente...';
+                }
+                if (!res && statusEl) statusEl.textContent = 'Conexión inestable; intentando de nuevo...';
                 if (res && res.ok) {
                     const data = await res.json();
+                    if (data.elapsed_ms != null) {
+                        console.info('[SCANNER] backend inference', { elapsed_ms: data.elapsed_ms, detected: Boolean(data.success) });
+                    }
                     if (data.success && data.plate) {
                         const detected = data.plate.toUpperCase();
                         if (!isPeruvianPlate(detected)) return;
