@@ -26,3 +26,18 @@ test('el escáner prioriza detección automática y deja una sola acción de arc
   assert.match(scanner, /Tomar foto \/ Archivo/);
   assert.match(scanner, /detectaremos automáticamente/);
 });
+
+test('el escaneo de placa confirma rápido, limita solicitudes y se detiene al recibir 429', () => {
+  assert.match(scanner, /const VOTE_RING_SIZE = 3/);
+  assert.match(scanner, /const VOTES_NEEDED = 2/);
+  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 700/);
+  assert.match(scanner, /const PLATE_SCAN_MAX_ATTEMPTS = 8/);
+  assert.match(scanner, /res\?\.status === 429/);
+});
+
+test('el escáner web solicita cámara trasera y guía el reverso del DNI', () => {
+  assert.match(scanner, /facingMode: \{ exact: 'environment' \}/);
+  assert.doesNotMatch(scanner, /video:\s*true/);
+  assert.match(scanner, /PDF417 al reverso del DNI/);
+  assert.match(scanner, /No se ofrece cambio a cámara frontal/);
+});

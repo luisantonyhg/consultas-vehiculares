@@ -59,6 +59,9 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
         const dniResultsSection = document.getElementById('dni-results-section');
 
         function setSearchMode(mode: 'placa' | 'dni') {
+            // El cambio de pestaña no debe abrir el teclado virtual.
+            const focusedInput = document.activeElement;
+            if (focusedInput instanceof HTMLInputElement) focusedInput.blur();
             currentSearchMode = mode;
             const submitBtnText = document.getElementById('submit-btn-text');
             if (mode === 'placa') {
@@ -81,7 +84,6 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 if (resultsSection) resultsSection.classList.remove('hidden');
                 if (dniResultsSection) dniResultsSection.classList.add('hidden');
 
-                plateInput?.focus();
             } else {
                 if (submitBtnText) submitBtnText.textContent = 'Consultar DNI';
                 tabDni?.classList.remove('tab-inactive-gold');
@@ -96,13 +98,12 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 // captchaRow stays visible for DNI too
 
                 if (scanTitle) scanTitle.textContent = 'Escanear DNI';
-                if (scanDesc) scanDesc.textContent = 'Apunta la cámara al código de barras del DNI';
+                if (scanDesc) scanDesc.textContent = 'Voltea el DNI y enfoca el código de barras del reverso';
 
 
                 if (resultsSection) resultsSection.classList.add('hidden');
                 if (dniResultsSection) dniResultsSection.classList.remove('hidden');
 
-                dniInput?.focus();
             }
 
         }

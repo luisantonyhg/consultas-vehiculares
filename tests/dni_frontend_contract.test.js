@@ -49,6 +49,15 @@ test('DNI permanece aislado visualmente de placa y conserva cards blancos', () =
   assert.doesNotMatch(state, /body\.classList\.remove\('hidden'\)/);
 });
 
+test('cambiar entre Placa y DNI no abre el teclado y explica el reverso del DNI', () => {
+  const modeStart = controller.indexOf('function setSearchMode');
+  const modeEnd = controller.indexOf('tabPlaca?.addEventListener', modeStart);
+  const modeHandler = controller.slice(modeStart, modeEnd);
+  assert.match(modeHandler, /document\.activeElement[\s\S]*?\.blur\(\)/);
+  assert.doesNotMatch(modeHandler, /\.focus\(\)/);
+  assert.match(modeHandler, /código de barras del reverso/);
+});
+
 test('las respuestas SSE de DNI actualizan tarjetas sin abrir los acordeones automáticamente', () => {
   const paintStart = state.indexOf('export function paintDniSection');
   const paintEnd = state.indexOf('\n}', paintStart);

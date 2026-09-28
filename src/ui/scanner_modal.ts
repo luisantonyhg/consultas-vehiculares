@@ -14,18 +14,17 @@ export interface ScannerOptions {
 let activeStream: MediaStream | null = null;
 let activeHtml5QrCode: Html5Qrcode | null = null;
 let activeCallback: ((val: string) => void) | null = null;
-let currentCameraIndex = 0;
 let availableVideoDevices: MediaDeviceInfo[] = [];
 let scanTimer: any = null;
 let torchOn = false;
 
 // Anillo de votación 3 de 4 (idéntico a la app móvil de Cañita)
-const VOTE_RING_SIZE = 4;
-const VOTES_NEEDED = 3;
+const VOTE_RING_SIZE = 3;
+const VOTES_NEEDED = 2;
 // El OCR remoto es caro; muestreamos la vista cada 1.5 s y nunca enviamos
 // fotogramas en paralelo. La consulta vehicular solo comienza tras confirmar.
-const PLATE_SCAN_INTERVAL_MS = 1500;
-const PLATE_SCAN_MAX_ATTEMPTS = 12;
+const PLATE_SCAN_INTERVAL_MS = 700;
+const PLATE_SCAN_MAX_ATTEMPTS = 8;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -71,6 +70,8 @@ function backendUrl(): string {
 }
 
 export async function openScannerModal(options: ScannerOptions) {
+    const focusedInput = document.activeElement;
+    if (focusedInput instanceof HTMLInputElement) focusedInput.blur();
     activeCallback = options.onSuccess;
     voteRing = [];
     isProcessingFrame = false;
@@ -139,36 +140,46 @@ async function startUniversalCamera(options: ScannerOptions) {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
         availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
-        if (availableVideoDevices.length > 1 && switchCamBtn) {
-            switchCamBtn.classList.remove('hidden');
-        } else if (switchCamBtn) {
-            switchCamBtn.classList.add('hidden');
-        }
+        switchCamBtn?.classList.add('hidden');
     } catch {}
 
     let stream: MediaStream | null = null;
     let streamError: any = null;
 
-    // Intento 1: Cámara trasera en alta definición (1080p / 720p) para máxima nitidez de placa y código de barras
+    // Solicita explícitamente la cámara trasera principal, nunca la selfie.
     try {
-        const targetDeviceId = availableVideoDevices[currentCameraIndex]?.deviceId;
-        const videoConstraints: MediaTrackConstraints = targetDeviceId
-            ? { deviceId: { exact: targetDeviceId }, width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 } }
-            : { facingMode: { ideal: 'environment' }, width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 } };
-
         stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
+            video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: false
         });
     } catch (errA) {
         streamError = errA;
-        // Intento 2: Cualquier webcam / resolución estándar (para laptops con solo cámara frontal)
+        // Fallback para navegadores sin facingMode exact: preferir trasera y
+        // si fuera frontal, reintentar con una trasera identificada.
         try {
             stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: { facingMode: { ideal: 'environment' } },
                 audio: false
             });
+            const probeTrack = stream.getVideoTracks()[0];
+            const settings = probeTrack?.getSettings?.();
+            availableVideoDevices = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+                .filter(d => d.kind === 'videoinput');
+            const rearCamera = availableVideoDevices.find(d => /back|rear|environment|trasera|posterior|principal/i.test(d.label));
+            if (settings?.facingMode !== 'environment' && rearCamera) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: rearCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+            } else if (settings?.facingMode !== 'environment') {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                streamError = new Error('No se identificó una cámara trasera');
+            }
         } catch (errB) {
+            stream?.getTracks().forEach(track => track.stop());
+            stream = null;
             streamError = errB;
         }
     }
@@ -265,6 +276,12 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                     signal: AbortSignal.timeout(5000)
                 }).catch(() => null);
 
+                if (res?.status === 429) {
+                    if (scanTimer) clearInterval(scanTimer);
+                    scanTimer = null;
+                    if (statusEl) statusEl.textContent = 'Límite temporal de escaneo alcanzado. Espera un momento antes de volver a intentar.';
+                    return;
+                }
                 if (res && res.ok) {
                     const data = await res.json();
                     if (data.success && data.plate) {
@@ -397,8 +414,8 @@ function startContinuousDniBarcodeScanner(video: HTMLVideoElement, options: Scan
             verbose: false
         });
 
-        const deviceId = availableVideoDevices[currentCameraIndex]?.deviceId;
-        const config = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' };
+        const rearCamera = availableVideoDevices.find(d => /back|rear|environment|trasera|posterior|principal/i.test(d.label));
+        const config = rearCamera ? { deviceId: { exact: rearCamera.deviceId } } : { facingMode: 'environment' };
 
         activeHtml5QrCode.start(
             config as any,
@@ -689,14 +706,8 @@ function createScannerModalElement(): HTMLElement {
         }
     });
 
-    modal.querySelector('#scanner-switch-cam-btn')?.addEventListener('click', () => {
-        if (availableVideoDevices.length > 1) {
-            currentCameraIndex = (currentCameraIndex + 1) % availableVideoDevices.length;
-            const title = document.getElementById('scanner-modal-title')?.textContent || '';
-            const mode = title.toLowerCase().includes('placa') ? 'placa' : 'dni';
-            startUniversalCamera({ mode, onSuccess: activeCallback || (() => {}) });
-        }
-    });
+    // No se ofrece cambio a cámara frontal: placa y código DNI requieren la trasera.
+    modal.querySelector('#scanner-switch-cam-btn')?.classList.add('hidden');
 
     // Fallback de archivo / cámara nativa
     const fileFallback = modal.querySelector('#scanner-file-fallback') as HTMLInputElement;
