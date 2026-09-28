@@ -22,10 +22,11 @@ let torchOn = false;
 const VOTE_RING_SIZE = 3;
 const VOTES_NEEDED = 2;
 // No se solapan peticiones y el tope de intentos queda bajo el rate limit.
-const PLATE_SCAN_INTERVAL_MS = 450;
-const PLATE_SCAN_MAX_ATTEMPTS = 8;
-const PLATE_SCAN_MAX_DURATION_MS = 7000;
-const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500;
+const PLATE_SCAN_INTERVAL_MS = 400;
+const PLATE_SCAN_MAX_ATTEMPTS = 20;
+const PLATE_SCAN_MAX_DURATION_MS = 18_000;
+const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 6000;
+const PLATE_SCAN_REQUEST_TIMEOUT_MS = 3500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -176,41 +177,49 @@ async function startUniversalCamera(options: ScannerOptions) {
     let stream: MediaStream | null = null;
     let streamError: any = null;
 
-    // Solicita explícitamente la cámara trasera principal, nunca la selfie.
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
-        });
-    } catch (errA) {
-        streamError = errA;
-        // Fallback para navegadores sin facingMode exact: preferir trasera y
-        // si fuera frontal, reintentar con una trasera identificada.
+    // Estrategia de cámara: preferir trasera en móviles, aceptar cualquier
+    // cámara disponible en escritorio para que webcams funcionen.
+    const cameraStrategies: MediaStreamConstraints[] = [
+        // 1. Trasera estricta (móviles)
+        { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        // 2. Trasera preferida (fallback)
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        // 3. Cualquier cámara disponible (desktop/webcam)
+        { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        // 4. Mínimo — solo video sin restricciones
+        { video: true, audio: false },
+    ];
+
+    for (const constraints of cameraStrategies) {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: 'environment' } },
-                audio: false
-            });
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // Si logramos obtener un stream, verificar si hay cámara trasera
+            // identificada para preferirla sobre una frontal.
             const probeTrack = stream.getVideoTracks()[0];
             const settings = probeTrack?.getSettings?.();
-            availableVideoDevices = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
-                .filter(d => d.kind === 'videoinput');
-            const rearCamera = availableVideoDevices.find(d => /back|rear|environment|trasera|posterior|principal/i.test(d.label));
-            if (settings?.facingMode !== 'environment' && rearCamera) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: rearCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-            } else if (settings?.facingMode !== 'environment') {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-                streamError = new Error('No se identificó una cámara trasera');
+            if (settings?.facingMode !== 'environment') {
+                availableVideoDevices = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+                    .filter(d => d.kind === 'videoinput');
+                const rearCamera = availableVideoDevices.find(d =>
+                    /back|rear|environment|trasera|posterior|principal/i.test(d.label)
+                );
+                if (rearCamera && rearCamera.deviceId !== probeTrack?.getSettings?.()?.deviceId) {
+                    stream.getTracks().forEach(track => track.stop());
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { deviceId: { exact: rearCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                            audio: false
+                        });
+                    } catch {
+                        // Si falla con la trasera, re-obtener con la estrategia actual
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    }
+                }
             }
-        } catch (errB) {
-            stream?.getTracks().forEach(track => track.stop());
+            break; // Stream obtenido exitosamente
+        } catch (err) {
+            streamError = err;
             stream = null;
-            streamError = errB;
         }
     }
 
@@ -255,6 +264,18 @@ async function startUniversalCamera(options: ScannerOptions) {
         torchWrap.classList.remove('flex');
     }
 
+    // Esperar a que el video tenga al menos un frame decodificado antes de
+    // arrancar la detección; evita que los primeros intentos obtengan un
+    // canvas vacío y se desperdicien.
+    if (video && video.readyState < 2) {
+        await new Promise<void>((resolve) => {
+            const onReady = () => { video.removeEventListener('loadeddata', onReady); resolve(); };
+            video.addEventListener('loadeddata', onReady);
+            // Seguro: si en 3s no dispara, seguimos de todas formas
+            setTimeout(resolve, 3000);
+        });
+    }
+
     // Iniciar el motor de detección según el modo
     if (options.mode === 'placa') {
         startContinuousPlateDetection(video, options);
@@ -276,23 +297,35 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
     let attempts = 0;
     const scanStartedAt = performance.now();
 
-    scanTimer = setInterval(async () => {
-        if (!video || video.readyState < 2 || isProcessingFrame) return;
+    async function scanFrame() {
+        if (!video || video.readyState < 2 || isProcessingFrame) {
+            // No está listo; reintentar en el siguiente tick sin gastar un intento
+            if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
+            return;
+        }
         if (attempts >= PLATE_SCAN_MAX_ATTEMPTS || performance.now() - scanStartedAt >= PLATE_SCAN_MAX_DURATION_MS) {
-            if (scanTimer) clearInterval(scanTimer);
             scanTimer = null;
-            if (statusEl) statusEl.textContent = 'No logramos leerla rápido. Centra y acerca la placa, mejora la luz o prueba con una foto.';
+            if (statusEl) statusEl.textContent = 'No logramos leerla. Acerca la placa al marco, mejora la luz o usa "Tomar Foto / Archivo".';
             return;
         }
         isProcessingFrame = true;
         attempts++;
-        if (statusEl) statusEl.textContent = `Leyendo placa automáticamente (${attempts}/${PLATE_SCAN_MAX_ATTEMPTS})...`;
+        if (statusEl) statusEl.textContent = `Leyendo placa automáticamente (${attempts}/${PLATE_SCAN_MAX_ATTEMPTS})…`;
 
         try {
             // Recortar exactamente lo que se ve dentro del marco; object-cover
             // en móviles recorta la fuente de video y el centro fijo no coincide.
-            const crop = guideFrame ? getGuideCrop(video, guideFrame) : null;
-            if (!crop) return;
+            let crop = guideFrame ? getGuideCrop(video, guideFrame) : null;
+
+            // Fallback: si el guide frame no está listo (layout aún no resuelto),
+            // enviar la región central del video para no desperdiciar el intento.
+            if (!crop) {
+                const vw = video.videoWidth || 640;
+                const vh = video.videoHeight || 480;
+                const cw = Math.round(vw * 0.82);
+                const ch = Math.round(vh * 0.45);
+                crop = { x: Math.round((vw - cw) / 2), y: Math.round((vh - ch) / 2), width: cw, height: ch };
+            }
 
             canvas.width = crop.width;
             canvas.height = crop.height;
@@ -301,11 +334,13 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 const b64 = canvasJpeg(canvas);
 
                 // Llamar al backend YOLO11 + Tesseract
+                // El primer request puede tardar más porque el modelo se carga en memoria.
+                const timeout = attempts <= 2 ? PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS : PLATE_SCAN_REQUEST_TIMEOUT_MS;
                 const res = await fetch(`${backendUrl()}/plate/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image_base64: b64 }),
-                    signal: AbortSignal.timeout(PLATE_SCAN_REQUEST_TIMEOUT_MS)
+                    signal: AbortSignal.timeout(timeout)
                 }).catch(() => null);
 
                 console.info('[SCANNER] plate frame', {
@@ -314,15 +349,14 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 });
 
                 if (res?.status === 429) {
-                    if (scanTimer) clearInterval(scanTimer);
                     scanTimer = null;
                     if (statusEl) statusEl.textContent = 'Límite temporal de escaneo alcanzado. Espera un momento antes de volver a intentar.';
                     return;
                 }
                 if (res?.status === 503 && statusEl) {
-                    statusEl.textContent = 'El detector está ocupado; reintentando automáticamente...';
+                    statusEl.textContent = 'El detector está ocupado; reintentando automáticamente…';
                 }
-                if (!res && statusEl) statusEl.textContent = 'Conexión inestable; intentando de nuevo...';
+                if (!res && statusEl) statusEl.textContent = 'Conexión inestable; intentando de nuevo…';
                 if (res && res.ok) {
                     const data = await res.json();
                     if (data.elapsed_ms != null) {
@@ -330,17 +364,24 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                     }
                     if (data.success && data.plate) {
                         const detected = data.plate.toUpperCase();
-                        if (!isPeruvianPlate(detected)) return;
-                        registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
+                        if (isPeruvianPlate(detected)) {
+                            registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
+                        }
                     }
                 }
             }
         } catch (e) {
-            // Error en un frame es normal
+            console.warn('[SCANNER] frame error:', e);
         } finally {
             isProcessingFrame = false;
+            // Programar siguiente frame solo si el timer sigue activo
+            if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
         }
-    }, PLATE_SCAN_INTERVAL_MS);
+    }
+
+    // Usar setTimeout encadenado en vez de setInterval para evitar solapamiento
+    // de requests asíncronos y respetar la duración real de cada inferencia.
+    scanTimer = setTimeout(scanFrame, 200);
 }
 
 function registerPlateVote(
@@ -509,7 +550,7 @@ export function closeScannerModal() {
 
 function stopAllCameraResources() {
     if (scanTimer) {
-        clearInterval(scanTimer);
+        clearTimeout(scanTimer);
         scanTimer = null;
     }
     if (activeHtml5QrCode) {
