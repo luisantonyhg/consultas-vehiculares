@@ -11,7 +11,7 @@ export const SITE_LOCALE = 'es_PE';
 export const SITE_LANG = 'es-PE';
 export const SITE_THEME_COLOR = '#0b1c36';
 export const SITE_LOGO = '/assets/logocañitaoficial2026.png';
-export const SITE_OG_IMAGE = '/assets/logocanitawsp.png';
+export const SITE_OG_IMAGE = '/assets/canita-social-2026.jpg';
 export const TWITTER_SITE = '@CanitaVehicular';
 
 export const canonicalFor = (path: string = '/'): string =>
