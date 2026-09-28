@@ -63,7 +63,7 @@ export const LOGO_MAPPING = {
     osinergmin: '/assets/osinergmin.png',
     fise: '/assets/fise.png',
     sigm: '/assets/sunarp.jpeg',
-    score: '/assets/logocanita.jpeg',
+    score: '/assets/logocañitaoficial2026.png',
     pnp_contacto: '/assets/logopnp.png',
     // pnp_req desactivado junto con su tarjeta.
     historial_dueños: '/assets/sunarp.jpeg'
@@ -96,7 +96,8 @@ export const SOURCE_URLS = {
     // SAT se ejecuta hoy como consulta unificada; conserva una fuente oficial
     // verificable para la tarjeta consolidada.
     sat: 'https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx',
-    sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/'
+    sat_deuda: 'https://www.sat.gob.pe/pagosenlinea/',
+    municipal: 'https://www.sat.gob.pe/pagosenlinea/'
 };
 
 export const SERVICE_COLORS = {
@@ -441,7 +442,7 @@ export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sour
     container.setAttribute('data-status', 'waiting');
     container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const waitingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
-        <i class="fas fa-clock text-slate-300 dark:text-slate-600 animate-pulse"></i> ${queueText || 'En cola'}
+        <i class="fas fa-clock text-slate-300 dark:text-slate-600 animate-pulse"></i> ${queueText || 'En espera'}
     </span>`;
     
     const logoSrc = LOGO_MAPPING[cardId] || '';
@@ -582,7 +583,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
 
     const sourceUrl = SOURCE_URLS[cardId] || '';
     const verifyLink = sourceUrl 
-        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
+        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-emerald-600 hover:text-emerald-700 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
         : '';
     // Los proveedores externos controlan parte de los textos mostrados. Aunque
     // los renderizadores escapan campos simples, esta barrera central evita que
@@ -598,13 +599,13 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             <div class="canita-export-brand mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-800">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
-                        <img src="/assets/logocanita.jpeg" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
+                        <img src="/assets/logocañitaoficial2026.png" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
                         <div class="min-w-0">
                             <p class="text-[9px] font-extrabold uppercase tracking-[.14em] text-slate-800">Consulta vehicular Cañita</p>
                             <p class="text-[8px] font-semibold text-slate-400">Información clara desde fuentes oficiales</p>
                         </div>
                     </div>
-                    <i class="fas fa-shield-halved shrink-0 text-emerald-500"></i>
+                    
                 </div>
             </div>
             <div class="card-source-footer mt-2.5 flex flex-col gap-2 border-t border-slate-200 pt-2.5 dark:border-slate-850 sm:flex-row sm:items-center sm:justify-between">
@@ -710,7 +711,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
 
     const sourceUrl = SOURCE_URLS[cardId] || '';
     const verifyLink = sourceUrl 
-        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
+        ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-emerald-600 hover:text-emerald-700 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a>`
         : '';
     const finalContent = `
         <div class="flex flex-col h-full justify-between">

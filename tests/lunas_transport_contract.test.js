@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { runFetchLunas } from '../src/services/providers/official_portals.js';
 import fs from 'node:fs';
 
-const consultationSource = fs.readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const consultationSource = fs.readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 
 function callbacks() {
     return {

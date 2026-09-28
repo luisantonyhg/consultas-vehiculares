@@ -125,13 +125,15 @@ export async function releaseHeavyPhase(BACKEND_URL, ticketId) {
 }
 
 export async function releaseConsultationSlot(BACKEND_URL, ticketId, keepalive = false) {
-    if (!ticketId) return;
+    if (!ticketId) return false;
     try {
-        await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/complete`, {
+        const response = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/complete`, {
             method: 'POST',
             keepalive,
         });
+        return response.ok;
     } catch (_err) {
         // El lease del backend libera automáticamente reservas abandonadas.
+        return false;
     }
 }

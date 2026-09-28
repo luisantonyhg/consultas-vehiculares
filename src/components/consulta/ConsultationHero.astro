@@ -1,0 +1,136 @@
+---
+import ConsultationArtwork from './ConsultationArtwork.astro';
+---
+
+{/* Banner Section con Escenario Dorado Luxury */}
+<section class="w-full banner-luxury-bg border-b border-amber-200/40 relative overflow-hidden flex flex-col items-center">
+
+    {/* Contenedor Banner: Mobile vs Desktop */}
+    <div class="w-full max-w-[1440px] flex-1 px-4 md:px-8 pt-[70px] md:pt-[74px] pb-6 md:pb-8 relative z-20">
+        <h1 class="sr-only">Consulta por Placa o DNI</h1>
+        <ConsultationArtwork />
+
+        {/* === TARJETA DE BÚSQUEDA DORADA (Centrada en 1 sola columna) === */}
+        <div class="search-card-container relative z-20 w-full max-w-[360px] sm:max-w-[380px] md:max-w-[440px] md:mt-3 mx-auto">
+            <form id="query-form" class="search-card-gold p-3.5 sm:p-4 md:py-3 md:px-5 flex flex-col gap-2 md:gap-2.5 transition-all duration-300">
+                
+                {/* Selector Segmentado: [ 🚗 Placa ] [ 🪪 DNI ] */}
+                <div class="w-full max-w-[260px] md:max-w-[320px] mx-auto flex items-center bg-slate-100/90 p-1 rounded-full border border-amber-300/40 shadow-inner select-none mb-0.5">
+                    <button
+                        type="button"
+                        id="tab-mode-placa"
+                        class="tab-active-gold flex-1 py-1.5 px-3 rounded-full flex items-center justify-center gap-2 font-bold text-xs transition-all duration-200 cursor-pointer select-none"
+                    >
+                        <i class="fas fa-car text-xs"></i>
+                        <span>Placa</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="tab-mode-dni"
+                        class="tab-inactive-gold flex-1 py-1.5 px-3 rounded-full flex items-center justify-center gap-2 font-bold text-xs transition-all duration-200 cursor-pointer select-none"
+                    >
+                        <i class="far fa-id-card text-xs"></i>
+                        <span>DNI</span>
+                    </button>
+                </div>
+
+                {/* Encabezado del Campo */}
+                <div id="field-header" class="flex items-center justify-center gap-1.5 text-slate-800 font-black text-[10.5px] md:text-[11px] tracking-wider uppercase select-none font-inter">
+                    <i class="fas fa-car text-[#a36b1d] text-xs" id="field-icon"></i>
+                    <span id="field-text">PLACA A CONSULTAR</span>
+                </div>
+
+                {/* Contenedor 1: Input de Placa */}
+                <div id="plate-input-container" class="w-full">
+                    <div class="plate-input-card relative w-full max-w-[260px] md:max-w-[320px] mx-auto overflow-hidden rounded-xl shadow-xs border-2 border-slate-300 bg-white">
+                        <img src="/assets/PERU-PLACA-REGULAR.png" alt="Placa vehicular peruana" class="block h-auto w-full pointer-events-none select-none" />
+                        <div class="absolute left-[4.5%] right-[4.5%] top-[27%] bottom-[11%] flex items-center justify-center bg-white">
+                            <input
+                                type="text"
+                                id="plate-search-input"
+                                placeholder="ABC-123"
+                                maxlength="7"
+                                class="w-full h-full bg-transparent border-0 font-archivo text-2xl sm:text-3xl font-black text-slate-950 placeholder:text-slate-300 uppercase text-center tracking-[-0.04em] focus:outline-none focus:ring-0 p-0 selection:bg-amber-200"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="absolute right-[4.5%] top-[9%] flex h-[16%] min-w-[20%] items-center justify-center rounded-2xs bg-slate-200 px-1 pointer-events-none select-none">
+                            <span id="plate-search-mini" class="text-[8px] sm:text-[9px] font-black tracking-tight text-slate-500 uppercase">ABC-123</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Contenedor 2: Input de DNI con fondo blanco y bordes negros */}
+                <div id="dni-input-container" class="w-full hidden">
+                    <div class="relative w-full max-w-[260px] md:max-w-[320px] mx-auto overflow-hidden rounded-xl shadow-xs border-2 border-slate-900 bg-white p-2.5 md:p-3 flex flex-col items-center">
+                        <div class="flex items-center gap-1.5 mb-1 text-slate-700 text-[10px] font-extrabold uppercase tracking-wider">
+                            <i class="far fa-id-card text-[#a36b1d]"></i>
+                            <span>Documento de Identidad</span>
+                        </div>
+                        <input
+                            type="text"
+                            id="dni-search-input"
+                            placeholder="70123456"
+                            maxlength="8"
+                            inputmode="numeric"
+                            class="w-full bg-white border-0 font-archivo text-2xl sm:text-3xl font-black text-slate-950 placeholder:text-slate-300 text-center tracking-[0.08em] focus:outline-none focus:ring-0 p-0 selection:bg-amber-200"
+                            autocomplete="off"
+                        />
+                    </div>
+                </div>
+
+                {/* Botón de Escanear */}
+                <div id="scan-card" class="scan-plate-card w-full max-w-[260px] md:max-w-[320px] mx-auto p-1.5 sm:p-2 flex items-center justify-between gap-2.5 shadow-2xs cursor-pointer select-none active:scale-[0.99]">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100/80 border border-amber-200/90 flex items-center justify-center text-amber-800 shadow-2xs shrink-0">
+                            <i class="fas fa-camera text-xs"></i>
+                        </div>
+                        <div class="text-left">
+                            <p id="scan-title" class="text-xs font-black text-slate-800 leading-tight">Escanear placa</p>
+                            <p id="scan-desc" class="text-[9.5px] text-slate-500 font-medium leading-tight">Usa la cámara para leer automáticamente</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs text-amber-700/80 mr-1 shrink-0"></i>
+                </div>
+
+                {/* Captcha (Solo para Placas) */}
+                <div id="captcha-row" class="w-full max-w-[305px] md:max-w-[320px] mx-auto flex items-center justify-center py-0.5 border-t border-slate-100 overflow-visible">
+                    <div id="visual-captcha-controls" class="flex items-center gap-2 shrink-0">
+                        <canvas id="captcha-canvas" class="w-[145px] h-[46px] rounded-lg bg-white cursor-pointer border border-amber-300/60 select-none shadow-2xs" width="320" height="100" title="Clic para recargar captcha"></canvas>
+                        <button
+                            type="button"
+                            id="refresh-captcha-btn"
+                            class="text-amber-800/70 hover:text-amber-900 transition-all text-xs p-1 focus:outline-none cursor-pointer"
+                            title="Recargar Captcha"
+                        >
+                            <i class="fas fa-rotate-right"></i>
+                        </button>
+                    </div>
+                    <input
+                        type="text"
+                        id="captcha-input"
+                        placeholder="Código"
+                        maxlength="4"
+                        class="w-[110px] flex-1 min-w-0 text-center rounded-xl border border-amber-300/70 bg-amber-50/30 text-slate-900 text-xs font-bold uppercase py-2 px-2 focus:ring-2 focus:ring-amber-500/40 focus:outline-none placeholder-slate-400"
+                        autocomplete="off"
+                    />
+                </div>
+
+                {/* Botón de Buscar Dorado */}
+                <div class="w-full max-w-[260px] md:max-w-[320px] mx-auto pt-0.5">
+                    <button
+                        type="submit"
+                        id="submit-btn"
+                        class="btn-gold-action w-full text-white py-2.5 sm:py-3 px-6 rounded-2xl font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] text-xs sm:text-sm select-none tracking-wide opacity-50 cursor-not-allowed pointer-events-none transition-all duration-300"
+                        disabled
+                    >
+                        <i class="fas fa-search text-xs"></i>
+                        <span id="submit-btn-text">Consultar Placa</span>
+                        <i class="fas fa-arrow-right text-xs ml-0.5"></i>
+                    </button>
+                </div>
+                <p id="query-status" class="text-xs text-amber-700 text-center font-medium opacity-0 transition-opacity duration-300 min-h-[14px] pointer-events-none">&nbsp;</p>
+            </form>
+        </div>
+    </div>
+</section>

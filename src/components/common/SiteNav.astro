@@ -1,0 +1,103 @@
+---
+interface Props {
+  active?: "home" | "placa" | "dni";
+}
+const { active = "home" } = Astro.props;
+---
+<div class="canita-navwrap">
+  <nav class="canita-nav" aria-label="Navegación principal">
+    <a href="/" class="canita-brand" title="Inicio Cañita">
+      <img
+        src="/assets/logocañitaoficial2026.png"
+        alt="Logo Oficial Cañita"
+        class="canita-logo"
+      />
+      <span class="canita-word">CAÑITA</span>
+    </a>
+
+    <div class="canita-links">
+      <a href="/" class="canita-login" title="Inicio">
+        <i class="fas fa-house text-xs"></i>
+        <span>Inicio</span>
+      </a>
+    </div>
+
+    <div class="canita-actions">
+      <a href="/consulta" class="canita-login" title="Ingresar">
+        <i class="far fa-user text-xs"></i>
+        <span>Ingresar</span>
+      </a>
+      <button type="button" class="canita-burger" id="canita-burger" aria-label="Abrir menú" aria-expanded="false">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<div class="canita-backdrop" id="canita-backdrop" hidden></div>
+<aside class="canita-drawer" id="canita-drawer" aria-label="Menú" aria-hidden="true">
+  <div class="canita-drawer-head">
+    <a href="/" class="canita-brand">
+      <img src="/assets/logocañitaoficial2026.png" alt="Logo Oficial Cañita" class="canita-logo" />
+      <span class="canita-word">CAÑITA</span>
+    </a>
+    <button type="button" class="canita-close" id="canita-close" aria-label="Cerrar menú">
+      <i class="fas fa-xmark"></i>
+    </button>
+  </div>
+  <a href="/"><i class="fas fa-house"></i> Inicio</a>
+  <a href="/consulta"><i class="fas fa-magnifying-glass"></i> Consultar por Placa o DNI</a>
+  <a href="/consulta" class="canita-dlogin"><i class="far fa-user"></i> Ingresar</a>
+</aside>
+
+<style>
+  .canita-navwrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 8px 14px 0; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 60; }
+  .canita-nav { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 24px; padding: 6px 10px 6px 12px; box-shadow: 0 10px 30px rgba(15, 23, 42, .14); border: 1px solid rgba(15, 23, 42, .06); }
+  .canita-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; margin-right: 6px; }
+  .canita-logo { width: 32px; height: 32px; border-radius: 12px; object-fit: contain; background: #fff; }
+  .canita-word { font-weight: 900; font-size: 16px; color: #0f172a; letter-spacing: .4px; }
+  .canita-links { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+  .canita-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .canita-login { display: flex; align-items: center; gap: 7px; border: 1px solid #e2e8f0; color: #0f172a; font-weight: 700; font-size: 14px; padding: 6px 14px; border-radius: 999px; text-decoration: none; background: #fff; white-space: nowrap; transition: all 0.2s ease; }
+  .canita-login:hover { border-color: #0f172a; }
+  .canita-burger { display: none; width: 34px; height: 34px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 17px; cursor: pointer; }
+  .canita-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 80; opacity: 0; transition: opacity .25s ease; }
+  .canita-backdrop.show { opacity: 1; }
+  .canita-drawer { position: fixed; top: 0; left: 0; height: 100dvh; width: min(320px, 82vw); background: #fff; z-index: 90; transform: translateX(-105%); transition: transform .28s ease; display: flex; flex-direction: column; gap: 4px; padding: 18px 14px; box-shadow: 8px 0 40px rgba(15, 23, 42, .2); border-radius: 0 22px 22px 0; }
+  .canita-drawer.open { transform: translateX(0); }
+  .canita-drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .canita-drawer-head .canita-brand { margin: 0; }
+  .canita-close { width: 32px; height: 32px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 15px; cursor: pointer; }
+  .canita-drawer > a { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-radius: 14px; color: #0f172a; font-weight: 700; font-size: 15px; text-decoration: none; }
+  .canita-drawer > a:hover { background: #fef3c7; }
+  .canita-drawer > a.canita-dlogin { margin-top: auto; border: 1px solid #e2e8f0; justify-content: center; }
+  @media (max-width: 820px) {
+    .canita-links { display: none; }
+  }
+  @media (max-width: 480px) {
+    .canita-login { display: none; }
+    .canita-burger { display: block; }
+  }
+</style>
+
+<script>
+  const burger = document.getElementById("canita-burger");
+  const drawer = document.getElementById("canita-drawer");
+  const backdrop = document.getElementById("canita-backdrop");
+  const closeBtn = document.getElementById("canita-close");
+  function setOpen(open: boolean) {
+    drawer?.classList.toggle("open", open);
+    drawer?.setAttribute("aria-hidden", String(!open));
+    burger?.setAttribute("aria-expanded", String(open));
+    if (!open) {
+      backdrop?.classList.remove("show");
+      setTimeout(() => { if (backdrop) backdrop.hidden = true; }, 250);
+    } else if (backdrop) {
+      backdrop.hidden = false;
+      requestAnimationFrame(() => backdrop.classList.add("show"));
+    }
+  }
+  burger?.addEventListener("click", () => setOpen(true));
+  closeBtn?.addEventListener("click", () => setOpen(false));
+  backdrop?.addEventListener("click", () => setOpen(false));
+</script>

@@ -136,12 +136,12 @@ export function renderCITV(data, plate) {
 
 export function renderLunas(data, plate) {
     if (!data || data.length === 0) {
-        return `<div class="flex flex-col items-center justify-center py-8 gap-2 text-center font-poppins">
-            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
-                <i class="fas fa-eye text-slate-300 dark:text-slate-650 text-xl"></i>
+        return `<div class="flex flex-col items-center justify-center p-5 sm:p-6 text-center font-poppins bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+            <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center mb-2 text-emerald-600 dark:text-emerald-400">
+                <i class="fas fa-shield-halved text-base"></i>
             </div>
-            <p class="font-bold text-slate-600 dark:text-slate-400 text-sm">Sin Permiso de Lunas</p>
-            <p class="text-xs text-slate-400 dark:text-slate-500">No se encontraron lunas oscurecidas autorizadas para <strong class="text-slate-600 dark:text-slate-300">${escapeHTML(plate)}</strong></p>
+            <p class="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase tracking-wide">Sin Permiso de Lunas Oscurecidas</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mt-1">No se encontraron autorizaciones de lunas oscurecidas o polarizadas registradas en la PNP para la placa <strong class="font-mono text-slate-700 dark:text-slate-200">${escapeHTML(plate)}</strong>.</p>
         </div>`;
     }
     return data.map((cert, index) => {
@@ -151,32 +151,36 @@ export function renderLunas(data, plate) {
         const borderClass = index > 0 ? 'mt-4 border-t-2 border-dashed border-slate-200 dark:border-slate-800 pt-4' : '';
         return `
         <article class="${borderClass} font-poppins">
-            <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                <div class="relative flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 px-3 py-2.5 pr-14">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Autorización de lunas PNP ${data.length > 1 ? `#${index + 1}` : ''}</span>
-                            <span class="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+            <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/60 p-3 sm:px-4">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Autorización Lunas PNP ${data.length > 1 ? `#${index + 1}` : ''}</span>
+                            <span class="inline-flex items-center gap-1 rounded bg-emerald-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
                                 <i class="fas fa-circle-check text-[8px]"></i> Autorizado
                             </span>
                         </div>
-                        <div class="mt-1 flex items-baseline gap-x-4 gap-y-1 flex-wrap">
-                            <p class="text-sm md:text-base font-black leading-tight text-slate-900 dark:text-white">${certificate}</p>
-                            <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Placa: <strong class="font-mono text-xs text-slate-700 dark:text-slate-200">${vehiclePlate}</strong></p>
+                        <div class="mt-1 flex items-baseline gap-x-3 gap-y-0.5 flex-wrap">
+                            <p class="text-xs sm:text-sm font-black text-slate-900 dark:text-white break-all">${certificate}</p>
+                            <p class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Placa: <strong class="font-mono text-slate-700 dark:text-slate-200">${vehiclePlate}</strong></p>
                         </div>
                     </div>
-                    <img src="/assets/logopnp.png" alt="Policía Nacional del Perú" class="absolute right-3 top-1/2 h-8 w-8 -translate-y-1/2 rounded-md bg-white object-contain p-0.5 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700" />
+                    <div class="shrink-0 ml-2">
+                        <img src="/assets/logopnp.png" alt="Policía Nacional del Perú" class="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-white object-contain p-0.5 shadow-xs border border-slate-200 dark:border-slate-700" />
+                    </div>
                 </div>
-                <table class="w-full table-fixed border-collapse text-left">
-                    <tbody>
-                        ${fila('Categoría', safe(cert.categoria))}
-                        ${fila('Marca', safe(cert.marca))}
-                        ${fila('Modelo', safe(cert.modelo))}
-                        ${fila('Color', safe(cert.color))}
-                        ${fila('Año', safe(cert.anio))}
-                        ${fila('Fecha de emisión', safe(cert.fechaEmision))}
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full border-collapse text-left">
+                        <tbody>
+                            ${fila('Categoría', safe(cert.categoria))}
+                            ${fila('Marca', safe(cert.marca))}
+                            ${fila('Modelo', safe(cert.modelo))}
+                            ${fila('Color', safe(cert.color))}
+                            ${fila('Año', safe(cert.anio))}
+                            ${fila('Fecha de emisión', safe(cert.fechaEmision))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </article>`;
     }).join('');
@@ -512,13 +516,13 @@ export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
             ${hasData ? `<div class="canita-export-brand mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-800">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-2.5">
-                        <img src="/assets/logocanita.jpeg" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
+                        <img src="/assets/logocañitaoficial2026.png" alt="Cañita" class="h-8 w-auto max-w-[105px] rounded-md object-contain" />
                         <div><p class="text-[9px] font-extrabold uppercase tracking-[.14em]">Consulta vehicular Cañita</p><p class="text-[8px] font-semibold text-slate-400">Información clara desde fuentes oficiales</p></div>
-                    </div><i class="fas fa-shield-halved text-emerald-500"></i>
+                    </div>
                 </div>
             </div>` : ''}
             <div class="card-source-footer mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-850 flex items-center justify-between text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider font-poppins">
-                <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-655 dark:text-amber-400 dark:hover:text-amber-300 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a></span>
+                <span>Fuente: SUNARP <a href="${SOURCE_URLS.vehiculo}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 text-emerald-600 hover:text-emerald-700 font-bold ml-1 normal-case hover:underline"><i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Verificar fuente</a></span>
                 <span>Consultado: ${getFormattedTimestamp()}</span>
             </div>
             ${hasData ? `<div class="card-share-actions no-print mt-2 flex items-center justify-end gap-1.5">

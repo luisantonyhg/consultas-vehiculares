@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { secureFetch, setManualRetrySection } from '../src/services/transport.js';
 
-const consultationSource = fs.readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const consultationSource = fs.readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 
 test('FISE manual retry dispatches the FISE provider', () => {
     assert.match(consultationSource, /cardId === 'fise'\)\s+await fetchFISE\(plate\)/);

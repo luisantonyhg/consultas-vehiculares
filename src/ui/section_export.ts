@@ -80,7 +80,7 @@ export function setupSectionExport() {
 
     async function exportLogo() {
         const image = new Image();
-        image.src = '/assets/logocanita.jpeg';
+        image.src = '/assets/logocañitaoficial2026.png';
         await new Promise<void>((resolve, reject) => {
             image.onload = () => resolve();
             image.onerror = () => reject(new Error('No se pudo cargar el logo de Cañita.'));

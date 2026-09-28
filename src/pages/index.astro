@@ -1,7 +1,11 @@
 ---
 import ServiceCard from '../components/ServiceCard.astro';
 import MaintenanceModal from '../components/MaintenanceModal.astro';
+import SiteNav from '../components/common/SiteNav.astro';
 import { SERVICES_DATA } from '../data/services';
+import { SITE_URL, SITE_NAME, SITE_LANG, SITE_LOCALE, SITE_THEME_COLOR, SITE_LOGO, SITE_OG_IMAGE, TWITTER_SITE, canonicalFor } from '../data/site';
+const pageUrl = canonicalFor('/');
+const ogImage = canonicalFor(SITE_OG_IMAGE);
 ---
 
 <!DOCTYPE html>
@@ -10,146 +14,226 @@ import { SERVICES_DATA } from '../data/services';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/assets/logocanita.jpeg" />
-    <link rel="apple-touch-icon" href="/assets/logocanita.jpeg" />
-    <title>Cañita | Consulta Vehicular por Placa en Perú</title>
-    <meta name="description" content="Cañita reúne consultas vehiculares por placa: SOAT, CITV, papeletas, multas y otras fuentes públicas del Perú en un solo lugar.">
-    <meta name="keywords" content="Luis Antony Huamani Gonzales, Huamani Gonzales Luis Antony, Ingeniero de Sistemas, Análisis Vehicular, Consulta por Placa, SOAT, CITV, SUNARP, SAT Lima, Callao, SUTRAN, ATU, Perú, Software Developer, Astro, Node.js">
+    <link rel="icon" type="image/jpeg" href="/assets/logocañitaoficial2026.png" />
+    <link rel="apple-touch-icon" href="/assets/logocañitaoficial2026.png" />
+    <meta name="theme-color" content={SITE_THEME_COLOR} />
+    <title>Cañita | Consulta Vehicular por Placa y DNI en Perú</title>
+    <meta name="description" content="Cañita: consulta vehicular por placa (SUNARP, SOAT, CITV, SUTRAN, SAT, ATU) y consulta por DNI (identidad, RUC, multas JNE, licencias MTC) en Perú, rápido y gratis.">
+    <meta name="keywords" content="cañita, canita, consulta vehicular, consulta por placa, buscar placa perú, consulta dni, consulta dni perú, SUNARP, SOAT, CITV, SUTRAN, SAT Lima, Callao, ATU, papeletas, multas JNE, licencia conducir MTC, RUC SUNAT">
     <meta name="author" content="Luis Antony Huamani Gonzales">
-    <meta name="designer" content="Huamani Gonzales Luis Antony">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href={pageUrl} />
+    <link rel="alternate" hreflang={SITE_LANG} href={pageUrl} />
+    <link rel="alternate" hreflang="x-default" href={pageUrl} />
 
     {/* Open Graph / Facebook / WhatsApp */}
-    <meta property="og:site_name" content="CAÑITA - Consultas Vehiculares">
+    <meta property="og:site_name" content="CAÑITA - Consultas Vehiculares y DNI">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://consultas-vehiculares.vercel.app/">
-    <meta property="og:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
-    <meta property="og:description" content="Consulta rápida e integral de placas vehiculares en Perú: SUNARP, SOAT, CITV, SUTRAN, SAT, ATU, Lunas Polarizadas y más.">
-    <meta property="og:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
-    <meta property="og:image:secure_url" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta property="og:locale" content={SITE_LOCALE} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:title" content="Cañita | Consulta Vehicular por Placa y DNI en Perú">
+    <meta property="og:description" content="Consulta placas (SUNARP, SOAT, CITV, SUTRAN, SAT, ATU) y DNI (identidad, RUC, JNE, MTC, MINEDU) en un solo lugar.">
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:secure_url" content={ogImage} />
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="600">
     <meta property="og:image:height" content="600">
-    <meta property="og:image:alt" content="Logo Oficial Cañita Consultas Vehiculares">
-    
-    {/* Twitter / WhatsApp Card */}
+    <meta property="og:image:alt" content="Logo Oficial Cañita Consultas Vehiculares y DNI">
+
+    {/* Twitter Card */}
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@CanitaVehicular">
-    <meta name="twitter:title" content="CAÑITA | Consulta Vehicular por Placa en Tiempo Real">
-    <meta name="twitter:description" content="Consulta rápida e integral de placas vehiculares en Perú con datos de SUNARP, SOAT, SUTRAN, CITV, SAT y más.">
-    <meta name="twitter:image" content="https://consultas-vehiculares.vercel.app/assets/logocanitawsp.png">
+    <meta name="twitter:site" content={TWITTER_SITE}>
+    <meta name="twitter:title" content="Cañita | Consulta Vehicular por Placa y DNI en Perú">
+    <meta name="twitter:description" content="Consulta placas y DNI en Perú: SUNARP, SOAT, SUTRAN, CITV, SAT, JNE, MTC y más.">
+    <meta name="twitter:image" content={ogImage} />
 
     {/* Structured Data (JSON-LD) */}
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@graph": [
-          {
-            "@type": "Person",
-            "@id": "https://consultas-vehiculares.pages.dev/#person",
-            "name": "Luis Antony Huamani Gonzales",
-            "alternateName": "Huamani Gonzales Luis Antony",
-            "jobTitle": "Ingeniero de Sistemas",
-            "description": "Ingeniero de Sistemas y Desarrollador de Software especializado en desarrollo web premium y consumo de servicios públicos descentralizados.",
-            "knowsAbout": ["Ingeniería de Sistemas", "Desarrollo Web", "Astro", "TypeScript", "Node.js", "Python", "Bases de Datos", "APIs"],
-            "sameAs": [
-              "https://github.com/luisantonyhg"
-            ]
-          },
-          {
-            "@type": "WebApplication",
-            "name": "Cañita - Consultas Vehiculares Perú",
-            "applicationCategory": "UtilitiesApplication",
-            "operatingSystem": "All",
-            "description": "Cañita: Aplicación web que centraliza consultas públicas en tiempo real para análisis vehicular integral en Perú (SUNARP, SOAT, CITV, multas).",
-            "creator": {
-              "@type": "Person",
-              "name": "Luis Antony Huamani Gonzales"
-            }
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": pageUrl + "#website",
+          "url": pageUrl,
+          "name": SITE_NAME + " - Consultas Vehiculares y DNI Perú",
+          "inLanguage": SITE_LANG,
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": { "@type": "EntryPoint", "urlTemplate": canonicalFor('/consulta') },
+            "query-input": "required name=query"
           }
-        ]
-      }
-    </script>
+        },
+        {
+          "@type": "Organization",
+          "@id": pageUrl + "#org",
+          "name": SITE_NAME,
+          "url": pageUrl,
+          "logo": { "@type": "ImageObject", "url": canonicalFor(SITE_LOGO) }
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Cañita - Consultas Vehiculares y DNI Perú",
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "All",
+          "url": pageUrl,
+          "description": "Centraliza consultas públicas en tiempo real: placas (SUNARP, SOAT, CITV, SUTRAN, SAT, ATU) y DNI (identidad, RUC, JNE, MTC, MINEDU).",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PEN" },
+          "creator": { "@type": "Person", "name": "Luis Antony Huamani Gonzales" }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            { "@type": "Question", "name": "¿Qué es Cañita?", "acceptedAnswer": { "@type": "Answer", "text": "Cañita es una plataforma peruana de consultas vehiculares por placa y consultas por DNI que unifica fuentes públicas oficiales en tiempo real." } },
+            { "@type": "Question", "name": "¿Cómo consultar una placa vehicular en Perú?", "acceptedAnswer": { "@type": "Answer", "text": "Ingresa la placa (ej. ABC-123) en el buscador de Cañita y obtendrás SOAT, CITV, SUNARP, papeletas SUTRAN/SAT/Callao y más." } },
+            { "@type": "Question", "name": "¿Cómo consultar por DNI?", "acceptedAnswer": { "@type": "Answer", "text": "Ingresa los 8 dígitos del DNI para ver identidad, RUC SUNAT, multas JNE, licencias MTC, títulos MINEDU y presencia digital." } },
+            { "@type": "Question", "name": "¿Consultar en Cañita es gratis?", "acceptedAnswer": { "@type": "Answer", "text": "Sí, la consulta básica por placa o DNI en Cañita es gratuita." } },
+            { "@type": "Question", "name": "¿De qué fuentes obtiene datos Cañita?", "acceptedAnswer": { "@type": "Answer", "text": "SUNARP, APESEG/SOAT, MTC, SUTRAN, SAT Lima, Callao, ATU, JNE, SUNAT, MINEDU, OSCE y fuentes abiertas, según disponibilidad oficial." } }
+          ]
+        }
+      ]
+    })} />
 
     {/* Fuentes Google y FontAwesome */}
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&family=Archivo+Black&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <style>
+        .font-archivo { font-family: 'Archivo Black', sans-serif; }
+        .font-dancing { font-family: 'Dancing Script', cursive; }
+        .font-inter { font-family: 'Inter', sans-serif; }
+
+        /* Banner Scenery */
+        .banner-luxury-bg {
+            background-color: #fdfbf7;
+            background-image: url('/assets/fondoweb.png');
+            background-size: cover;
+            background-position: center top;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+
+        .home-hero-copy {
+            background: rgba(255, 252, 246, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            box-shadow: 0 10px 32px rgba(42, 28, 9, 0.14);
+            backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 767px) {
+            .banner-luxury-bg {
+                background-color: #fdfbf7;
+                background-image: url('/assets/fondomodomovil.png'), radial-gradient(circle at 80% 20%, #ffe9c7 0%, #fdfbf7 75%);
+                background-size: cover, cover;
+                background-position: top right, center;
+                background-repeat: no-repeat;
+            }
+        }
+
+        .search-card-gold {
+            background: #ffffff;
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            box-shadow: 0 16px 45px -8px rgba(160, 110, 30, 0.20), 0 4px 15px rgba(0, 0, 0, 0.04);
+            border-radius: 26px;
+        }
+
+        .btn-gold-action {
+            background: linear-gradient(135deg, #f7d88c 0%, #e5b958 45%, #c8952d 100%);
+            color: #3b2302 !important;
+            border: 1px solid rgba(255, 235, 175, 0.85);
+            box-shadow: 0 8px 24px rgba(200, 149, 45, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            transition: all 0.25s ease;
+        }
+        .btn-gold-action:hover {
+            background: linear-gradient(135deg, #fae4ad 0%, #edd075 45%, #d6a133 100%);
+            color: #2b1800 !important;
+            box-shadow: 0 10px 28px rgba(200, 149, 45, 0.42);
+            transform: translateY(-1px);
+        }
+        .btn-gold-action:active { transform: scale(0.98); }
+
+        .tab-active-gold {
+            background: linear-gradient(135deg, #ba812e 0%, #9e671b 50%, #7f4e0e 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px rgba(158, 103, 27, 0.32) !important;
+        }
+        .tab-inactive-gold {
+            background: transparent !important;
+            color: #475569 !important;
+        }
+        .tab-inactive-gold:hover { color: #0f172a !important; }
+
+        .scan-plate-card {
+            background: #fdfbf7;
+            border: 1.5px solid rgba(212, 175, 55, 0.4);
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+        .scan-plate-card:hover {
+            background: #faf4e6;
+            border-color: rgba(212, 175, 55, 0.7);
+            transform: translateY(-1px);
+        }
+
+        .plate-input-card {
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+        }
+        .plate-input-card:focus-within {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(255, 208, 0, 0.45);
+        }
+    </style>
 </head>
 
-<body class="bg-slate-50 dark:bg-brand-navy-dark text-slate-800 dark:text-white transition-colors duration-300 min-h-screen font-inter flex flex-col pb-10">
+<body class="bg-[#fbf8f2] text-slate-800 transition-colors duration-300 min-h-screen font-poppins flex flex-col pb-10" style="background: linear-gradient(180deg, #fdfbf7 0%, #f7f2e7 400px, #f4eee2 100%);">
 
 
-    <main class="w-full flex flex-col items-center">
+    <main class="w-full flex flex-col items-center relative">
+        <SiteNav active="home" />
         {/* Banner Section */}
-        <section class="w-full bg-[radial-gradient(circle,_#1a3a6b_0%,_#0b1c36_100%)] border-y border-white/5 px-5 py-6 md:py-4 md:px-2 flex flex-col items-center overflow-hidden relative">
-            
-            {/* Top Bar con Logo Rectangular Cañita */}
-            <header class="w-full max-w-[1100px] flex justify-between items-center py-2.5 mx-auto px-4 md:px-2.5 z-20 mb-2 gap-3">
-                <a href="/" class="flex items-center group shrink-0" title="Inicio Cañita">
-                    <div class="w-28 h-10 sm:w-32 sm:h-12 rounded-xl bg-white overflow-hidden shadow-md border-2 border-brand-yellow/85 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
-                        <img 
-                            src="/assets/logocanita.jpeg" 
-                            alt="Logo Cañita" 
-                            class="w-full h-full object-contain rounded-lg" 
-                        />
-                    </div>
-                </a>
-                <a
-                    href="/consulta"
-                    class="w-10 h-10 sm:w-auto sm:px-5 sm:py-2.5 rounded-xl bg-brand-yellow hover:bg-[#ffd000]/90 text-brand-navy-dark transition-all duration-300 flex items-center justify-center gap-2 text-xs md:text-sm font-extrabold shadow-md active:scale-95 shrink-0"
-                    title="Consultar Placa"
-                >
-                    <i class="fas fa-search text-sm"></i>
-                    <span class="hidden sm:inline">Consultar Placa</span>
-                </a>
-            </header>
+        <section class="w-full banner-luxury-bg border-b border-amber-200/40 relative overflow-hidden flex flex-col items-center">
 
-            <div class="max-w-[1100px] w-full flex flex-row flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-5 px-0 md:px-2.5">
-                
-                {/* Toyota Fortuner (Izquierda en desktop, arriba izquierda en móvil) */}
-                <img
-                    src="/assets/fortuner.png"
-                    alt="Toyota Fortuner"
-                    class="car-img order-1 md:order-1 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 -translate-x-3 md:translate-x-0 md:-ml-5 transition-transform duration-500 hover:scale-105"
-                />
-
-                {/* Contenido Central */}
-                <div class="banner-content order-3 md:order-2 text-center flex-1 z-10 w-full md:w-auto -mt-2 md:mt-0 px-2">
-                    <h1 class="text-brand-yellow font-archivo text-[36px] md:text-[55px] italic leading-[0.9] m-0 tracking-[-1.5px] md:tracking-[-2px] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] uppercase">
-                        CAÑITA
-                    </h1>
-                    <div class="text-brand-yellow font-dancing text-[26px] md:text-[38px] -my-[3px] flex justify-center items-center gap-2">
-                        <span>tu</span>
-                        <span class="text-white">consulta vehicular</span>
-                        <span>inteligente</span>
-                    </div>
-                    
-                    <p class="text-white/95 text-xs md:text-sm mt-3.5 font-medium tracking-wide">
-                        Conoce <strong class="font-extrabold text-brand-yellow">TODO</strong> sobre tu vehículo solo con su <strong class="font-extrabold text-brand-yellow">PLACA</strong>
-                    </p>
-
-
-
-                    {/* Botón para derivar a la nueva vista de consulta */}
-                    <div class="mt-4 mb-2 flex justify-center">
-                        <a
-                            href="/consulta"
-                            class="bg-brand-yellow hover:bg-[#ffd000]/95 text-brand-navy-dark px-6 py-3 rounded-xl transition-all duration-300 font-extrabold flex items-center gap-2 text-xs md:text-sm shadow-md active:scale-95 z-20 cursor-pointer"
-                        >
-                            <i class="fas fa-magnifying-glass-location"></i>
-                            Ir a Consulta por Placa
-                        </a>
-                    </div>
+            {/* Contenedor Banner: Mobile vs Desktop */}
+            <div class="w-full max-w-[1440px] flex-1 px-4 md:px-8 pt-[84px] md:pt-[95px] pb-8 relative z-20 flex flex-col items-center">
+                {/* Texto centrado en móvil y desktop */}
+                <div class="home-hero-copy relative z-20 w-full max-w-[540px] md:max-w-[640px] mx-auto px-4 py-4 md:px-6 md:py-5 text-center">
+                    <h1 class="font-archivo font-black text-amber-800 text-3xl md:text-5xl leading-none tracking-tight m-0">CAÑITA</h1>
+                    <p class="font-poppins font-extrabold text-slate-900 text-base md:text-2xl leading-tight mt-2">Consulta por Placa o DNI</p>
+                    <p class="font-poppins text-slate-700 text-xs md:text-sm leading-snug mt-2">Elige cómo consultar y revisa los resultados en una sola vista.</p>
                 </div>
 
-                {/* Toyota Hilux (Derecha en desktop, arriba derecha en móvil) */}
-                <img
-                    src="/assets/hilux.png"
-                    alt="Toyota Hilux"
-                    class="car-img order-2 md:order-3 max-w-[100px] md:max-w-[280px] h-auto object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-10 translate-x-3 md:translate-x-0 md:-mr-5 transition-transform duration-500 hover:scale-105"
-                />
+                {/* Vehículo decorativo móvil: Encima del botón, centrado */}
+                <div class="md:hidden w-full max-w-[240px] mx-auto my-3 pointer-events-none flex justify-center">
+                    <img src="/assets/autofondomovil.png" alt="Vehículo Cañita" class="w-full h-auto object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.28)]" />
+                </div>
 
+                {/* Autos laterales (pantallas grandes) */}
+                <div class="hidden lg:block absolute left-[1%] xl:left-[3%] top-[315px] -translate-y-1/2 w-[270px] xl:w-[330px] z-10 pointer-events-none">
+                    <img
+                        src="/assets/autofondomovil.png"
+                        alt="Vehículo Blanco"
+                        class="w-full h-auto object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
+                    />
+                </div>
+                <div class="hidden lg:block absolute right-[1%] xl:right-[3%] top-[315px] -translate-y-1/2 w-[285px] xl:w-[345px] z-10 pointer-events-none">
+                    <img
+                        src="/assets/autofondoweb.png"
+                        alt="Vehículo Oscuro"
+                        class="w-full h-auto object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
+                    />
+                </div>
+
+                {/* Botón Ir a Consulta: colocado abajo, más apegado abajo */}
+                <div class="relative z-20 w-full max-w-[340px] mx-auto mt-2 md:mt-7 mb-4 flex items-center justify-center px-3">
+                    <a
+                        href="/consulta"
+                        class="btn-gold-action w-full py-3.5 sm:py-4 px-6 rounded-2xl font-extrabold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl hover:scale-[1.02] active:scale-95 transition-all text-center tracking-wide"
+                    >
+                        <i class="fas fa-search text-base sm:text-lg"></i>
+                        <span>Ir a Consulta</span>
+                        <i class="fas fa-arrow-right text-xs opacity-80"></i>
+                    </a>
+                </div>
             </div>
         </section>
 
@@ -258,13 +342,39 @@ import { SERVICES_DATA } from '../data/services';
                 </div>
             </div>
         ))}
+
+        {/* Preguntas frecuentes (SEO: rich snippets) */}
+        <div class="w-full max-w-[1100px] mt-10 px-5 md:px-[15px]">
+            <div class="flex items-center gap-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2 mb-4">
+                <i class="fas fa-circle-question text-brand-red dark:text-brand-yellow text-xl"></i>
+                <h2 class="text-xl font-bold tracking-wide font-inter">Preguntas frecuentes sobre Cañita</h2>
+            </div>
+            <div class="grid md:grid-cols-2 gap-3">
+                <details class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+                    <summary class="font-bold text-sm cursor-pointer">¿Qué es Cañita?</summary>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">Cañita es una plataforma peruana de consultas vehiculares por placa y consultas por DNI que unifica fuentes públicas oficiales en tiempo real.</p>
+                </details>
+                <details class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+                    <summary class="font-bold text-sm cursor-pointer">¿Cómo consultar una placa vehicular en Perú?</summary>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">Ingresa la placa (ej. ABC-123) en el buscador y obtendrás SOAT, CITV, SUNARP, papeletas SUTRAN, SAT, Callao y más.</p>
+                </details>
+                <details class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+                    <summary class="font-bold text-sm cursor-pointer">¿Cómo consultar por DNI?</summary>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">Ingresa los 8 dígitos del DNI para ver identidad, RUC SUNAT, multas JNE, licencias MTC, títulos MINEDU y presencia digital.</p>
+                </details>
+                <details class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+                    <summary class="font-bold text-sm cursor-pointer">¿Consultar en Cañita es gratis?</summary>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">Sí, la consulta básica por placa o DNI en Cañita es gratuita.</p>
+                </details>
+            </div>
+        </div>
     </main>
 
     {/* Footer */}
     <footer class="mt-16 py-10 px-5 bg-slate-100 dark:bg-[#0b1c36]/90 backdrop-blur-md border-t border-slate-200 dark:border-brand-red/20 text-center w-full">
         <div class="max-w-[1100px] mx-auto">
             {/* Tarjeta de Desarrollador y Contacto */}
-            <div class="mb-8 p-6 md:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm max-w-xl mx-auto text-center font-sans">
+            <div class="mb-8 p-6 md:p-8 sm:px-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-3xl md:max-w-4xl mx-auto text-center font-sans">
                 <p class="text-slate-400 dark:text-slate-400 font-archivo text-[10px] md:text-xs italic tracking-widest uppercase">Realizado por:</p>
                 <p class="text-brand-navy-dark dark:text-brand-yellow font-dancing text-[28px] md:text-[34px] font-bold -mt-0.5 mb-0 text-[#0b1c36]">Huamani Gonzales Luis Antony</p>
                 <p class="text-slate-600 dark:text-slate-300 font-archivo text-[10px] md:text-xs tracking-wider uppercase mb-3 opacity-90">Egresado de la carrera de Ingeniería de Sistemas</p>
@@ -287,14 +397,15 @@ import { SERVICES_DATA } from '../data/services';
                 </div>
             </div>
 
-            {/* Contador de Visitas */}
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white dark:bg-slate-800/80 border border-slate-700/60 text-xs font-semibold mb-6 shadow-md transition-all hover:scale-105">
-                <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <i class="fas fa-users text-amber-400"></i>
-                <span>Personas que han ingresado: <strong id="visit-counter" class="font-extrabold text-emerald-400 tracking-wide font-mono">...</strong></span>
+            {/* Contador de Visitas Rediseñado (Fondo Blanco Elegante con Acento Dorado Premium y Letras/Número Negros) */}
+            <div class="inline-flex flex-col sm:flex-row items-center justify-center text-center gap-2 sm:gap-3.5 px-6 sm:px-8 py-3.5 rounded-2xl bg-white text-slate-950 border-2 border-amber-400 shadow-[0_10px_30px_-5px_rgba(212,175,55,0.28)] mb-6 font-poppins transition-all duration-300 hover:scale-[1.02] hover:border-amber-500">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/30 shrink-0">
+                    <i class="fas fa-users text-base"></i>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-center sm:items-baseline gap-1 sm:gap-2 text-center">
+                    <span class="text-xs sm:text-xs text-slate-900 font-extrabold uppercase tracking-wider font-archivo text-center">Personas que han ingresado:</span>
+                    <strong id="visit-counter" class="text-2xl sm:text-2xl font-black text-slate-950 tracking-tight font-archivo text-center">...</strong>
+                </div>
             </div>
 
             {/* Aviso Legal y Uso Ético */}
@@ -632,6 +743,9 @@ import { SERVICES_DATA } from '../data/services';
 
     {/* Modal de Mantenimiento Temporal */}
     <MaintenanceModal />
+
+    <script is:inline src="/version-check.js"></script>
+
 </body>
 
 </html>

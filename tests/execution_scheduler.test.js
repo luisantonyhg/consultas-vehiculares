@@ -6,7 +6,7 @@ import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../src/s
 import { buildAdvancedNodes, resolveExecutionLimits } from '../src/services/execution_plan.js';
 
 const consultaSource = readFileSync(
-  new URL('../src/pages/consulta.astro', import.meta.url),
+  new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url),
   'utf8',
 );
 

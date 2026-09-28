@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { shouldAutoRetry } from '../src/services/sat_retry_policy.js';
 import { runFetchLunas } from '../src/services/providers/official_portals.js';
 
-const source = fs.readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 
 function callbacks() {
     return {

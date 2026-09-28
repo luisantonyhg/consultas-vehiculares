@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source = fs.readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 
 test('ATU se muestra como PRÓXIMAMENTE en frontend', () => {
     assert.match(source, /setCardComingSoon\('atu'/);

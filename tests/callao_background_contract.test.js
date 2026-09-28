@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 const providerSource = readFileSync(new URL('../src/services/providers/official_portals.js', import.meta.url), 'utf8');
 
 test('Callao tiene un solo ciclo automático y el manual fuerza fuente oficial', () => {

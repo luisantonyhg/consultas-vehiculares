@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../src/pages/consulta.astro', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
 
 test('un reintento reutiliza el ticket completado o reserva uno nuevo sin colisiones', () => {
   assert.match(

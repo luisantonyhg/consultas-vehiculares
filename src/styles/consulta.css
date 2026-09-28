@@ -1,0 +1,340 @@
+/* ===== Reporte imprimible / PDF con Marca de Agua ===== */
+@media print {
+    @page { margin: 8mm 8mm; size: A4; }
+    body { 
+        background: #fff !important; 
+        position: relative !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-size: 11px !important;
+    }
+    /* Marca de agua diagonal múltiple y repetitiva de CAÑITA */
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='170' viewBox='0 0 260 170'><text x='50%' y='50%' fill='%2364748b' fill-opacity='0.07' font-size='24' font-weight='900' font-family='sans-serif' text-anchor='middle' transform='rotate(-28 130 85)'>CAÑITA</text></svg>");
+        background-repeat: repeat;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    /* Ocultar elementos de navegación y formularios */
+    header, footer, nav, .no-print,
+    #query-form, #hero-section, #captcha-container { display: none !important; }
+    /* Forzar tarjetas compactas, nítidas y expandidas sin espacios en blanco */
+    .results-card, .accordion-card {
+        break-inside: avoid; page-break-inside: avoid;
+        box-shadow: none !important; border: 1px solid #cbd5e1 !important;
+        background: #fff !important; color: #0f172a !important;
+        border-radius: 8px !important; margin-bottom: 8px !important;
+        padding: 10px !important;
+    }
+    table, tr, td, th {
+        padding: 3px 6px !important;
+        font-size: 10.5px !important;
+    }
+    .accordion-body { display: block !important; }
+    #results-section { margin-top: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+    .print-only { display: block !important; }
+}
+.print-only { display: none; }
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+@keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(234,179,8,0.35); }
+    70%  { box-shadow: 0 0 0 10px rgba(234,179,8,0); }
+    100% { box-shadow: 0 0 0 0 rgba(234,179,8,0); }
+}
+.card-animate { animation: fadeSlideIn 0.4s ease both; }
+.skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 6px;
+}
+.dark .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.5s infinite linear;
+}
+.spin-icon { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.results-card { transition: box-shadow 0.25s ease, transform 0.2s ease; }
+.results-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.accordion-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.accordion-card:hover {
+    box-shadow: 0 8px 24px rgba(26, 58, 107, 0.12);
+}
+
+/* La exportación usa tipografías del sistema para que el PNG sea idéntico
+   en Android/iOS y no dependa de fuentes externas dentro del canvas. */
+[data-exporting="true"],
+[data-exporting="true"] * {
+    font-family: Arial, Helvetica, sans-serif !important;
+    animation: none !important;
+}
+[data-exporting="true"] .accordion-header h3 {
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere;
+}
+
+/* Loader Cañita: una sola animación, sobria y ligera. */
+.loader-license-plate {
+    animation: plateBreath 1.8s ease-in-out infinite;
+    filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.14));
+}
+@keyframes plateBreath {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.012); }
+}
+
+/* Marco interactivo de la placa de búsqueda */
+.plate-input-card {
+    transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+}
+.plate-input-card:focus-within {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(255, 208, 0, 0.45);
+}
+    
+.font-archivo { font-family: 'Archivo Black', sans-serif; }
+.font-dancing { font-family: 'Dancing Script', cursive; }
+.font-inter { font-family: 'Inter', sans-serif; }
+
+/* Banner Scenery Luxury */
+.banner-luxury-bg {
+    background-color: #fdfbf7;
+    background-image: url('/assets/fondoweb.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+/* Composición fija encima del card: no depende de la altura de Placa o DNI. */
+.consultation-artwork {
+    position: relative;
+    width: min(100%, 460px);
+    height: 195px;
+    margin: 0 auto 10px;
+    pointer-events: none;
+    isolation: isolate;
+}
+.consultation-artwork img {
+    position: absolute;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 14px rgba(40, 26, 12, 0.2));
+}
+.consultation-artwork__car {
+    width: 205px;
+    max-width: 60%;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+.consultation-artwork__dni {
+    width: 88px;
+    max-width: 24%;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+}
+.consultation-artwork__vehicle,
+.consultation-artwork__records {
+    width: 92px;
+    max-width: 24%;
+    top: 86px;
+    z-index: 3;
+}
+.consultation-artwork__vehicle { left: 0; }
+.consultation-artwork__records { right: 0; }
+@media (max-width: 767px) {
+    .consultation-artwork {
+        width: min(100%, 350px);
+        height: 220px;
+        margin-bottom: 6px;
+    }
+    .consultation-artwork__car { width: 210px; top: 42px; }
+    .consultation-artwork__dni { width: 88px; top: -10px; }
+    .consultation-artwork__vehicle,
+    .consultation-artwork__records { width: 88px; top: 92px; }
+}
+
+@media (max-width: 767px) {
+    .banner-luxury-bg {
+        background-color: #fdfbf7;
+        background-image: url('/assets/fondomodomovil.png'), radial-gradient(circle at 80% 20%, #ffe9c7 0%, #fdfbf7 75%);
+        background-size: cover, cover;
+        background-position: top right, center;
+        background-repeat: no-repeat;
+    }
+}
+
+.search-card-gold {
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    box-shadow: 0 16px 45px -8px rgba(160, 110, 30, 0.20), 0 4px 15px rgba(0, 0, 0, 0.04);
+    border-radius: 26px;
+}
+
+.btn-gold-action {
+    background: linear-gradient(135deg, #f7d88c 0%, #e5b958 45%, #c8952d 100%);
+    color: #3b2302 !important;
+    border: 1px solid rgba(255, 235, 175, 0.85);
+    box-shadow: 0 8px 24px rgba(200, 149, 45, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.25s ease;
+}
+.btn-gold-action:hover {
+    background: linear-gradient(135deg, #fae4ad 0%, #edd075 45%, #d6a133 100%);
+    color: #2b1800 !important;
+    box-shadow: 0 10px 28px rgba(200, 149, 45, 0.42);
+    transform: translateY(-1px);
+}
+.btn-gold-action:active { transform: scale(0.98); }
+
+.tab-active-gold {
+    background: linear-gradient(135deg, #ba812e 0%, #9e671b 50%, #7f4e0e 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(158, 103, 27, 0.32) !important;
+}
+.tab-inactive-gold {
+    background: transparent !important;
+    color: #475569 !important;
+}
+.tab-inactive-gold:hover { color: #0f172a !important; }
+
+.scan-plate-card {
+    background: #fdfbf7;
+    border: 1.5px solid rgba(212, 175, 55, 0.4);
+    border-radius: 16px;
+    transition: all 0.2s ease;
+}
+.scan-plate-card:hover {
+    background: #faf4e6;
+    border-color: rgba(212, 175, 55, 0.7);
+    transform: translateY(-1px);
+}
+
+/* Cloudflare Turnstile: renderizado nativo 100% 300x65 sin transformaciones scale que alteren coordenadas de click */
+#turnstile-container {
+    width: 300px !important;
+    max-width: 300px !important;
+    height: 65px !important;
+    min-height: 65px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+}
+
+/* ===== MOBILE RESPONSIVE: DNI Sections & Result Tables ===== */
+@media (max-width: 639px) {
+    /* Card body padding reducido en móvil */
+    .card-body-content {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    .accordion-body {
+        padding: 0.625rem !important;
+    }
+
+    /* Todas las tablas dentro de cards DNI: scroll horizontal */
+    .card-body-content table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+    .card-body-content table tbody,
+    .card-body-content table thead {
+        display: table;
+        width: 100%;
+        min-width: 320px;
+    }
+
+    /* Las filas key-value (fila()) se ajustan */
+    .card-body-content table td {
+        font-size: 10px !important;
+        padding: 0.375rem 0.5rem !important;
+        word-break: break-word;
+        white-space: normal;
+    }
+    .card-body-content table th {
+        font-size: 9px !important;
+        padding: 0.375rem 0.5rem !important;
+        white-space: nowrap;
+    }
+
+    /* Badge containers en header de cards */
+    .status-badge-container span {
+        font-size: 9px !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+
+    /* Textos del footer de fuente */
+    .card-source-footer {
+        flex-direction: column !important;
+        gap: 0.25rem !important;
+        font-size: 8px !important;
+    }
+
+    /* Canita brand footer ajustado */
+    .canita-export-brand {
+        padding: 0.5rem 0.625rem !important;
+    }
+    .canita-export-brand img {
+        height: 1.5rem !important;
+        max-width: 80px !important;
+    }
+    .canita-export-brand p {
+        font-size: 8px !important;
+    }
+
+    /* Grid de licencias - 1 columna en móvil */
+    .card-body-content .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Resultado cards internos (infogob, etc.) */
+    .card-body-content h4 {
+        font-size: 0.75rem !important;
+        word-break: break-word;
+    }
+
+    /* Botones compartir/descargar reducidos */
+    .card-share-actions button {
+        font-size: 8px !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+}
+
+/* Fix para tablas con scroll horizontal dentro de DNI cards */
+.card-body-content .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+.card-body-content .overflow-x-auto::-webkit-scrollbar {
+    height: 4px;
+}
+.card-body-content .overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+.card-body-content .overflow-x-auto::-webkit-scrollbar-track {
+    background: transparent;
+}

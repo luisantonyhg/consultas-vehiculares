@@ -1,0 +1,14 @@
+---
+---
+<form id="dni-search-form" class="dni-search" autocomplete="off">
+  <input id="dni-input" name="dni" maxlength="8" inputmode="numeric" pattern="[0-9]{8}" placeholder="Ej: 71112652" class="dni-input" />
+  <button id="dni-submit" type="submit" class="dni-btn" disabled>Buscar</button>
+  <p id="dni-error" class="dni-error hidden"></p>
+</form>
+<style>
+  .dni-search { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dni-input { flex: 1; min-width: 180px; padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #fff; font-size: 16px; letter-spacing: 2px; }
+  .dni-btn { padding: 12px 22px; border-radius: 12px; border: 0; font-weight: 800; cursor: pointer; background: linear-gradient(135deg,#f59e0b,#ef4444); color: #fff; }
+  .dni-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .dni-error { width: 100%; color: #fca5a5; font-size: 13px; }
+</style>

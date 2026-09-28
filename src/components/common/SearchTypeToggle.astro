@@ -1,0 +1,29 @@
+---
+---
+<div class="search-mode-selector" role="tablist" aria-label="Tipo de consulta">
+  <button type="button" id="tab-placa" class="mode-tab active" data-mode="placa" role="tab" aria-selected="true">
+    <span class="icon">🚗</span><span>Consultar Placa</span>
+  </button>
+  <button type="button" id="tab-dni" class="mode-tab" data-mode="dni" role="tab" aria-selected="false">
+    <span class="icon">🪪</span><span>Consultar DNI</span>
+  </button>
+</div>
+<style>
+  .search-mode-selector { display: flex; gap: 8px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 6px; }
+  .mode-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border-radius: 10px; font-weight: 800; font-size: 14px; color: #94a3b8; background: transparent; border: 0; cursor: pointer; transition: all .2s ease; }
+  .mode-tab.active { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; box-shadow: 0 4px 14px rgba(239,68,68,.35); }
+  .mode-tab .icon { font-size: 18px; }
+</style>
+<script>
+  const placa = document.getElementById("tab-placa");
+  const dni = document.getElementById("tab-dni");
+  function select(mode: string) {
+    placa?.classList.toggle("active", mode === "placa");
+    dni?.classList.toggle("active", mode === "dni");
+    placa?.setAttribute("aria-selected", String(mode === "placa"));
+    dni?.setAttribute("aria-selected", String(mode === "dni"));
+    document.dispatchEvent(new CustomEvent("search-mode-change", { detail: { mode } }));
+  }
+  placa?.addEventListener("click", () => select("placa"));
+  dni?.addEventListener("click", () => select("dni"));
+</script>

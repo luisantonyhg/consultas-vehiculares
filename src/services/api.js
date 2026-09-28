@@ -95,6 +95,31 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
     }
 }
 
+/** Reintento aislado: no vuelve a ejecutar depósito cuando solo orden de captura falló. */
+export async function runFetchSATCaptura(plate, BACKEND_URL, callbacks) {
+    callbacks.setCardLoading('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima');
+    const okBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-circle-check"></i> ${t}</span>`;
+    const badBadge = (t) => `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider"><i class="fas fa-triangle-exclamation"></i> ${t}</span>`;
+    try {
+        const res = await secureFetch(`${BACKEND_URL}/sat/captura/${plate}?force_refresh=true`);
+        const data = await res.json();
+        const cap = data?.captura;
+        if (!res.ok || !cap?.success) {
+            const message = cap?.error || data?.error || `No se pudo verificar orden de captura (HTTP ${res.status})`;
+            callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', message, plate, cap || data);
+            return { success: false, error: message, captura: cap };
+        }
+        const tiene = !!cap.tiene;
+        callbacks.setCardData('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima',
+            renderSatCaptura(cap, plate), true, tiene, tiene ? badBadge('CON ORDEN') : okBadge('SIN ORDEN'));
+        return { success: true, captura: cap };
+    } catch (err) {
+        const message = err?.message || 'Error de conexión al consultar orden de captura SAT';
+        callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', message, plate);
+        return { success: false, error: message };
+    }
+}
+
 /** Reintento aislado: no vuelve a ejecutar captura cuando solo depósito falló. */
 export async function runFetchSATDeposito(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima');
