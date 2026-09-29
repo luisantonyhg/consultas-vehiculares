@@ -49,6 +49,17 @@ export function startDniStream(
             eventName = line.slice(6).trim();
           } else if (line.startsWith("data:")) {
             const payload = line.slice(5).trim();
+            if (eventName === "error") {
+              let message = "No se pudo validar el DNI.";
+              try {
+                const detail = JSON.parse(payload);
+                if (typeof detail?.error === "string") message = detail.error;
+              } catch { /* Keep the safe default for malformed SSE. */ }
+              completed = true;
+              abort.abort();
+              onError?.(new Error(message));
+              break;
+            }
             if (eventName === "done") {
               completed = true;
               abort.abort();

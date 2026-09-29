@@ -352,7 +352,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 return;
             }
 
-            const cleanupStream = (reason: 'done' | 'error') => {
+            const cleanupStream = (reason: 'done' | 'error', detail?: unknown) => {
                 void releaseDniTicket(ticketId, reason);
                 if (requestId !== dniRequestId) return;
                 hideDniModal();
@@ -363,9 +363,13 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     submitBtn.innerHTML = '<i class="fas fa-search text-xs"></i><span id="submit-btn-text">Consultar DNI</span><i class="fas fa-arrow-right text-xs ml-0.5"></i>';
                 }
                 if (queryStatus) {
-                    queryStatus.innerHTML = reason === 'done'
-                        ? '<span class="text-emerald-700 font-bold"><i class="fas fa-circle-check mr-1"></i> Consulta de identidad completada.</span>'
-                        : '<span class="text-rose-600 font-bold"><i class="fas fa-circle-exclamation mr-1"></i> La consulta se interrumpió. Puedes intentarlo nuevamente.</span>';
+                    if (reason === 'done') {
+                        queryStatus.innerHTML = '<span class="text-emerald-700 font-bold"><i class="fas fa-circle-check mr-1"></i> Consulta de identidad completada.</span>';
+                    } else {
+                        const message = detail instanceof Error ? detail.message : 'La consulta se interrumpió. Puedes intentarlo nuevamente.';
+                        queryStatus.textContent = message;
+                        queryStatus.className = 'text-rose-600 font-bold';
+                    }
                 }
                 console.info('[DNI] stream closed', { requestId, reason });
             };
@@ -401,7 +405,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     if (nextBadge) nextBadge.innerHTML = badgeLoading();
                 },
                 () => cleanupStream('done'),
-                () => cleanupStream('error')
+                (error) => cleanupStream('error', error)
             );
         }
     return {

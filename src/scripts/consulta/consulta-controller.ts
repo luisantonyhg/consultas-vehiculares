@@ -956,11 +956,19 @@
                 }
             } finally {
                 setManualRetrySection(null);
-                setConsultationTicket(null);
                 if (ownsRetryTicket && currentRetryTicket) {
-                    activeConsultationTicket = null;
+                    // Un retry que abrió su propio turno solo puede limpiar ese turno.
+                    // Mientras tanto otra consulta pudo haber empezado y reemplazado
+                    // activeConsultationTicket; no debemos borrar su credencial.
+                    if (activeConsultationTicket === currentRetryTicket) {
+                        activeConsultationTicket = null;
+                    }
                     await releaseConsultationSlot(BACKEND_URL, currentRetryTicket);
                 }
+                // secureFetch mantiene un ticket global compartido por los proveedores.
+                // Restaurarlo desde el estado vigente evita que el finally de un retry
+                // anule los requests concurrentes de la consulta principal.
+                setConsultationTicket(activeConsultationTicket || completedConsultationTicket);
                 // Si salimos antes de volver a renderizar la tarjeta (por ejemplo,
                 // falta de CAPTCHA), restaurar sus botones para permitir otro clic.
                 if (container?.isConnected) {
