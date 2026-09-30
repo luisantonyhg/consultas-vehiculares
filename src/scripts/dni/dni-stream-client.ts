@@ -1,6 +1,24 @@
 export type SectionHandler = (section: string, data: unknown) => void;
 export type DniStreamHandle = { close: () => void };
 
+/** Debug opt-in: `localStorage dni_debug=1` o `?dni_debug=1`. Sin PII en consola. */
+export function dniDebugEnabled(): boolean {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem("dni_debug") === "1") return true;
+    if (typeof location !== "undefined" && /(?:\?|&)dni_debug=1(?:&|$)/.test(location.search)) return true;
+  } catch { /* almacenamiento no disponible */ }
+  return false;
+}
+
+function dniDbg(...args: unknown[]): void {
+  if (dniDebugEnabled()) console.debug("[DNI]", ...args);
+}
+
+function maskDni(dni: string): string {
+  const d = String(dni || "");
+  return d.length >= 2 ? `${d.slice(0, 2)}***${d.slice(-1)}` : "***";
+}
+
 export function backendBase(): string {
   const pub = (import.meta as unknown as { env?: Record<string, string> }).env?.PUBLIC_BACKEND_URL;
   if (pub) return pub.replace(/\/$/, "");
@@ -23,7 +41,10 @@ export function startDniStream(
     handlers.set(ev, onSectionReady);
   }
   void (async () => {
+    const t0 = Date.now();
+    const debug = dniDebugEnabled();
     try {
+      dniDbg("stream start", { dni: maskDni(dni), url: `${backendBase()}/dni/stream` });
       const response = await fetch(`${backendBase()}/dni/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "text/event-stream", "X-Consultation-Ticket": ticket },
@@ -63,6 +84,7 @@ export function startDniStream(
             if (eventName === "done") {
               completed = true;
               abort.abort();
+              dniDbg("done", { elapsed_ms: Date.now() - t0 });
               onDone?.();
               break;
             }
@@ -70,7 +92,18 @@ export function startDniStream(
             if (handler) {
               let decoded: unknown = payload;
               try { decoded = JSON.parse(payload); } catch { /* Keep the original SSE payload. */ }
+              if (debug) {
+                let status = "?";
+                let bytes = payload.length;
+                try {
+                  const d = JSON.parse(payload) as { status?: unknown };
+                  if (typeof d?.status === "string") status = d.status;
+                } catch { /* payload no-JSON */ }
+                dniDbg("section", { event: eventName, status, bytes, elapsed_ms: Date.now() - t0 });
+              }
               handler(eventName, decoded);
+            } else if (debug) {
+              dniDbg("unhandled-event", { event: eventName, bytes: payload.length, elapsed_ms: Date.now() - t0 });
             }
           }
         }
@@ -78,6 +111,7 @@ export function startDniStream(
       }
       if (!completed && !abort.signal.aborted) onError?.(new Error("SSE ended before done"));
     } catch (error) {
+      dniDbg("stream error", { message: error instanceof Error ? error.message : String(error), elapsed_ms: Date.now() - t0 });
       if (!abort.signal.aborted) onError?.(error);
     }
   })();
