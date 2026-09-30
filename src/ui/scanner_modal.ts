@@ -1,6 +1,6 @@
 // ====================================================
 // MODAL DE ESCANEO DE CÁMARA PROFESIONAL (PLACA Y DNI)
-// Detección continua con confirmación de placa por consenso 2/3,
+// Detección continua con validación estricta de formato de placa,
 // Backend YOLO11 + Tesseract para Placas y Lector de Código de Barras PDF417 para DNI.
 // ====================================================
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -18,18 +18,19 @@ let availableVideoDevices: MediaDeviceInfo[] = [];
 let scanTimer: any = null;
 let torchOn = false;
 
-// Confirmación conservadora para evitar completar con una lectura aislada.
-const VOTE_RING_SIZE = 3;
-const VOTES_NEEDED = 2;
-// No se solapan peticiones y el tope de intentos queda bajo el rate limit.
-// El backend admite un presupuesto corto por sesión. Mantener una cadencia
-// fija evita una cola de peticiones y permite confirmar dos lecturas nítidas
-// sin dejar el modal bloqueado durante minutos en móviles lentos.
-const PLATE_SCAN_INTERVAL_MS = 450;
+// El backend solo devuelve placas que pasan la validación peruana y la
+// normalización OCR por posición. Autocompletar con una lectura válida evita
+// obligar a esperar un segundo ciclo completo en redes móviles.
+const VOTE_RING_SIZE = 1;
+const VOTES_NEEDED = 1;
+// Mantener una sola solicitud activa. Cada análisis tarda ~0.5–2.5 s en
+// producción; una ventana de 12 s deja reintentar sin exponer al usuario a
+// los 20 intentos/minuto permitidos por el backend.
+const PLATE_SCAN_INTERVAL_MS = 250;
 const PLATE_SCAN_MAX_ATTEMPTS = 8;
-const PLATE_SCAN_MAX_DURATION_MS = 7000;
-const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 3500;
-const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500;
+const PLATE_SCAN_MAX_DURATION_MS = 12000;
+const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 6000;
+const PLATE_SCAN_REQUEST_TIMEOUT_MS = 5000;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -288,7 +289,7 @@ async function startUniversalCamera(options: ScannerOptions) {
 }
 
 // ----------------------------------------------------
-// MOTOR DE ESCANEO CONTINUO DE PLACAS (VOTACIÓN 3/4)
+// MOTOR DE ESCANEO CONTINUO DE PLACAS
 // ----------------------------------------------------
 function startContinuousPlateDetection(video: HTMLVideoElement, options: ScannerOptions) {
     const statusEl = document.getElementById('scanner-status-text');
@@ -342,9 +343,9 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 const res = await fetch(`${backendUrl()}/plate/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // La cámara ya envía únicamente el marco; el backend no
-                    // debe gastar tiempo intentando detectar otra vez la placa.
-                    body: JSON.stringify({ image_base64: b64, region_only: true }),
+                    // OCR directo es el camino rápido. Cada tercer frame deja
+                    // que YOLO localice la placa si el encuadre no es perfecto.
+                    body: JSON.stringify({ image_base64: b64, region_only: attempts % 3 !== 0 }),
                     signal: AbortSignal.timeout(timeout)
                 }).catch(() => null);
 
@@ -414,7 +415,7 @@ function registerPlateVote(
     }
 
     if (count >= VOTES_NEEDED) {
-        // Confirmado: dos de las últimas tres lecturas coinciden.
+        // El backend ya validó el patrón peruano y corrigió confusiones OCR.
         if (guideFrame) {
             guideFrame.className = 'w-[82%] max-w-[300px] h-[120px] relative transition-all duration-300 scale-105';
             // Turn corners emerald for confirmed state

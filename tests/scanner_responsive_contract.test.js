@@ -27,14 +27,14 @@ test('el escáner prioriza detección automática y deja una sola acción de arc
   assert.match(scanner, /detectaremos automáticamente/);
 });
 
-test('el escaneo de placa confirma rápido, limita solicitudes y se detiene al recibir 429', () => {
-  assert.match(scanner, /const VOTE_RING_SIZE = 3/);
-  assert.match(scanner, /const VOTES_NEEDED = 2/);
-  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 450/);
+test('el escaneo autocompleta con una lectura válida y reserva YOLO para encuadres difíciles', () => {
+  assert.match(scanner, /const VOTE_RING_SIZE = 1/);
+  assert.match(scanner, /const VOTES_NEEDED = 1/);
+  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 250/);
   assert.match(scanner, /const PLATE_SCAN_MAX_ATTEMPTS = 8/);
-  assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 7000/);
-  assert.match(scanner, /const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500/);
-  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 450/);
+  assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 12000/);
+  assert.match(scanner, /const PLATE_SCAN_REQUEST_TIMEOUT_MS = 5000/);
+  assert.match(scanner, /region_only: attempts % 3 !== 0/);
   assert.match(scanner, /Leyendo placa automáticamente/);
   assert.match(scanner, /El detector está ocupado/);
   assert.match(scanner, /res\?\.status === 429/);
