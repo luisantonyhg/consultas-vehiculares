@@ -549,10 +549,14 @@
                 sectionResults[sectionId] = result;
                 if (activeScorePlate && sectionResults.sunarp && document.getElementById('score-card-container')) {
                     renderVehicleScore(activeScorePlate);
+                    const diagnosticStatus = result?.status || result?.provider_status ||
+                        (result?.outcome === 'CAPTCHA_ERROR' || result?.code === 'LUNAS_CAPTCHA_ERROR' ? 'captcha_error' :
+                            result?.outcome === 'TIMEOUT' || result?.code === 'LUNAS_TIMEOUT' ? 'timeout' :
+                                result?.success === false ? 'error' : 'unknown');
                     console.info('[SCORE-UPDATE]', {
                         section: sectionId,
                         success: result?.success !== false,
-                        status: result?.status || result?.provider_status || 'unknown',
+                        status: diagnosticStatus,
                         sources_ready: Object.values(sectionResults).filter((item: any) => item && item.success !== false).length,
                     });
                 }

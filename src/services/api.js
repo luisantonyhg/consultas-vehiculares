@@ -508,8 +508,10 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
     const TIT = 'Historial de Dueños y Gravámenes';
     callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
     const controller = new AbortController();
-    // SPRL puede consumir hasta 180-210s en partidas con más de 12 asientos.
-    const timeoutMs = 240000;
+    // El backend acota SPRL a 30s de cola + 90s de navegador. Conservamos
+    // margen para serializar la respuesta, pero nunca dejamos la tarjeta
+    // bloqueada cuatro minutos.
+    const timeoutMs = 130000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const queryParam = oficina ? `?oficina=${encodeURIComponent(oficina)}` : '';
@@ -521,12 +523,6 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
             throw new Error(detail || `HTTP ${res.status}`);
         }
         const data = await res.json();
-
-        // Registrar cada paso del proceso SPRL comunicado por el backend
-        const debugSteps = data.metadata?.debug_steps || data.debug_steps || [];
-        if (Array.isArray(debugSteps) && debugSteps.length > 0) {
-            debugSteps.forEach(step => console.log(`[SPRL-PROCESO] ${step}`));
-        }
 
         const verification = data.verification || {};
         // registry_record puede venir confirmado por el fallback de SUNARP,
@@ -557,7 +553,7 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (195s). Pulse Reintentar.' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (120s). Pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', msg, plate);
         return { success: false, error: msg };
     }

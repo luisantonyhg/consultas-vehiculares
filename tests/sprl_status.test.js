@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import { buildSPRLStatusBadge } from '../src/services/api.js';
+
+const apiSource = fs.readFileSync(new URL('../src/services/api.js', import.meta.url), 'utf8');
+const controllerSource = fs.readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8');
+
+test('SPRL debug steps from API are not echoed to the browser console', () => {
+  assert.doesNotMatch(apiSource, /debugSteps\.forEach\(step => console\.log/);
+});
+
+test('consulta diagnostics classify known Lunas failures without changing its result', () => {
+  assert.match(controllerSource, /result\?\.code === 'LUNAS_CAPTCHA_ERROR' \? 'captcha_error'/);
+  assert.match(controllerSource, /result\?\.code === 'LUNAS_TIMEOUT' \? 'timeout'/);
+  assert.match(controllerSource, /result\?\.success === false \? 'error' : 'unknown'/);
+});
 
 test('SPRL parcial con asientos nunca afirma que no existen gravámenes', () => {
   const badge = buildSPRLStatusBadge({

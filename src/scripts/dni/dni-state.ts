@@ -137,16 +137,30 @@ export function paintDniSection(name: string, rawData: unknown): void {
   // Ningún fallo técnico puede convertirse en una afirmación negativa sobre
   // una persona. Las secciones solo renderizan "sin" cuando su proveedor
   // respondió OK con un resultado explícitamente confirmado.
+  // Excepción ordenada por producto: papeletas nunca usa plomo; un fallo
+  // técnico es ROJO "no verificado" (alerta de reintento, jamás "con
+  // sanciones"), y el hallazgo confirmado es ROJO con conteo o VERDE.
   if (providerStatus === 'ERROR' || providerStatus === 'UNAVAILABLE' || providerStatus === 'EMPTY') {
     const unavailable = providerStatus === 'UNAVAILABLE';
-    badgeHtml = badgePill('neutral', unavailable ? 'FUENTE NO DISPONIBLE' : 'RESULTADO SIN CONFIRMAR');
-    tableRows = `
-      <div class="p-4 text-center text-slate-600 bg-slate-50 rounded-xl border border-slate-200">
-        <i class="fas fa-circle-info text-slate-400 text-lg mb-1 block"></i>
-        <p class="text-xs font-bold text-slate-900">${unavailable ? 'La fuente no está disponible para esta consulta.' : 'La fuente no devolvió un resultado verificable.'}</p>
-        <p class="text-[10px] text-slate-500 mt-0.5">No se infiere información negativa ni positiva a partir de este estado.</p>
-      </div>
-    `;
+    if (name === 'transporte_papeletas') {
+      badgeHtml = badgePill('danger', 'NO VERIFICADO · REINTENTAR');
+      tableRows = `
+        <div class="p-4 text-center text-slate-700 bg-rose-50/60 rounded-xl border border-rose-200">
+          <i class="fas fa-triangle-exclamation text-rose-500 text-lg mb-1 block"></i>
+          <p class="text-xs font-bold text-slate-900">El portal MTC no devolvió un resultado verificable en esta consulta.</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones. Vuelva a consultar el DNI.</p>
+        </div>
+      `;
+    } else {
+      badgeHtml = badgePill('neutral', unavailable ? 'FUENTE NO DISPONIBLE' : 'RESULTADO SIN CONFIRMAR');
+      tableRows = `
+        <div class="p-4 text-center text-slate-600 bg-slate-50 rounded-xl border border-slate-200">
+          <i class="fas fa-circle-info text-slate-400 text-lg mb-1 block"></i>
+          <p class="text-xs font-bold text-slate-900">${unavailable ? 'La fuente no está disponible para esta consulta.' : 'La fuente no devolvió un resultado verificable.'}</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">No se infiere información negativa ni positiva a partir de este estado.</p>
+        </div>
+      `;
+    }
   } else switch (name) {
     case 'identidad': {
       const nombres = str(inner.nombres || inner.nombre_completo || '—');
@@ -559,12 +573,12 @@ export function paintDniSection(name: string, rawData: unknown): void {
           `;
       }
       else {
-        badgeHtml = badgePill('neutral', 'RESULTADO SIN CONFIRMAR');
+        badgeHtml = badgePill('danger', 'NO VERIFICADO · REINTENTAR');
         tableRows = `
-          <div class="p-4 text-center text-slate-600 bg-slate-50 rounded-xl border border-slate-200">
-            <i class="fas fa-circle-info text-slate-400 text-lg mb-1 block"></i>
+          <div class="p-4 text-center text-slate-700 bg-rose-50/60 rounded-xl border border-rose-200">
+            <i class="fas fa-triangle-exclamation text-rose-500 text-lg mb-1 block"></i>
             <p class="text-xs font-bold text-slate-900">La fuente no devolvió infracciones verificables.</p>
-            <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones.</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones. Vuelva a consultar el DNI.</p>
           </div>
         `;
       }
