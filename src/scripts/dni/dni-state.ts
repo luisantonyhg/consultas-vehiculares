@@ -102,9 +102,12 @@ export function badgeWaiting(position?: number): string {
   </span>`;
 }
 
-export function badgePill(type: 'success' | 'danger' | 'warning' | 'neutral', text: string): string {
+export function badgePill(type: 'success' | 'danger' | 'warning' | 'neutral' | 'dark', text: string): string {
   if (type === 'success') {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-sm uppercase tracking-wider font-poppins"><i class="fas fa-circle-check text-[10px]"></i> ${escapeHtml(text)}</span>`;
+  }
+  if (type === 'dark') {
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-black text-white shadow-sm uppercase tracking-wider font-poppins"><i class="fas fa-arrows-rotate text-[10px]"></i> ${escapeHtml(text)}</span>`;
   }
   if (type === 'danger') {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-sm uppercase tracking-wider font-poppins"><i class="fas fa-triangle-exclamation text-[10px]"></i> ${escapeHtml(text)}</span>`;
@@ -143,12 +146,15 @@ export function paintDniSection(name: string, rawData: unknown): void {
   if (providerStatus === 'ERROR' || providerStatus === 'UNAVAILABLE' || providerStatus === 'EMPTY') {
     const unavailable = providerStatus === 'UNAVAILABLE';
     if (name === 'transporte_papeletas') {
-      badgeHtml = badgePill('danger', 'NO VERIFICADO · REINTENTAR');
+      badgeHtml = badgePill('dark', 'NO VERIFICADO · REINTENTAR');
       tableRows = `
         <div class="p-4 text-center text-slate-700 bg-rose-50/60 rounded-xl border border-rose-200">
           <i class="fas fa-triangle-exclamation text-rose-500 text-lg mb-1 block"></i>
           <p class="text-xs font-bold text-slate-900">El portal MTC no devolvió un resultado verificable en esta consulta.</p>
-          <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones. Vuelva a consultar el DNI.</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones.</p>
+          <button data-dni-retry="transporte_papeletas" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold bg-black text-white uppercase tracking-wider font-poppins hover:bg-slate-800 transition-colors">
+            <i class="fas fa-arrows-rotate text-[10px]"></i> Reintentar solo esta sección
+          </button>
         </div>
       `;
     } else {
@@ -573,12 +579,15 @@ export function paintDniSection(name: string, rawData: unknown): void {
           `;
       }
       else {
-        badgeHtml = badgePill('danger', 'NO VERIFICADO · REINTENTAR');
+        badgeHtml = badgePill('dark', 'NO VERIFICADO · REINTENTAR');
         tableRows = `
           <div class="p-4 text-center text-slate-700 bg-rose-50/60 rounded-xl border border-rose-200">
             <i class="fas fa-triangle-exclamation text-rose-500 text-lg mb-1 block"></i>
             <p class="text-xs font-bold text-slate-900">La fuente no devolvió infracciones verificables.</p>
-            <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones. Vuelva a consultar el DNI.</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">No se afirma que existan ni que no existan sanciones.</p>
+            <button data-dni-retry="transporte_papeletas" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold bg-black text-white uppercase tracking-wider font-poppins hover:bg-slate-800 transition-colors">
+              <i class="fas fa-arrows-rotate text-[10px]"></i> Reintentar solo esta sección
+            </button>
           </div>
         `;
       }
@@ -974,6 +983,12 @@ export function paintDniSection(name: string, rawData: unknown): void {
     webmii: 'Fuentes Públicas Digitales'
   };
   const sourceName = sourceLabels[name] || 'Portal Oficial del Estado';
+  // Velocidad de la sección: mismo número que el backend (elapsed_ms del
+  // SSE; 0.0 = servido desde caché). Sin fugas: solo el tiempo.
+  const elapsedRaw = Number((d as Dict).elapsed_ms ?? (inner as Dict).elapsed_ms);
+  const speedChip = Number.isFinite(elapsedRaw) && elapsedRaw >= 0
+    ? (elapsedRaw === 0 ? ' · ⚡caché' : ` · ⚡${(elapsedRaw / 1000).toFixed(1)}s`)
+    : '';
 
   if (bodyContent) {
     bodyContent.classList.remove('hidden');
@@ -993,7 +1008,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
       <div class="card-source-footer mt-2.5 flex flex-col gap-2 border-t border-slate-200 pt-2.5 sm:flex-row sm:items-center sm:justify-between font-poppins">
         <div class="flex items-center justify-between gap-2 text-[9px] md:text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
           <span>Fuente: ${sourceName}${verifyLink}</span>
-          <span>Consultado: ${new Date().toLocaleTimeString('es-PE')}</span>
+          <span>Consultado: ${new Date().toLocaleTimeString('es-PE')}${speedChip}</span>
         </div>
       </div>
     `;

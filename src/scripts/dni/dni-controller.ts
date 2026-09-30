@@ -11,7 +11,46 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
         let activeDniStream: ReturnType<typeof startDniStream> | null = null;
         let dniRequestId = 0;
         let activeDniTicket: string | null = null;
+        let lastDniTicketForRetry: string | null = null;
         let activeDniHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+        // Reintento de UNA sola sección DNI (ej. papeletas tras timeout).
+        // Usa el ticket original dentro de la ventana de gracia manual del
+        // backend; el caché responde al instante si ya quedó OK.
+        const retryDniSection = async (section: string, btn: HTMLElement) => {
+            const dniVal = (dniInput?.value || '').trim();
+            const ticket = lastDniTicketForRetry || activeDniTicket;
+            if (!section || !dniVal || !ticket) {
+                console.warn('[DNI] retry sin datos', { section, hasDni: Boolean(dniVal), hasTicket: Boolean(ticket) });
+                return;
+            }
+            const prevHtml = btn.innerHTML;
+            btn.setAttribute('disabled', 'true');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i> Reintentando...';
+            try {
+                const resp = await fetch(`${BACKEND_URL}/dni/seccion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Consultation-Ticket': ticket, 'X-Manual-Retry': '1' },
+                    body: JSON.stringify({ dni: dniVal, seccion: section }),
+                });
+                const payload = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(payload?.error || `HTTP ${resp.status}`);
+                setSection(section, payload);
+                console.info('[DNI] section retried', { section, status: payload.status, elapsed_ms: payload.elapsed_ms, cached: payload.cached });
+            } catch (error) {
+                console.warn('[DNI] section retry failed', { section, error });
+                setSection(section, { status: 'ERROR', data: {}, error: error instanceof Error ? error.message : String(error) });
+            } finally {
+                btn.removeAttribute('disabled');
+                btn.innerHTML = prevHtml;
+            }
+        };
+        document.addEventListener('click', (ev) => {
+            const btn = (ev.target as HTMLElement)?.closest?.('[data-dni-retry]') as HTMLElement | null;
+            if (!btn || btn.hasAttribute('disabled')) return;
+            ev.preventDefault();
+            void retryDniSection(btn.getAttribute('data-dni-retry') || '', btn);
+        });
 
         const releaseDniTicket = async (ticket: string, reason: string) => {
             if (!ticket) return;
@@ -325,6 +364,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     });
                     ticketId = admission?.ticket_id || activeConsultationTicket;
                     activeDniTicket = ticketId;
+                    lastDniTicketForRetry = ticketId;
                     setConsultationTicket(ticketId);
                     console.info('[DNI] ticket active', { requestId, ticket: ticketId.slice(0, 8) });
                     activeDniHeartbeat = setInterval(() => {

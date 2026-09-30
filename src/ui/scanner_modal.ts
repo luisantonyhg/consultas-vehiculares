@@ -22,11 +22,14 @@ let torchOn = false;
 const VOTE_RING_SIZE = 3;
 const VOTES_NEEDED = 2;
 // No se solapan peticiones y el tope de intentos queda bajo el rate limit.
-const PLATE_SCAN_INTERVAL_MS = 400;
-const PLATE_SCAN_MAX_ATTEMPTS = 20;
-const PLATE_SCAN_MAX_DURATION_MS = 18_000;
-const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 6000;
-const PLATE_SCAN_REQUEST_TIMEOUT_MS = 3500;
+// El backend admite un presupuesto corto por sesión. Mantener una cadencia
+// fija evita una cola de peticiones y permite confirmar dos lecturas nítidas
+// sin dejar el modal bloqueado durante minutos en móviles lentos.
+const PLATE_SCAN_INTERVAL_MS = 450;
+const PLATE_SCAN_MAX_ATTEMPTS = 8;
+const PLATE_SCAN_MAX_DURATION_MS = 7000;
+const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 3500;
+const PLATE_SCAN_REQUEST_TIMEOUT_MS = 2500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -186,8 +189,8 @@ async function startUniversalCamera(options: ScannerOptions) {
         { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
         // 3. Cualquier cámara disponible (desktop/webcam)
         { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-        // 4. Mínimo — solo video sin restricciones
-        { video: true, audio: false },
+        // 4. Último fallback conservando la preferencia por cámara trasera.
+        { video: { facingMode: { ideal: 'environment' } }, audio: false },
     ];
 
     for (const constraints of cameraStrategies) {
@@ -339,7 +342,9 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 const res = await fetch(`${backendUrl()}/plate/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image_base64: b64 }),
+                    // La cámara ya envía únicamente el marco; el backend no
+                    // debe gastar tiempo intentando detectar otra vez la placa.
+                    body: JSON.stringify({ image_base64: b64, region_only: true }),
                     signal: AbortSignal.timeout(timeout)
                 }).catch(() => null);
 
