@@ -35,7 +35,13 @@ test('el modelo local detecta la placa antes de OCR y conserva el respaldo con t
   assert.match(scanner, /const PLATE_SCAN_BACKEND_WARMUP_MS = 4500/);
   assert.match(scanner, /Detector local sigue inicializando tras/);
   assert.match(scanner, /loadPlateDetector\(\)/);
-  assert.match(scanner, /if \(detectorReady && detectorModule && detectorCtx && localWorker\)/);
+  assert.match(scanner, /if \(detectorReady && detectorModule && detectorCtx\)/);
+  assert.match(scanner, /paintPlateDetection\(video, left, top, roiWidth, roiHeight, box\.confidence\)/);
+  assert.ok(scanner.indexOf('paintPlateDetection(video, left, top, roiWidth, roiHeight, box.confidence)') < scanner.indexOf('await localWorker.recognize(ocrCanvas)'));
+  assert.match(scanner, /invalidPlateOcrFrames % 3 === 0/);
+  assert.match(scanner, /localWorker\.recognize\(detectorCanvas\)/);
+  assert.match(scanner, /id="scanner-detection-box"/);
+  assert.match(scanner, /if \(runId !== scannerRunId\) return/);
   assert.ok(scanner.indexOf('await detectorModule.detectPlate(detectorCanvas)') < scanner.indexOf('await localWorker.recognize(ocrCanvas)'));
   assert.match(scanner, /márgenes=12% lados,22% arriba,10% abajo/);
   assert.match(scanner, /confianza YOLO=/);
