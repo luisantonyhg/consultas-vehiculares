@@ -36,7 +36,10 @@ const VOTE_RING_SIZE = 3;
 const VOTES_NEEDED = 2;
 const PLATE_OCR_HIGH_CONFIDENCE = 82;
 const PLATE_SCAN_INTERVAL_MS = 300;
-const PLATE_SCAN_MAX_DURATION_MS = 25000;
+// En frío el log de producción midió ~38s para modelo + runtime WASM/WebGPU.
+// El respaldo único del servidor comienza antes, mientras el motor local calienta.
+const PLATE_SCAN_MAX_DURATION_MS = 60000;
+const PLATE_SCAN_BACKEND_WARMUP_MS = 4500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -438,6 +441,16 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
         });
     };
 
+    // La primera carga del modelo web puede tardar decenas de segundos en móvil.
+    // Tras 4.5s hacemos una sola lectura remota del último frame completo; el
+    // detector local sigue calentándose en paralelo y no se envían frames repetidos.
+    const backendWarmupTimer = window.setTimeout(() => {
+        if (!plateAccepted && !detectorReady && !detectorError && latestFullFrame) {
+            scannerDebug('respaldo', `Detector local sigue inicializando tras ${PLATE_SCAN_BACKEND_WARMUP_MS}ms; se envía un único frame al backend mientras continúa la carga local.`, 'WARN');
+            requestBackendFallback(latestFullFrame);
+        }
+    }, PLATE_SCAN_BACKEND_WARMUP_MS);
+
     async function scanFrame() {
         if (plateAccepted) {
             scanTimer = null;
@@ -452,6 +465,7 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
         const elapsed = performance.now() - scanStartedAt;
         if (elapsed >= PLATE_SCAN_MAX_DURATION_MS) {
             scanTimer = null;
+            window.clearTimeout(backendWarmupTimer);
             if (statusEl) statusEl.textContent = 'No logramos leerla. Acerca la placa al marco, mejora la luz o usa "Tomar Foto / Archivo".';
             scannerDebug('resultado', `Tiempo máximo ${PLATE_SCAN_MAX_DURATION_MS}ms agotado; frames procesados=${attempts}; detecciones delegadas al servidor=${fallbackRequested}.`, 'ERROR');
             void detectorModule?.disposePlateDetector();
@@ -564,7 +578,10 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
             }
             // Programar siguiente frame solo si el timer sigue activo
             if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
-            else void detectorModule?.disposePlateDetector();
+            else {
+                window.clearTimeout(backendWarmupTimer);
+                void detectorModule?.disposePlateDetector();
+            }
         }
     }
 
