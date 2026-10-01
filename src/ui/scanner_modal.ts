@@ -34,6 +34,44 @@ const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
+let scannerDebugStartedAt = 0;
+let scannerDebugEvents: string[] = [];
+
+function resetScannerDebug() {
+    scannerDebugStartedAt = performance.now();
+    scannerDebugEvents = [];
+    const output = document.getElementById('scanner-debug-output');
+    if (output) output.textContent = '';
+    const count = document.getElementById('scanner-debug-count');
+    if (count) count.textContent = '0';
+}
+
+function scannerDebug(stage: string, detail: string, level: 'INFO' | 'WARN' | 'ERROR' = 'INFO') {
+    const elapsed = Math.max(0, performance.now() - scannerDebugStartedAt);
+    const line = `+${(elapsed / 1000).toFixed(2)}s [${level}] ${stage}: ${detail}`;
+    scannerDebugEvents.push(line);
+    if (scannerDebugEvents.length > 240) scannerDebugEvents.shift();
+    const output = document.getElementById('scanner-debug-output');
+    if (output) {
+        output.textContent = scannerDebugEvents.slice(-90).join('\n');
+        output.scrollTop = output.scrollHeight;
+    }
+    const count = document.getElementById('scanner-debug-count');
+    if (count) count.textContent = String(scannerDebugEvents.length);
+}
+
+async function copyScannerDebug() {
+    const button = document.getElementById('scanner-debug-copy');
+    try {
+        await navigator.clipboard.writeText(scannerDebugEvents.join('\n'));
+        if (button) button.textContent = 'Copiado';
+        scannerDebug('diagnóstico', 'Registro copiado al portapapeles.');
+    } catch (error) {
+        if (button) button.textContent = 'No se pudo copiar';
+        scannerDebug('portapapeles', error instanceof Error ? error.message : 'Permiso de copia denegado.', 'WARN');
+    }
+    setTimeout(() => { if (button) button.textContent = 'Copiar'; }, 1800);
+}
 
 function canvasJpeg(canvas: HTMLCanvasElement, maxEdge = PLATE_SCAN_MAX_EDGE): string {
     const scale = Math.min(1, maxEdge / Math.max(canvas.width, canvas.height));
@@ -113,6 +151,9 @@ export async function openScannerModal(options: ScannerOptions) {
         modal = createScannerModalElement();
         document.body.appendChild(modal);
     }
+    resetScannerDebug();
+    document.getElementById('scanner-debug-panel')?.classList.toggle('hidden', options.mode !== 'placa');
+    if (options.mode === 'placa') scannerDebug('inicio', 'Diagnóstico en vivo activado para el escaneo web.');
 
     const titleEl = document.getElementById('scanner-modal-title');
     const descEl = document.getElementById('scanner-modal-desc');
@@ -157,6 +198,7 @@ async function startUniversalCamera(options: ScannerOptions) {
     stopAllCameraResources();
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        scannerDebug('cámara', 'El navegador no expone mediaDevices/getUserMedia.', 'ERROR');
         if (statusEl) {
             statusEl.innerHTML = `
                 <div class="text-amber-800 font-bold text-center">
@@ -172,7 +214,9 @@ async function startUniversalCamera(options: ScannerOptions) {
         const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
         availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
         switchCamBtn?.classList.add('hidden');
-    } catch {}
+    } catch (error) {
+        scannerDebug('cámara', `enumerateDevices: ${(error as Error)?.message || 'No se pudieron consultar los dispositivos.'}`, 'WARN');
+    }
 
     let stream: MediaStream | null = null;
     let streamError: any = null;
@@ -192,6 +236,7 @@ async function startUniversalCamera(options: ScannerOptions) {
 
     for (const constraints of cameraStrategies) {
         try {
+            scannerDebug('cámara', `Solicitando cámara ${JSON.stringify(constraints.video)}.`);
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             // Si logramos obtener un stream, verificar si hay cámara trasera
             // identificada para preferirla sobre una frontal.
@@ -216,10 +261,12 @@ async function startUniversalCamera(options: ScannerOptions) {
                     }
                 }
             }
+            scannerDebug('cámara', `Stream activo; resolución ${probeTrack?.getSettings?.().width || '¿?'}×${probeTrack?.getSettings?.().height || '¿?'}; facingMode=${probeTrack?.getSettings?.().facingMode || 'no informado'}.`);
             break; // Stream obtenido exitosamente
         } catch (err) {
             streamError = err;
             stream = null;
+            scannerDebug('cámara', `${(err as Error)?.name || 'Error'}: ${(err as Error)?.message || 'No se pudo abrir con esta configuración.'}`, 'WARN');
         }
     }
 
@@ -234,6 +281,7 @@ async function startUniversalCamera(options: ScannerOptions) {
                 ? '<span class="text-rose-600 font-bold">Permiso de cámara denegado. Habilítalo en el navegador o usa "Tomar Foto" abajo.</span>'
                 : '<span class="text-amber-800 font-bold">Sin cámara en vivo. Usa el botón "Tomar Foto / Archivo" abajo.</span>';
         }
+        scannerDebug('cámara', 'No se pudo iniciar ningún stream de video.', 'ERROR');
         return;
     }
 
@@ -268,6 +316,7 @@ async function startUniversalCamera(options: ScannerOptions) {
     // arrancar la detección; evita que los primeros intentos obtengan un
     // canvas vacío y se desperdicien.
     if (video && video.readyState < 2) {
+        scannerDebug('video', `Esperando primer frame decodificado (readyState=${video.readyState}).`);
         await new Promise<void>((resolve) => {
             const onReady = () => { video.removeEventListener('loadeddata', onReady); resolve(); };
             video.addEventListener('loadeddata', onReady);
@@ -275,6 +324,7 @@ async function startUniversalCamera(options: ScannerOptions) {
             setTimeout(resolve, 3000);
         });
     }
+    scannerDebug('video', `Video listo: ${video?.videoWidth || 0}×${video?.videoHeight || 0}; readyState=${video?.readyState ?? 'sin video'}.`);
 
     // Iniciar el motor de detección según el modo
     if (options.mode === 'placa') {
@@ -300,32 +350,72 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
     let localWorkerError = false;
     let fallbackRequested = false;
     let latestFullFrame = '';
-    void loadPlateOcr().then(({ getPlateOcrWorker }) => getPlateOcrWorker()).then((worker) => { localWorker = worker; }).catch((error) => {
+    scannerDebug('ocr_local', 'Cargando módulo OCR y motor Tesseract.');
+    void loadPlateOcr().then(({ getPlateOcrWorker, setPlateOcrDiagnosticHandler }) => {
+        scannerDebug('ocr_local', 'Módulo de OCR descargado/importado.');
+        setPlateOcrDiagnosticHandler((event) => {
+            const pct = Number.isFinite(event.progress) ? ` (${Math.round(event.progress * 100)}%)` : '';
+            scannerDebug('tesseract', `${event.status}${pct}`);
+            if (statusEl && /loading|initializ/i.test(event.status)) {
+                statusEl.textContent = `Preparando lectura local: ${event.status}${pct}…`;
+            }
+        });
+        scannerDebug('ocr_local', 'Inicializando worker de idioma inglés para caracteres de placa.');
+        return getPlateOcrWorker();
+    }).then((worker) => {
+        localWorker = worker;
+        scannerDebug('ocr_local', 'Worker Tesseract listo para reconocer frames.');
+        if (statusEl) statusEl.textContent = 'Leyendo placa automáticamente…';
+    }).catch((error) => {
         localWorkerError = true;
+        scannerDebug('ocr_local', `${error?.name || 'Error'}: ${error?.message || 'No se pudo inicializar Tesseract; se intentará backend.'}`, 'ERROR');
         console.warn('[SCANNER] local OCR unavailable; using backend fallback:', error);
     });
 
     const requestBackendFallback = (image: string) => {
-        if (!image || fallbackRequested) return;
+        if (fallbackRequested) return;
+        if (!image) {
+            scannerDebug('backend_fallback', 'No se envía petición: aún no hay un frame completo capturado.', 'WARN');
+            return;
+        }
         fallbackRequested = true;
+        const backend = `${backendUrl()}/plate/scan`;
+        const backendStartedAt = performance.now();
+        scannerDebug('backend_fallback', `POST ${backend}; imagen JPEG ${Math.round(image.length * 0.75 / 1024)} KB; timeout=8000ms; region_only=false.`);
         if (statusEl) statusEl.textContent = 'Afinando lectura de placa…';
-        void fetch(`${backendUrl()}/plate/scan`, {
+        void fetch(backend, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_base64: image, region_only: false }),
+            body: JSON.stringify({ image_base64: image, region_only: false, debug_trace: true }),
             signal: AbortSignal.timeout(8000),
         }).then(async (res) => {
-            if (!res.ok) return;
-            const data = await res.json();
+            const responseMs = Math.round(performance.now() - backendStartedAt);
+            const data = await res.json().catch(() => ({}));
+            scannerDebug('backend_http', `HTTP ${res.status}; X-Provider-Status=${res.headers.get('X-Provider-Status') || 'sin cabecera'}; ${responseMs}ms; success=${Boolean(data?.success)}${data?.reason ? `; reason=${data.reason}` : ''}${data?.detail ? `; detail=${data.detail}` : ''}`, res.ok ? 'INFO' : 'ERROR');
+            for (const item of (Array.isArray(data?.backend_trace) ? data.backend_trace : [])) {
+                scannerDebug(`backend.${item.stage || 'stage'}`, `${item.duration_ms ?? '?'}ms${item.elapsed_ms != null ? `; acumulado=${item.elapsed_ms}ms` : ''}; ${item.detail || ''}`);
+            }
+            if (!res.ok) {
+                if (statusEl) statusEl.textContent = `El respaldo del servidor respondió HTTP ${res.status}. Revisa el diagnóstico.`;
+                return;
+            }
             const { extractPeruvianPlate } = await loadPlateOcr();
             const plate = data?.success ? extractPeruvianPlate(data.plate || '') : null;
+            scannerDebug('backend_result', `Placa válida=${Boolean(plate)}; confianza=${data?.confidence ?? 'n/d'}; procesamiento backend=${data?.elapsed_ms ?? 'n/d'}ms; total backend=${data?.backend_total_ms ?? 'n/d'}ms.`);
             if (plate && scanTimer != null) registerPlateVote(plate, options, candidateBadge, guideFrame, statusEl, true);
-        }).catch((error) => console.warn('[SCANNER] backend fallback failed:', error));
+            else if (statusEl) statusEl.textContent = 'El backend no encontró una placa válida en este frame. Revisa el diagnóstico.';
+        }).catch((error) => {
+            const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+            scannerDebug('backend_network', `${timedOut ? 'Timeout' : error?.name || 'Error'}: ${error?.message || 'No hubo respuesta del backend.'}; ${(performance.now() - backendStartedAt).toFixed(0)}ms.`, 'ERROR');
+            if (statusEl) statusEl.textContent = timedOut ? 'El respaldo del servidor superó 8 segundos. Revisa el diagnóstico.' : 'No hubo conexión con el respaldo del servidor. Revisa el diagnóstico.';
+            console.warn('[SCANNER] backend fallback failed:', error);
+        });
     };
 
     async function scanFrame() {
         if (!video || video.readyState < 2 || isProcessingFrame) {
             // No está listo; reintentar en el siguiente tick sin gastar un intento
+            if (attempts === 0 && video?.readyState != null) scannerDebug('video_frame', `Esperando frame utilizable; readyState=${video.readyState}.`);
             if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
             return;
         }
@@ -333,11 +423,12 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
         if (elapsed >= PLATE_SCAN_MAX_DURATION_MS) {
             scanTimer = null;
             if (statusEl) statusEl.textContent = 'No logramos leerla. Acerca la placa al marco, mejora la luz o usa "Tomar Foto / Archivo".';
+            scannerDebug('resultado', `Tiempo máximo ${PLATE_SCAN_MAX_DURATION_MS}ms agotado; frames intentados=${attempts}; backend solicitado=${fallbackRequested}.`, 'ERROR');
             return;
         }
         isProcessingFrame = true;
         attempts++;
-        if (statusEl && !localWorker) statusEl.textContent = 'Preparando lectura local de placa…';
+        if (statusEl && !localWorker && !fallbackRequested) statusEl.textContent = 'Preparando lectura local de placa…';
 
         try {
             // Alterna entre la guía y el cuadro entero, como el móvil, para leer
@@ -360,29 +451,40 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
             const capture = useFullFrame
                 ? { x: 0, y: 0, width: sourceWidth, height: sourceHeight }
                 : crop;
+            if (attempts === 1 || attempts % 10 === 0) {
+                scannerDebug('frame', `#${attempts}; fuente=${sourceWidth}×${sourceHeight}; modo=${useFullFrame ? 'cuadro completo' : 'marco'}; crop=${capture.x},${capture.y},${capture.width}×${capture.height}; local_ocr=${Boolean(localWorker)}.`);
+            }
             canvas.width = capture.width;
             canvas.height = capture.height;
             if (ctx) {
                 ctx.drawImage(video, capture.x, capture.y, capture.width, capture.height, 0, 0, capture.width, capture.height);
                 const b64 = canvasJpeg(canvas);
-                if (useFullFrame) latestFullFrame = b64;
+                if (useFullFrame) {
+                    latestFullFrame = b64;
+                    if (attempts === 3) scannerDebug('frame', `Primer frame completo listo para respaldo; JPEG ${Math.round(b64.length * 0.75 / 1024)} KB.`);
+                }
                 if (localWorker) {
+                    const recognizeStartedAt = performance.now();
                     const result = await localWorker.recognize(canvas);
                     const { extractPeruvianPlate } = await loadPlateOcr();
                     const detected = extractPeruvianPlate(result.data.text);
+                    scannerDebug('ocr_frame', `#${attempts}; OCR ${(performance.now() - recognizeStartedAt).toFixed(0)}ms; texto recibido=${Boolean(result.data.text?.trim())}; placa válida=${Boolean(detected)}.`);
                     if (detected) {
-                        if (statusEl) statusEl.textContent = `Placa detectada: ${detected}. Confirmando lectura…`;
+                        if (statusEl) statusEl.textContent = 'Placa candidata detectada. Confirmando lectura…';
+                        scannerDebug('ocr_candidate', 'Formato peruano válido; se registra voto de confirmación.');
                         registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
                     }
                 } else if (statusEl) {
-                    statusEl.textContent = 'Preparando lectura local de placa…';
+                    if (!fallbackRequested) statusEl.textContent = 'Preparando lectura local de placa…';
                 }
             }
         } catch (e) {
+            scannerDebug('frame_error', `${(e as Error)?.name || 'Error'}: ${(e as Error)?.message || 'Falló captura u OCR en este frame.'}`, 'WARN');
             console.warn('[SCANNER] frame error:', e);
         } finally {
             isProcessingFrame = false;
             if (!fallbackRequested && (localWorkerError || performance.now() - scanStartedAt >= PLATE_SCAN_LOCAL_FALLBACK_MS)) {
+                scannerDebug('respaldo', localWorkerError ? 'OCR local falló; se activa respaldo backend.' : `OCR local tardó más de ${PLATE_SCAN_LOCAL_FALLBACK_MS}ms; se activa respaldo backend.` , localWorkerError ? 'WARN' : 'INFO');
                 requestBackendFallback(latestFullFrame);
             }
             // Programar siguiente frame solo si el timer sigue activo
@@ -646,11 +748,13 @@ function createScannerModalElement(): HTMLElement {
                 #camera-scanner-modal .scanner-footer { gap: 8px; padding-top: 8px; }
                 #camera-scanner-modal .scanner-action { min-height: 58px; padding-top: 8px; padding-bottom: 8px; }
                 #camera-scanner-modal .scanner-info { padding-top: 7px; padding-bottom: 7px; }
+                #camera-scanner-modal #scanner-debug-output { max-height: 12vh; min-height: 46px; }
             }
             @media (max-height: 500px) {
                 #camera-scanner-modal .scanner-info { display: none; }
                 #camera-scanner-modal .scanner-viewport { padding-top: 4px; padding-bottom: 4px; }
                 #camera-scanner-modal .scanner-camera { min-height: 140px; }
+                #camera-scanner-modal #scanner-debug-output { max-height: 10vh; min-height: 38px; }
             }
         `;
         document.head.appendChild(style);
@@ -771,6 +875,18 @@ function createScannerModalElement(): HTMLElement {
                     <p id="scanner-status-text" class="text-[11px] sm:text-xs text-slate-600 font-medium leading-snug">Enfoca la placa; la detectaremos automáticamente.</p>
                 </div>
 
+                <!-- Diagnóstico en vivo: únicamente registra etapas y tiempos, nunca la imagen enviada. -->
+                <section id="scanner-debug-panel" class="hidden rounded-xl border border-slate-300 bg-slate-950 text-slate-100 overflow-hidden" aria-label="Diagnóstico del escáner de placa">
+                    <div class="flex items-center justify-between gap-2 px-3 py-2 bg-slate-900">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold tracking-wide">DIAGNÓSTICO EN VIVO <span id="scanner-debug-count" class="text-amber-300">0</span></p>
+                            <p class="text-[9px] text-slate-400">OCR local · cámara · respaldo backend</p>
+                        </div>
+                        <button type="button" id="scanner-debug-copy" class="shrink-0 rounded-lg bg-amber-300 px-3 py-1.5 text-[10px] font-bold text-slate-950 active:scale-95">Copiar</button>
+                    </div>
+                    <pre id="scanner-debug-output" role="log" aria-live="polite" class="max-h-[18vh] min-h-[64px] overflow-y-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-[9px] leading-relaxed text-emerald-200"></pre>
+                </section>
+
                 <!-- Action buttons -->
                 <div class="flex items-stretch gap-2.5 w-full">
                     <label class="scanner-action w-full min-h-[68px] py-3 px-3 sm:px-4 rounded-2xl bg-white hover:bg-[#fffdf5] text-slate-800 font-bold text-xs sm:text-[13px] border border-[#ead28b] flex items-center justify-center gap-2.5 active:scale-[0.97] cursor-pointer transition-all duration-200 shadow-sm">
@@ -789,6 +905,7 @@ function createScannerModalElement(): HTMLElement {
     `;
 
     modal.querySelector('#scanner-close-btn')?.addEventListener('click', closeScannerModal);
+    modal.querySelector('#scanner-debug-copy')?.addEventListener('click', () => { void copyScannerDebug(); });
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeScannerModal();
     });
@@ -818,45 +935,66 @@ function createScannerModalElement(): HTMLElement {
         const isPlaca = title.toLowerCase().includes('placa');
 
         if (isPlaca) {
+            scannerDebug('galería', `Archivo seleccionado; ${(file.size / 1024).toFixed(0)} KB; tipo=${file.type || 'desconocido'}.`);
             if (file.size > 12 * 1024 * 1024) {
                 window.alert('La imagen supera 12 MB. Elige una foto más ligera.');
+                scannerDebug('galería', 'Archivo rechazado: supera el máximo de 12 MB.', 'ERROR');
                 fileFallback.value = '';
                 return;
             }
             try {
+                const convertStartedAt = performance.now();
                 const b64 = await imageFileToJpeg(file);
+                scannerDebug('galería', `Convertido a JPEG en ${(performance.now() - convertStartedAt).toFixed(0)}ms; ${Math.round(b64.length * 0.75 / 1024)} KB.`);
                 try {
                     const { getPlateOcrWorker, extractPeruvianPlate } = await loadPlateOcr();
+                    scannerDebug('galería_ocr', 'Esperando worker local de Tesseract.');
                     const worker = await getPlateOcrWorker();
+                    const recognizeStartedAt = performance.now();
                     const localResult = await worker.recognize(b64);
                     const localPlate = extractPeruvianPlate(localResult.data.text);
+                    scannerDebug('galería_ocr', `Reconocimiento en ${(performance.now() - recognizeStartedAt).toFixed(0)}ms; placa válida=${Boolean(localPlate)}.`);
                     if (localPlate) {
                         closeScannerModal();
                         if (activeCallback) activeCallback(localPlate);
                         return;
                     }
                 } catch (error) {
+                    scannerDebug('galería_ocr', `${(error as Error)?.name || 'Error'}: ${(error as Error)?.message || 'OCR local no disponible.'}; se usa backend.`, 'WARN');
                     console.warn('[SCANNER] local photo OCR unavailable; using backend:', error);
                 }
+                const backendStartedAt = performance.now();
+                scannerDebug('galería_backend', `POST ${backendUrl()}/plate/scan; imagen JPEG ${Math.round(b64.length * 0.75 / 1024)} KB.`);
                 const res = await fetch(`${backendUrl()}/plate/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image_base64: b64 }),
+                    body: JSON.stringify({ image_base64: b64, debug_trace: true }),
                     signal: AbortSignal.timeout(8000)
-                }).catch(() => null);
+                }).catch((error) => {
+                    scannerDebug('galería_backend_network', `${(error as Error)?.name || 'Error'}: ${(error as Error)?.message || 'Falló fetch/timeout.'}`, 'ERROR');
+                    return null;
+                });
 
-                if (res && res.ok) {
+                if (res) {
                     const data = await res.json();
+                    scannerDebug('galería_backend_http', `HTTP ${res.status}; ${(performance.now() - backendStartedAt).toFixed(0)}ms; success=${Boolean(data?.success)}${data?.detail ? `; ${data.detail}` : ''}`, res.ok ? 'INFO' : 'ERROR');
+                    for (const item of (Array.isArray(data?.backend_trace) ? data.backend_trace : [])) {
+                        scannerDebug(`backend.${item.stage || 'stage'}`, `${item.duration_ms ?? '?'}ms; ${item.detail || ''}`);
+                    }
                     const { extractPeruvianPlate } = await loadPlateOcr();
                     const plate = data.success ? extractPeruvianPlate(data.plate || '') : null;
+                    scannerDebug('galería_backend_result', `Placa válida=${Boolean(plate)}; procesamiento=${data?.elapsed_ms ?? 'n/d'}ms.`);
                     if (plate) {
                         closeScannerModal();
                         if (activeCallback) activeCallback(plate);
                         return;
                     }
+                } else {
+                    scannerDebug('galería_backend_network', `Sin respuesta; ${(performance.now() - backendStartedAt).toFixed(0)}ms hasta fallo/timeout.`, 'ERROR');
                 }
-            } catch {
+            } catch (error) {
                 // El OCR puede no estar disponible; se conserva confirmación manual.
+                scannerDebug('galería_error', `${(error as Error)?.name || 'Error'}: ${(error as Error)?.message || 'Falló la lectura de la imagen.'}`, 'ERROR');
             }
             const status = document.getElementById('scanner-status-text');
             if (status) status.textContent = 'No pudimos leer la placa de esa foto. Prueba otra imagen más nítida o vuelve a enfocar.';

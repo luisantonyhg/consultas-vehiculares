@@ -1,11 +1,17 @@
 import { createWorker, PSM } from 'tesseract.js';
 
 let workerPromise: ReturnType<typeof createWorker> | null = null;
+let diagnosticHandler: ((event: { status: string; progress?: number }) => void) | null = null;
+
+export function setPlateOcrDiagnosticHandler(handler: ((event: { status: string; progress?: number }) => void) | null) {
+  diagnosticHandler = handler;
+}
 
 export function getPlateOcrWorker() {
   if (!workerPromise) {
     workerPromise = createWorker('eng', undefined, {
       logger: (event) => {
+        diagnosticHandler?.({ status: event.status, progress: event.progress });
         if (event.status === 'loading language traineddata') {
           const status = document.getElementById('scanner-status-text');
           if (status) status.textContent = 'Preparando lectura local de placa…';

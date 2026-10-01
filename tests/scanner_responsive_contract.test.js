@@ -27,17 +27,16 @@ test('el escáner prioriza detección automática y deja una sola acción de arc
   assert.match(scanner, /detectaremos automáticamente/);
 });
 
-test('el escaneo autocompleta con una lectura válida y reserva YOLO para encuadres difíciles', () => {
-  assert.match(scanner, /const VOTE_RING_SIZE = 1/);
-  assert.match(scanner, /const VOTES_NEEDED = 1/);
-  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 250/);
-  assert.match(scanner, /const PLATE_SCAN_MAX_ATTEMPTS = 8/);
-  assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 12000/);
-  assert.match(scanner, /const PLATE_SCAN_REQUEST_TIMEOUT_MS = 5000/);
-  assert.match(scanner, /region_only: attempts % 3 !== 0/);
+test('el escaneo confirma lecturas próximas y activa respaldo remoto con timeout', () => {
+  assert.match(scanner, /const VOTE_RING_SIZE = 3/);
+  assert.match(scanner, /const VOTES_NEEDED = 2/);
+  assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 300/);
+  assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 25000/);
+  assert.match(scanner, /const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500/);
+  assert.match(scanner, /region_only: false/);
   assert.match(scanner, /Leyendo placa automáticamente/);
-  assert.match(scanner, /El detector está ocupado/);
-  assert.match(scanner, /res\?\.status === 429/);
+  assert.match(scanner, /AbortSignal\.timeout\(8000\)/);
+  assert.match(scanner, /res\.status/);
   assert.match(scanner, /focusMode: 'continuous'/);
 });
 
@@ -53,5 +52,18 @@ test('la zona que se envía al OCR se calcula desde el marco visible y object-co
   assert.match(scanner, /video\.getBoundingClientRect\(\)/);
   assert.match(scanner, /guide\.getBoundingClientRect\(\)/);
   assert.match(scanner, /object-fit: cover|object-cover/);
-  assert.match(scanner, /ctx\.drawImage\(video, crop\.x, crop\.y, crop\.width, crop\.height/);
+  assert.match(scanner, /ctx\.drawImage\(video, capture\.x, capture\.y, capture\.width, capture\.height/);
+});
+
+test('el modal muestra diagnóstico OCR/cámara/backend en vivo y permite copiarlo', () => {
+  assert.match(scanner, /id="scanner-debug-panel"/);
+  assert.match(scanner, /id="scanner-debug-output" role="log" aria-live="polite"/);
+  assert.match(scanner, /id="scanner-debug-copy"/);
+  assert.match(scanner, /navigator\.clipboard\.writeText\(scannerDebugEvents\.join\('\\n'\)\)/);
+  assert.match(scanner, /setPlateOcrDiagnosticHandler/);
+  assert.match(scanner, /debug_trace: true/);
+  assert.match(scanner, /scannerDebug\('backend_http'/);
+  assert.match(scanner, /scannerDebug\(`backend\.\$\{item\.stage/);
+  assert.match(scanner, /scannerDebugEvents\.length > 240/);
+  assert.doesNotMatch(scanner, /scannerDebug\([^\n]*image_base64/);
 });
