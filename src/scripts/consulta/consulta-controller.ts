@@ -1723,12 +1723,32 @@
                             }
                         }, 45000);
 
-                        // El usuario ya puede ver el informe. Esperamos ATU
-                        // únicamente para mantener el ticket vivo y completar
-                        // el ciclo de observabilidad, no para bloquear la UI.
-                        await atuInfraccionesPromise;
-                        renderVehicleScore(plate);
                         await limaBackgroundPromise;
+
+                        // SPRL es independiente de Municipal y tarda ~49s en
+                        // una consulta real. Despacharlo apenas termina Lima
+                        // evita sumar la espera de ATU y Municipal antes de
+                        // siquiera entrar a la cola del navegador.
+                        let historialPromise: Promise<any> = Promise.resolve();
+                        if (historialNode) {
+                            const historialStartedAt = performance.now();
+                            console.info('[SCHEDULER] provider=historial_dueños priority=89 reason=after_lima state=queued');
+                            historialPromise = runSectionsWithDependencies([
+                                { ...historialNode, deps: [], run: () => runAdvancedSection(historialNode.id) },
+                            ], 1, {
+                                onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=89 state=started queue_ms=${Math.round(queue_wait_ms)}`
+                                ),
+                                onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
+                                    `[SCHEDULER] provider=${id} priority=89 state=${status} duration_ms=${Math.round(processing_ms)}`
+                                ),
+                            }).then((result) => {
+                                historialElapsedMs = Math.round(performance.now() - historialStartedAt);
+                                renderVehicleScore(plate);
+                                saveToCache(plate);
+                                return result;
+                            });
+                        }
 
                         if (municipalNode) {
                             const municipalStartedAt = performance.now();
@@ -1753,34 +1773,13 @@
                             municipalElapsedMs = Math.round(performance.now() - municipalStartedAt);
                         }
 
-                        // `runSectionsWithDependencies` aísla un error/PARTIAL
-                        // municipal como resultado; nunca cancela SPRL ni el
-                        // ticket de la consulta.
-                        if (historialNode) {
-                            const historialStartedAt = performance.now();
-                            console.info('[SCHEDULER] provider=historial_dueños priority=100 reason=advanced_last state=queued');
-                            await runSectionsWithDependencies([
-                                {
-                                    ...historialNode,
-                                    // Las dependencias ya se completaron en el
-                                    // lote principal; conservarlas aquí haría
-                                    // que un scheduler nuevo las considere
-                                    // inexistentes.
-                                    deps: [],
-                                    run: () => runAdvancedSection(historialNode.id),
-                                },
-                            ], 1, {
-                                onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=100 state=started queue_ms=${Math.round(queue_wait_ms)}`
-                                ),
-                                onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=100 state=${status} duration_ms=${Math.round(processing_ms)}`
-                                ),
-                            });
-                            historialElapsedMs = Math.round(performance.now() - historialStartedAt);
-                            renderVehicleScore(plate);
-                            saveToCache(plate);
-                        }
+                        // ATU no usa Chromium. Su ciclo sigue formando parte
+                        // de la consulta, pero ya no retrasa el despacho SPRL.
+                        await atuInfraccionesPromise;
+                        renderVehicleScore(plate);
+                        // La llamada registral ya corre mientras se resuelve
+                        // Municipal; el error de una no cancela a la otra.
+                        await historialPromise;
                         if (consultationLifecycle === 'active' && activeConsultationTicket) {
                             lunasDeferredRetry = (async () => {
                                 const startedAt = performance.now();

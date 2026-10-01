@@ -68,10 +68,11 @@ export function splitPrioritySections(order, priorityIds = []) {
 export const ADVANCED_DEPENDENCIES = Object.freeze({
     // SAT unificado corre de forma independiente sin esperar SBS.
     sat: Object.freeze([]),
-    // Lima y Municipal corren tras SAT.
+    // Lima y Municipal corren tras SAT. Historial SPRL es independiente de
+    // Municipal y se despacha antes para no quedar detrás de dos scrapers.
     lima: Object.freeze(['sat']),
     municipal: Object.freeze(['sat']),
-    historial_dueños: Object.freeze(['municipal']),
+    historial_dueños: Object.freeze([]),
     // SBS corre al final absoluto, después de que Lunas haya completado.
     sbs: Object.freeze(['lunas']),
 });

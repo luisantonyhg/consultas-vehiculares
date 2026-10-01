@@ -508,10 +508,9 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
     const TIT = 'Historial de Dueños y Gravámenes';
     callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
     const controller = new AbortController();
-    // El backend acota SPRL a 30s de cola + 90s de navegador. Conservamos
-    // margen para serializar la respuesta, pero nunca dejamos la tarjeta
-    // bloqueada cuatro minutos.
-    const timeoutMs = 130000;
+    // El backend admite 30s de cola y hasta dos sesiones de 90s (un reintento
+    // limpio si la sesión del portal queda transitoriamente rota), más margen.
+    const timeoutMs = 240000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const queryParam = oficina ? `?oficina=${encodeURIComponent(oficina)}` : '';
@@ -553,7 +552,7 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (120s). Pulse Reintentar.' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (240s). Pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', msg, plate);
         return { success: false, error: msg };
     }

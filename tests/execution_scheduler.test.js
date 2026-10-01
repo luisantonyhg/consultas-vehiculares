@@ -117,7 +117,7 @@ test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () =>
   assert.ok(!consultaSource.includes('advancedLanes.map((entry'), 'sin lanes que reserven workers');
 });
 
-test('el historial queda después de la ruta pesada y no bloquea el informe principal', () => {
+test('el historial se despacha después de Lima y en paralelo a Municipal/ATU', () => {
   const nodes = buildAdvancedNodes([
     'sigm', 'soat', 'sat', 'lima', 'municipal', 'historial_dueños', 'sbs',
   ]);
@@ -125,7 +125,7 @@ test('el historial queda después de la ruta pesada y no bloquea el informe prin
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
       sigm: [], soat: [], sat: [], lima: ['sat'],
-      municipal: ['sat'], historial_dueños: ['municipal'], sbs: ['lunas'],
+      municipal: ['sat'], historial_dueños: [], sbs: ['lunas'],
     },
   );
   assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);
@@ -134,21 +134,23 @@ test('el historial queda después de la ruta pesada y no bloquea el informe prin
   assert.match(consultaSource, /Resultados principales listos\. Verificando historial registral avanzado/);
   assert.match(consultaSource, /provider=municipal priority=90 reason=background_after_sat state=queued/);
   assert.match(consultaSource, /provider=lima priority=88 reason=background_after_sat state=started/);
-  assert.match(consultaSource, /provider=historial_dueños priority=100 reason=advanced_last state=queued/);
+  assert.match(consultaSource, /provider=historial_dueños priority=89 reason=after_lima state=queued/);
   assert.match(consultaSource, /\[ADVANCED-SCHEDULE\] consultation_id=\$\{activeConsultationId\}/);
   assert.doesNotMatch(consultaSource, /splitPrioritySections/);
 });
 
-test('Lima comienza tras la UI y antes de Municipal/Historial', () => {
+test('Historial comienza tras Lima y antes de la espera de ATU y Municipal', () => {
   const mainReadyAt = consultaSource.indexOf('[UI-MAIN-READY]');
   const limaBackgroundAt = consultaSource.indexOf('provider=lima priority=88 reason=background_after_sat state=started');
   const waitForLimaAt = consultaSource.indexOf('await limaBackgroundPromise;');
-  const municipalAt = consultaSource.indexOf('if (municipalNode) {', waitForLimaAt);
+  const historialAt = consultaSource.indexOf('provider=historial_dueños priority=89 reason=after_lima state=queued', waitForLimaAt);
+  const atuWaitAt = consultaSource.indexOf('await atuInfraccionesPromise;', historialAt);
 
   assert.ok(mainReadyAt >= 0, 'la ruta principal debe marcar explícitamente que la UI está lista');
   assert.ok(limaBackgroundAt > mainReadyAt, 'Lima no debe ocupar Chromium antes de mostrar resultados principales');
-  assert.ok(waitForLimaAt >= 0 && municipalAt > waitForLimaAt,
-    'Municipal e Historial deben conservar la cadena de fondo posterior a Lima');
+  assert.ok(waitForLimaAt >= 0 && historialAt > waitForLimaAt,
+    'Historial debe despacharse después de Lima');
+  assert.ok(atuWaitAt > historialAt, 'ATU no debe retrasar el despacho del historial');
 });
 
 test('un Municipal rechazado no impide el Historial posterior', async () => {
@@ -172,7 +174,7 @@ test('el ticket se completa solo después de Municipal e Historial', () => {
   const loader = consultaSource.indexOf('hideLoadingOverlay();', consultaSource.indexOf('Resultados principales listos.'));
 
   assert.ok(loader >= 0 && municipalStart > loader, 'el loader se oculta antes de Municipal');
-  assert.ok(historialStart > municipalStart, 'Historial debe iniciar después de Municipal');
+  assert.ok(historialStart > loader, 'Historial debe iniciar después de la UI principal');
   assert.ok(release > historialStart, 'el ticket se libera tras Historial');
 });
 

@@ -45,12 +45,12 @@ test('Callao queda en segundo plano y las fuentes HTTP/OCR no ocupan Chromium', 
   assert.equal(cinemometro?.phase, 'fast');
 });
 
-test('historial espera toda la ruta pesada antes de ocupar el navegador global', () => {
+test('historial se independiza de Municipal para entrar antes en la cola del navegador', () => {
   const nodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
   const deps = Object.fromEntries(nodes.map(node => [node.id, node.deps]));
   assert.deepEqual(deps.sat, []);
   assert.deepEqual(deps.lima, ['sat']);
-  assert.deepEqual(deps.historial_dueños, ['municipal']);
+  assert.deepEqual(deps.historial_dueños, []);
   assert.deepEqual(deps.sbs, ['lunas']);
 });
 
@@ -71,11 +71,11 @@ test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', (
   assert.deepEqual(deps.sat, []);
   assert.deepEqual(deps.lima, ['sat']);
   assert.deepEqual(deps.municipal, ['sat']);
-  assert.deepEqual(deps.historial_dueños, ['municipal']);
+  assert.deepEqual(deps.historial_dueños, []);
   assert.deepEqual(deps.sbs, ['lunas']);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
-    sat: [], lima: ['sat'], municipal: ['sat'], historial_dueños: ['municipal'], sbs: ['lunas'],
+    sat: [], lima: ['sat'], municipal: ['sat'], historial_dueños: [], sbs: ['lunas'],
   });
   const ids = nodes.map(node => node.id);
   assert.deepEqual([...ids].sort(), [...standard].sort());
