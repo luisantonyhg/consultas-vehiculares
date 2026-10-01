@@ -166,7 +166,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                     'municipal', 'Papeletas Otras Municipalidades', 'Huancayo · SATH',
                     'fas fa-building-columns', '', 'SATH Huancayo', renderHuancayoFast(item, plate),
                     true, active,
-                    `<span class="inline-flex rounded-md bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase text-white">Huancayo recibido · verificando otras municipalidades</span>`,
+                    `<span role="status" aria-live="polite" class="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-600"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Huancayo listo · consultando otras municipalidades</span>`,
                 );
             }
             return data;
@@ -237,8 +237,35 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                     const stateClass = esPendiente ? 'bg-rose-600 text-white' : (esPagada ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white');
                     const badgeSit = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold ${stateClass} shadow-xs tracking-wider uppercase">${municipalEscape(d['Situación'] || 'Estado de pago desconocido')}</span>`;
                     const safe = (value) => municipalEscape(value || '—');
-                    const amount = Number(String(d.Importe ?? '').replace(/[^\d.,-]/g, '').replace(',', '.'));
+                    const parseAmount = (value) => {
+                        let raw = String(value ?? '').replace(/[^\d.,-]/g, '');
+                        if (!raw) return Number.NaN;
+                        const comma = raw.lastIndexOf(',');
+                        const dot = raw.lastIndexOf('.');
+                        if (comma >= 0 && dot >= 0) {
+                            const decimal = Math.max(comma, dot);
+                            raw = `${raw.slice(0, decimal).replace(/[.,]/g, '')}.${raw.slice(decimal + 1)}`;
+                        } else if (comma >= 0 || dot >= 0) {
+                            const separator = comma >= 0 ? ',' : '.';
+                            const tail = raw.length - raw.lastIndexOf(separator) - 1;
+                            raw = tail > 0 && tail <= 2
+                                ? `${raw.slice(0, raw.lastIndexOf(separator)).replace(/[.,]/g, '')}.${raw.slice(raw.lastIndexOf(separator) + 1)}`
+                                : raw.replace(/[.,]/g, '');
+                        }
+                        return Number(raw);
+                    };
+                    const amount = parseAmount(d.Importe);
                     const amountText = Number.isFinite(amount) ? `S/ ${amount.toFixed(2)}` : '—';
+                    const moneyText = (value) => {
+                        if (value == null || String(value).trim() === '') return '';
+                        const parsed = parseAmount(value);
+                        return Number.isFinite(parsed) ? `S/ ${parsed.toFixed(2)}` : safe(value);
+                    };
+                    const chargeText = moneyText(d.Cargo);
+                    const discountText = moneyText(d.Descuento);
+                    const balanceText = moneyText(d.Saldo);
+                    const balanceNumber = parseAmount(d.Saldo);
+                    const hasOutstandingBalance = Number.isFinite(balanceNumber) && balanceNumber > 0;
 
                     return `
                         <div class="p-2.5 rounded-xl border ${esPendiente ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80'} shadow-xs font-poppins transition-all">
@@ -258,6 +285,9 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Infractor:</strong> <span class="uppercase font-semibold">${safe(d['Conductor'])}</span></div>
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Propietario:</strong> <span class="uppercase font-semibold">${safe(d['Propietario'])}</span></div>
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Importe:</strong> <span class="font-black ${esPendiente ? 'text-rose-600 dark:text-rose-400' : ''}">${amountText}</span></div>
+                                ${chargeText ? `<div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Cargo:</strong> <span>${chargeText}</span></div>` : ''}
+                                ${discountText ? `<div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Descuento:</strong> <span>${discountText}</span></div>` : ''}
+                                ${balanceText ? `<div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Saldo:</strong> <span class="font-black ${hasOutstandingBalance || esPendiente ? 'text-rose-600 dark:text-rose-400' : ''}">${balanceText}</span></div>` : ''}
                                 <div class="sm:col-span-2 md:col-span-1"><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Infracción:</strong> <span>${safe(d['Infracción'])}</span></div>
                             </div>
                         </div>`;

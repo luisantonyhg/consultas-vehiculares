@@ -925,6 +925,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
                       if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeUrl = parsed.href;
                     } catch { /* Invalid provider links are shown as text, never navigated. */ }
                     const t = isDict(l) ? str(l.titulo) || u : u;
+                    const snippet = isDict(l) ? str(l.descripcion || l.snippet || l.resumen) : '';
                     const source = isDict(l) ? str(l.fuente) || 'WebMii OSINT' : 'WebMii OSINT';
                     let domain = '';
                     try { domain = new URL(u).hostname.replace('www.', ''); } catch { domain = 'Web'; }
@@ -934,7 +935,10 @@ export function paintDniSection(name: string, rawData: unknown): void {
                           <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-extrabold uppercase">${escapeHtml(domain)}</span>
                           <span class="block mt-1 text-[9px] font-semibold normal-case text-slate-400">${escapeHtml(source)}</span>
                         </td>
-                        <td class="p-2.5 font-medium text-slate-700 leading-snug">${escapeHtml(t)}</td>
+                        <td class="p-2.5 font-medium text-slate-700 leading-snug">
+                          <span>${escapeHtml(t)}</span>
+                          ${snippet ? `<span class="block mt-1 text-[11px] font-normal text-slate-500 leading-relaxed">${escapeHtml(snippet)}</span>` : ''}
+                        </td>
                         <td class="p-2.5 text-center">
                           ${safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-[10px] font-bold transition shadow-xs"><i class="fas fa-arrow-up-right-from-square text-[8px] text-emerald-600"></i> Ver enlace</a>` : '<span class="text-slate-400">Enlace no válido</span>'}
                         </td>

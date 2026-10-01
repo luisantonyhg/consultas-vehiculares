@@ -49,6 +49,7 @@ test('Huancayo se pinta antes del agregado y distingue deuda pendiente de estado
       Papeleta: '20-363886', Placa: 'W4N068', Código: 'L7',
       Infracción: 'Usar <b>bocina</b> innecesariamente', Fecha: '27/10/2022',
       Conductor: 'Fierro Vilca', Propietario: 'Titular de prueba', Importe: 215.4,
+      Cargo: 552.5, Descuento: 495, Saldo: 57.5,
       Situación: 'REGISTRADA', Estado: 'REGISTRADA', EstadoRegistro: 'REGISTRADA', EstadoPago: 'UNKNOWN',
     }],
   };
@@ -78,6 +79,12 @@ test('Huancayo se pinta antes del agregado y distingue deuda pendiente de estado
     assert.equal(result.municipios_total, 12);
     const html = renders.at(-1)[6];
     assert.match(html, /S\/ 215\.40/);
+    assert.match(html, /Cargo:<\/strong> <span>S\/ 552\.50/);
+    assert.match(html, /Descuento:<\/strong> <span>S\/ 495\.00/);
+    assert.match(html, /Saldo:<\/strong> <span class="font-black text-rose-600 dark:text-rose-400">S\/ 57\.50/);
+    assert.match(renders[0][9], /role="status"/);
+    assert.match(renders[0][9], /fa-spinner fa-spin/);
+    assert.doesNotMatch(renders[0][9], /bg-amber-500/);
     assert.match(html, /Titular de prueba/);
     assert.match(html, /0 pagadas/);
     assert.match(html, /1 desconocidas/);
