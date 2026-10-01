@@ -34,6 +34,17 @@ export function getPlateOcrWorker() {
   return workerPromise;
 }
 
+/**
+ * Camera OCR sees a bounded guide with several lines of surrounding page text;
+ * unlike a YOLO crop, it must ask Tesseract to find sparse text blocks.
+ */
+export async function setPlateOcrMode(mode: 'plate-line' | 'guide-text') {
+  const worker = await getPlateOcrWorker();
+  await worker.setParameters({
+    tessedit_pageseg_mode: mode === 'guide-text' ? PSM.SPARSE_TEXT : PSM.SINGLE_LINE,
+  });
+}
+
 export function extractPeruvianPlate(rawText: string): string | null {
   const text = rawText.toUpperCase();
   const candidates: string[] = text.match(/[A-Z0-9]{2,3}[-\s]?[A-Z0-9]{3,4}/g) || [];
@@ -68,4 +79,37 @@ export function extractPeruvianPlate(rawText: string): string | null {
     }
   }
   return null;
+}
+
+type OcrLine = {
+  text: string;
+  confidence: number;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+};
+
+/** Selects a plate-like OCR line near the center of the camera guide. */
+export function extractPeruvianPlateFromLines(
+  lines: OcrLine[] | null | undefined,
+  width: number,
+  height: number,
+): { plate: string; confidence: number; line: string; bbox: OcrLine['bbox'] } | null {
+  if (!lines?.length || width <= 0 || height <= 0) return null;
+  const candidates = lines.flatMap((line) => {
+    const plate = extractPeruvianPlate(line.text);
+    if (!plate) return [];
+    const boxWidth = line.bbox.x1 - line.bbox.x0;
+    const boxHeight = line.bbox.y1 - line.bbox.y0;
+    if (boxWidth <= 0 || boxHeight <= 0) return [];
+    const centerX = (line.bbox.x0 + line.bbox.x1) / 2 / width;
+    const centerY = (line.bbox.y0 + line.bbox.y1) / 2 / height;
+    const aspect = boxWidth / boxHeight;
+    // Plate characters form a wide line and should be near the user's target.
+    if (aspect < 1.45 || boxWidth / width < 0.16 || centerX < 0.08 || centerX > 0.92 || centerY < 0.12 || centerY > 0.88) return [];
+    const confidence = Number.isFinite(line.confidence) ? line.confidence : 0;
+    const centerPenalty = Math.abs(centerX - 0.5) * 18 + Math.abs(centerY - 0.5) * 10;
+    return [{ plate, confidence, line: line.text, bbox: line.bbox, score: confidence - centerPenalty + Math.min(12, boxWidth / width * 12) }];
+  });
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates[0];
+  return best ? { plate: best.plate, confidence: best.confidence, line: best.line, bbox: best.bbox } : null;
 }
