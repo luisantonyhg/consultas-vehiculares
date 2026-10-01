@@ -5,6 +5,12 @@
 // ====================================================
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
+let plateOcrModulePromise: Promise<typeof import('./plate_ocr')> | null = null;
+function loadPlateOcr() {
+    plateOcrModulePromise ??= import('./plate_ocr');
+    return plateOcrModulePromise;
+}
+
 export interface ScannerOptions {
     mode: 'placa' | 'dni';
     onSuccess: (code: string) => void;
@@ -17,20 +23,14 @@ let activeCallback: ((val: string) => void) | null = null;
 let availableVideoDevices: MediaDeviceInfo[] = [];
 let scanTimer: any = null;
 let torchOn = false;
+let plateAccepted = false;
 
-// El backend solo devuelve placas que pasan la validación peruana y la
-// normalización OCR por posición. Autocompletar con una lectura válida evita
-// obligar a esperar un segundo ciclo completo en redes móviles.
-const VOTE_RING_SIZE = 1;
-const VOTES_NEEDED = 1;
-// Mantener una sola solicitud activa. Cada análisis tarda ~0.5–2.5 s en
-// producción; una ventana de 12 s deja reintentar sin exponer al usuario a
-// los 20 intentos/minuto permitidos por el backend.
-const PLATE_SCAN_INTERVAL_MS = 250;
-const PLATE_SCAN_MAX_ATTEMPTS = 8;
-const PLATE_SCAN_MAX_DURATION_MS = 12000;
-const PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS = 6000;
-const PLATE_SCAN_REQUEST_TIMEOUT_MS = 5000;
+// Igual que móvil: confirma con dos lecturas cercanas y procesa localmente.
+const VOTE_RING_SIZE = 3;
+const VOTES_NEEDED = 2;
+const PLATE_SCAN_INTERVAL_MS = 300;
+const PLATE_SCAN_MAX_DURATION_MS = 25000;
+const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -90,11 +90,6 @@ async function imageFileToJpeg(file: File): Promise<string> {
     }
 }
 
-function isPeruvianPlate(value: string): boolean {
-    const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return /^(?:[A-Z]{3}\d{3}|[A-Z]\d[A-Z]\d{3}|[A-Z]{2}\d{4}|PNP\d{3,4})$/.test(normalized);
-}
-
 function backendUrl(): string {
     const configured = (import.meta as unknown as { env?: Record<string, string> }).env?.PUBLIC_BACKEND_URL;
     if (configured) return configured.replace(/\/$/, '');
@@ -109,6 +104,7 @@ export async function openScannerModal(options: ScannerOptions) {
     if (focusedInput instanceof HTMLInputElement) focusedInput.blur();
     activeCallback = options.onSuccess;
     voteRing = [];
+    plateAccepted = false;
     isProcessingFrame = false;
     torchOn = false;
 
@@ -298,8 +294,34 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    let attempts = 0;
     const scanStartedAt = performance.now();
+    let attempts = 0;
+    let localWorker: { recognize(image: HTMLCanvasElement): Promise<{ data: { text: string } }> } | null = null;
+    let localWorkerError = false;
+    let fallbackRequested = false;
+    let latestFullFrame = '';
+    void loadPlateOcr().then(({ getPlateOcrWorker }) => getPlateOcrWorker()).then((worker) => { localWorker = worker; }).catch((error) => {
+        localWorkerError = true;
+        console.warn('[SCANNER] local OCR unavailable; using backend fallback:', error);
+    });
+
+    const requestBackendFallback = (image: string) => {
+        if (!image || fallbackRequested) return;
+        fallbackRequested = true;
+        if (statusEl) statusEl.textContent = 'Afinando lectura de placa…';
+        void fetch(`${backendUrl()}/plate/scan`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_base64: image, region_only: false }),
+            signal: AbortSignal.timeout(8000),
+        }).then(async (res) => {
+            if (!res.ok) return;
+            const data = await res.json();
+            const { extractPeruvianPlate } = await loadPlateOcr();
+            const plate = data?.success ? extractPeruvianPlate(data.plate || '') : null;
+            if (plate && scanTimer != null) registerPlateVote(plate, options, candidateBadge, guideFrame, statusEl, true);
+        }).catch((error) => console.warn('[SCANNER] backend fallback failed:', error));
+    };
 
     async function scanFrame() {
         if (!video || video.readyState < 2 || isProcessingFrame) {
@@ -307,18 +329,19 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
             if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
             return;
         }
-        if (attempts >= PLATE_SCAN_MAX_ATTEMPTS || performance.now() - scanStartedAt >= PLATE_SCAN_MAX_DURATION_MS) {
+        const elapsed = performance.now() - scanStartedAt;
+        if (elapsed >= PLATE_SCAN_MAX_DURATION_MS) {
             scanTimer = null;
             if (statusEl) statusEl.textContent = 'No logramos leerla. Acerca la placa al marco, mejora la luz o usa "Tomar Foto / Archivo".';
             return;
         }
         isProcessingFrame = true;
         attempts++;
-        if (statusEl) statusEl.textContent = `Leyendo placa automáticamente (${attempts}/${PLATE_SCAN_MAX_ATTEMPTS})…`;
+        if (statusEl && !localWorker) statusEl.textContent = 'Preparando lectura local de placa…';
 
         try {
-            // Recortar exactamente lo que se ve dentro del marco; object-cover
-            // en móviles recorta la fuente de video y el centro fijo no coincide.
+            // Alterna entre la guía y el cuadro entero, como el móvil, para leer
+            // rápido una placa centrada y recuperar las que queden fuera del marco.
             let crop = guideFrame ? getGuideCrop(video, guideFrame) : null;
 
             // Fallback: si el guide frame no está listo (layout aún no resuelto),
@@ -331,55 +354,37 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 crop = { x: Math.round((vw - cw) / 2), y: Math.round((vh - ch) / 2), width: cw, height: ch };
             }
 
-            canvas.width = crop.width;
-            canvas.height = crop.height;
+            const useFullFrame = attempts % 3 === 0;
+            const sourceWidth = video.videoWidth || 640;
+            const sourceHeight = video.videoHeight || 480;
+            const capture = useFullFrame
+                ? { x: 0, y: 0, width: sourceWidth, height: sourceHeight }
+                : crop;
+            canvas.width = capture.width;
+            canvas.height = capture.height;
             if (ctx) {
-                ctx.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+                ctx.drawImage(video, capture.x, capture.y, capture.width, capture.height, 0, 0, capture.width, capture.height);
                 const b64 = canvasJpeg(canvas);
-
-                // Llamar al backend YOLO11 + Tesseract
-                // El primer request puede tardar más porque el modelo se carga en memoria.
-                const timeout = attempts <= 2 ? PLATE_SCAN_FIRST_REQUEST_TIMEOUT_MS : PLATE_SCAN_REQUEST_TIMEOUT_MS;
-                const res = await fetch(`${backendUrl()}/plate/scan`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    // OCR directo es el camino rápido. Cada tercer frame deja
-                    // que YOLO localice la placa si el encuadre no es perfecto.
-                    body: JSON.stringify({ image_base64: b64, region_only: attempts % 3 !== 0 }),
-                    signal: AbortSignal.timeout(timeout)
-                }).catch(() => null);
-
-                console.info('[SCANNER] plate frame', {
-                    attempt: attempts,
-                    status: res?.status ?? 'network-error'
-                });
-
-                if (res?.status === 429) {
-                    scanTimer = null;
-                    if (statusEl) statusEl.textContent = 'Límite temporal de escaneo alcanzado. Espera un momento antes de volver a intentar.';
-                    return;
-                }
-                if (res?.status === 503 && statusEl) {
-                    statusEl.textContent = 'El detector está ocupado; reintentando automáticamente…';
-                }
-                if (!res && statusEl) statusEl.textContent = 'Conexión inestable; intentando de nuevo…';
-                if (res && res.ok) {
-                    const data = await res.json();
-                    if (data.elapsed_ms != null) {
-                        console.info('[SCANNER] backend inference', { elapsed_ms: data.elapsed_ms, detected: Boolean(data.success) });
+                if (useFullFrame) latestFullFrame = b64;
+                if (localWorker) {
+                    const result = await localWorker.recognize(canvas);
+                    const { extractPeruvianPlate } = await loadPlateOcr();
+                    const detected = extractPeruvianPlate(result.data.text);
+                    if (detected) {
+                        if (statusEl) statusEl.textContent = `Placa detectada: ${detected}. Confirmando lectura…`;
+                        registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
                     }
-                    if (data.success && data.plate) {
-                        const detected = data.plate.toUpperCase();
-                        if (isPeruvianPlate(detected)) {
-                            registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
-                        }
-                    }
+                } else if (statusEl) {
+                    statusEl.textContent = 'Preparando lectura local de placa…';
                 }
             }
         } catch (e) {
             console.warn('[SCANNER] frame error:', e);
         } finally {
             isProcessingFrame = false;
+            if (!fallbackRequested && (localWorkerError || performance.now() - scanStartedAt >= PLATE_SCAN_LOCAL_FALLBACK_MS)) {
+                requestBackendFallback(latestFullFrame);
+            }
             // Programar siguiente frame solo si el timer sigue activo
             if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
         }
@@ -395,13 +400,15 @@ function registerPlateVote(
     options: ScannerOptions,
     candidateBadge: HTMLElement | null,
     guideFrame: HTMLElement | null,
-    statusEl: HTMLElement | null
+    statusEl: HTMLElement | null,
+    backendVerified = false
 ) {
+    if (plateAccepted) return;
     voteRing.push(plate);
     while (voteRing.length > VOTE_RING_SIZE) {
         voteRing.shift();
     }
-    const count = voteRing.filter(p => p === plate).length;
+    const count = backendVerified ? VOTES_NEEDED : voteRing.filter(p => p === plate).length;
 
     if (candidateBadge) {
         candidateBadge.classList.remove('hidden');
@@ -415,7 +422,8 @@ function registerPlateVote(
     }
 
     if (count >= VOTES_NEEDED) {
-        // El backend ya validó el patrón peruano y corrigió confusiones OCR.
+        plateAccepted = true;
+        // La placa ya pasó la normalización OCR y la validación peruana.
         if (guideFrame) {
             guideFrame.className = 'w-[82%] max-w-[300px] h-[120px] relative transition-all duration-300 scale-105';
             // Turn corners emerald for confirmed state
@@ -817,6 +825,19 @@ function createScannerModalElement(): HTMLElement {
             }
             try {
                 const b64 = await imageFileToJpeg(file);
+                try {
+                    const { getPlateOcrWorker, extractPeruvianPlate } = await loadPlateOcr();
+                    const worker = await getPlateOcrWorker();
+                    const localResult = await worker.recognize(b64);
+                    const localPlate = extractPeruvianPlate(localResult.data.text);
+                    if (localPlate) {
+                        closeScannerModal();
+                        if (activeCallback) activeCallback(localPlate);
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('[SCANNER] local photo OCR unavailable; using backend:', error);
+                }
                 const res = await fetch(`${backendUrl()}/plate/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -826,9 +847,11 @@ function createScannerModalElement(): HTMLElement {
 
                 if (res && res.ok) {
                     const data = await res.json();
-                    if (data.success && data.plate && isPeruvianPlate(data.plate)) {
+                    const { extractPeruvianPlate } = await loadPlateOcr();
+                    const plate = data.success ? extractPeruvianPlate(data.plate || '') : null;
+                    if (plate) {
                         closeScannerModal();
-                        if (activeCallback) activeCallback(data.plate);
+                        if (activeCallback) activeCallback(plate);
                         return;
                     }
                 }

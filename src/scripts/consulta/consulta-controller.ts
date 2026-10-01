@@ -197,8 +197,11 @@
                     .replace(/[^A-Za-z0-9]/g, '')
                     .toUpperCase()
                     .slice(0, 6);
-                const formatted = cleanVal.length > 3
-                    ? `${cleanVal.slice(0, 3)}-${cleanVal.slice(3)}`
+                const twoLetterPlate = /^[A-Za-z]{2}\d{4}$/.test(cleanVal);
+                const letterDigitPlate = /^[A-Za-z]\d{5}$/.test(cleanVal);
+                const splitAt = twoLetterPlate || letterDigitPlate ? 2 : 3;
+                const formatted = cleanVal.length > splitAt
+                    ? `${cleanVal.slice(0, splitAt)}-${cleanVal.slice(splitAt)}`
                     : cleanVal;
                 plateInput.value = formatted;
                 if (plateMini) {
