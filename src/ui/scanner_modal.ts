@@ -28,6 +28,7 @@ let plateAccepted = false;
 // Igual que móvil: confirma con dos lecturas cercanas y procesa localmente.
 const VOTE_RING_SIZE = 3;
 const VOTES_NEEDED = 2;
+const PLATE_OCR_HIGH_CONFIDENCE = 82;
 const PLATE_SCAN_INTERVAL_MS = 300;
 const PLATE_SCAN_MAX_DURATION_MS = 25000;
 const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500;
@@ -344,9 +345,11 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ocrCanvas = document.createElement('canvas');
+    const ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
     const scanStartedAt = performance.now();
     let attempts = 0;
-    let localWorker: { recognize(image: HTMLCanvasElement): Promise<{ data: { text: string } }> } | null = null;
+    let localWorker: { recognize(image: HTMLCanvasElement): Promise<{ data: { text: string; confidence?: number } }> } | null = null;
     let localWorkerError = false;
     let fallbackRequested = false;
     let latestFullFrame = '';
@@ -354,7 +357,7 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
     void loadPlateOcr().then(({ getPlateOcrWorker, setPlateOcrDiagnosticHandler }) => {
         scannerDebug('ocr_local', 'Módulo de OCR descargado/importado.');
         setPlateOcrDiagnosticHandler((event) => {
-            const pct = Number.isFinite(event.progress) ? ` (${Math.round(event.progress * 100)}%)` : '';
+            const pct = event.progress != null && Number.isFinite(event.progress) ? ` (${Math.round(event.progress * 100)}%)` : '';
             scannerDebug('tesseract', `${event.status}${pct}`);
             if (statusEl && /loading|initializ/i.test(event.status)) {
                 statusEl.textContent = `Preparando lectura local: ${event.status}${pct}…`;
@@ -465,14 +468,29 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 }
                 if (localWorker) {
                     const recognizeStartedAt = performance.now();
-                    const result = await localWorker.recognize(canvas);
+                    // Leer solo la banda central de la guía: en el caso móvil
+                    // del usuario el OCR también estaba procesando media pantalla
+                    // y encontraba texto ajeno a la placa.
+                    const roi = useFullFrame ? crop : capture;
+                    const insetX = Math.round(roi.width * 0.06);
+                    const insetY = Math.round(roi.height * 0.20);
+                    const roiX = roi.x + insetX;
+                    const roiY = roi.y + insetY;
+                    const roiWidth = Math.max(1, roi.width - insetX * 2);
+                    const roiHeight = Math.max(1, Math.round(roi.height * 0.60));
+                    ocrCanvas.width = roiWidth;
+                    ocrCanvas.height = roiHeight;
+                    ocrCtx?.drawImage(video, roiX, roiY, roiWidth, roiHeight, 0, 0, roiWidth, roiHeight);
+                    const result = await localWorker.recognize(ocrCanvas);
                     const { extractPeruvianPlate } = await loadPlateOcr();
                     const detected = extractPeruvianPlate(result.data.text);
-                    scannerDebug('ocr_frame', `#${attempts}; OCR ${(performance.now() - recognizeStartedAt).toFixed(0)}ms; texto recibido=${Boolean(result.data.text?.trim())}; placa válida=${Boolean(detected)}.`);
+                    const confidence = Number(result.data.confidence);
+                    scannerDebug('ocr_frame', `#${attempts}; OCR ${(performance.now() - recognizeStartedAt).toFixed(0)}ms; confianza=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; ROI=${roiWidth}×${roiHeight}; texto recibido=${Boolean(result.data.text?.trim())}; placa válida=${Boolean(detected)}.`);
                     if (detected) {
                         if (statusEl) statusEl.textContent = 'Placa candidata detectada. Confirmando lectura…';
-                        scannerDebug('ocr_candidate', 'Formato peruano válido; se registra voto de confirmación.');
-                        registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl);
+                        const immediate = Number.isFinite(confidence) && confidence >= PLATE_OCR_HIGH_CONFIDENCE;
+                        scannerDebug('ocr_candidate', `Formato peruano válido; confianza=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; ${immediate ? 'umbral alto: autocompleta en esta lectura.' : 'requiere coincidencia en otra lectura.'}.`);
+                        registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl, false, immediate);
                     }
                 } else if (statusEl) {
                     if (!fallbackRequested) statusEl.textContent = 'Preparando lectura local de placa…';
@@ -503,14 +521,15 @@ function registerPlateVote(
     candidateBadge: HTMLElement | null,
     guideFrame: HTMLElement | null,
     statusEl: HTMLElement | null,
-    backendVerified = false
+    backendVerified = false,
+    highConfidence = false
 ) {
     if (plateAccepted) return;
     voteRing.push(plate);
     while (voteRing.length > VOTE_RING_SIZE) {
         voteRing.shift();
     }
-    const count = backendVerified ? VOTES_NEEDED : voteRing.filter(p => p === plate).length;
+    const count = backendVerified || highConfidence ? VOTES_NEEDED : voteRing.filter(p => p === plate).length;
 
     if (candidateBadge) {
         candidateBadge.classList.remove('hidden');

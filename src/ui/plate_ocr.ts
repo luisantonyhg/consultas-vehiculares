@@ -20,8 +20,10 @@ export function getPlateOcrWorker() {
     }).then(async (worker) => {
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
-        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
-        user_defined_dpi: '300',
+        // La guía encuadra una sola línea de placa. Evita analizar texto del
+        // entorno (pantallas, carteles) y reduce el tiempo de segmentación.
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
+        user_defined_dpi: '180',
       });
       return worker;
     }).catch((error) => {
