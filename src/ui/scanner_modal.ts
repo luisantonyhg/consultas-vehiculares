@@ -1,7 +1,7 @@
 // ====================================================
 // MODAL DE ESCANEO DE CÁMARA PROFESIONAL (PLACA Y DNI)
-// Detección continua con validación estricta de formato de placa,
-// Backend YOLO11 + Tesseract para Placas y Lector de Código de Barras PDF417 para DNI.
+// YOLO11 ONNX local ubica la placa; Tesseract procesa solo su recorte.
+// El backend queda de respaldo y el lector PDF417 atiende DNI.
 // ====================================================
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -9,6 +9,12 @@ let plateOcrModulePromise: Promise<typeof import('./plate_ocr')> | null = null;
 function loadPlateOcr() {
     plateOcrModulePromise ??= import('./plate_ocr');
     return plateOcrModulePromise;
+}
+
+let plateDetectorModulePromise: Promise<typeof import('./plate_detector')> | null = null;
+function loadPlateDetector() {
+    plateDetectorModulePromise ??= import('./plate_detector');
+    return plateDetectorModulePromise;
 }
 
 export interface ScannerOptions {
@@ -31,7 +37,6 @@ const VOTES_NEEDED = 2;
 const PLATE_OCR_HIGH_CONFIDENCE = 82;
 const PLATE_SCAN_INTERVAL_MS = 300;
 const PLATE_SCAN_MAX_DURATION_MS = 25000;
-const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500;
 const PLATE_SCAN_MAX_EDGE = 960;
 let voteRing: string[] = [];
 let isProcessingFrame = false;
@@ -345,15 +350,33 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const detectorCanvas = document.createElement('canvas');
+    const detectorCtx = detectorCanvas.getContext('2d', { willReadFrequently: true });
     const ocrCanvas = document.createElement('canvas');
     const ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
     const scanStartedAt = performance.now();
     let attempts = 0;
     let localWorker: { recognize(image: HTMLCanvasElement): Promise<{ data: { text: string; confidence?: number } }> } | null = null;
     let localWorkerError = false;
+    let detectorModule: typeof import('./plate_detector') | null = null;
+    let detectorReady = false;
+    let detectorError = false;
     let fallbackRequested = false;
     let latestFullFrame = '';
-    scannerDebug('ocr_local', 'Cargando módulo OCR y motor Tesseract.');
+    scannerDebug('plate_model', 'Cargando detector de placas local para navegador.');
+    void loadPlateDetector().then(async (module) => {
+        detectorModule = module;
+        await module.loadPlateDetector((stage, detail, level) => scannerDebug(stage, detail, level));
+        detectorReady = true;
+        if (statusEl) statusEl.textContent = 'Buscando placa con el modelo local…';
+    }).catch((error) => {
+        detectorError = true;
+        scannerDebug('plate_model', `${error?.name || 'Error'}: ${error?.message || 'No se pudo cargar el modelo local.'}`, 'ERROR');
+        if (statusEl) statusEl.textContent = 'No se pudo iniciar el detector local. Revisa el diagnóstico.';
+        console.warn('[SCANNER] local plate detector unavailable:', error);
+    });
+
+    scannerDebug('ocr_local', 'OCR listo en espera; solo procesará una región cuando el modelo encuentre la placa.');
     void loadPlateOcr().then(({ getPlateOcrWorker, setPlateOcrDiagnosticHandler }) => {
         scannerDebug('ocr_local', 'Módulo de OCR descargado/importado.');
         setPlateOcrDiagnosticHandler((event) => {
@@ -416,6 +439,10 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
     };
 
     async function scanFrame() {
+        if (plateAccepted) {
+            scanTimer = null;
+            return;
+        }
         if (!video || video.readyState < 2 || isProcessingFrame) {
             // No está listo; reintentar en el siguiente tick sin gastar un intento
             if (attempts === 0 && video?.readyState != null) scannerDebug('video_frame', `Esperando frame utilizable; readyState=${video.readyState}.`);
@@ -426,16 +453,17 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
         if (elapsed >= PLATE_SCAN_MAX_DURATION_MS) {
             scanTimer = null;
             if (statusEl) statusEl.textContent = 'No logramos leerla. Acerca la placa al marco, mejora la luz o usa "Tomar Foto / Archivo".';
-            scannerDebug('resultado', `Tiempo máximo ${PLATE_SCAN_MAX_DURATION_MS}ms agotado; frames intentados=${attempts}; backend solicitado=${fallbackRequested}.`, 'ERROR');
+            scannerDebug('resultado', `Tiempo máximo ${PLATE_SCAN_MAX_DURATION_MS}ms agotado; frames procesados=${attempts}; detecciones delegadas al servidor=${fallbackRequested}.`, 'ERROR');
+            void detectorModule?.disposePlateDetector();
             return;
         }
         isProcessingFrame = true;
         attempts++;
-        if (statusEl && !localWorker && !fallbackRequested) statusEl.textContent = 'Preparando lectura local de placa…';
+        if (statusEl && !detectorReady && !detectorError) statusEl.textContent = 'Preparando detector local de placa…';
 
         try {
-            // Alterna entre la guía y el cuadro entero, como el móvil, para leer
-            // rápido una placa centrada y recuperar las que queden fuera del marco.
+            // El modelo busca en la región de la guía ampliada para tolerar
+            // movimiento; el OCR no se ejecuta hasta tener una caja de placa.
             let crop = guideFrame ? getGuideCrop(video, guideFrame) : null;
 
             // Fallback: si el guide frame no está listo (layout aún no resuelto),
@@ -455,7 +483,7 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                 ? { x: 0, y: 0, width: sourceWidth, height: sourceHeight }
                 : crop;
             if (attempts === 1 || attempts % 10 === 0) {
-                scannerDebug('frame', `#${attempts}; fuente=${sourceWidth}×${sourceHeight}; modo=${useFullFrame ? 'cuadro completo' : 'marco'}; crop=${capture.x},${capture.y},${capture.width}×${capture.height}; local_ocr=${Boolean(localWorker)}.`);
+                scannerDebug('frame', `#${attempts}; fuente=${sourceWidth}×${sourceHeight}; búsqueda=modelo local en guía; zona=${crop.x},${crop.y},${crop.width}×${crop.height}; detector_listo=${detectorReady}; OCR_listo=${Boolean(localWorker)}.`);
             }
             canvas.width = capture.width;
             canvas.height = capture.height;
@@ -466,34 +494,63 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
                     latestFullFrame = b64;
                     if (attempts === 3) scannerDebug('frame', `Primer frame completo listo para respaldo; JPEG ${Math.round(b64.length * 0.75 / 1024)} KB.`);
                 }
-                if (localWorker) {
-                    const recognizeStartedAt = performance.now();
-                    // Leer solo la banda central de la guía: en el caso móvil
-                    // del usuario el OCR también estaba procesando media pantalla
-                    // y encontraba texto ajeno a la placa.
-                    const roi = useFullFrame ? crop : capture;
-                    const insetX = Math.round(roi.width * 0.06);
-                    const insetY = Math.round(roi.height * 0.20);
-                    const roiX = roi.x + insetX;
-                    const roiY = roi.y + insetY;
-                    const roiWidth = Math.max(1, roi.width - insetX * 2);
-                    const roiHeight = Math.max(1, Math.round(roi.height * 0.60));
-                    ocrCanvas.width = roiWidth;
-                    ocrCanvas.height = roiHeight;
-                    ocrCtx?.drawImage(video, roiX, roiY, roiWidth, roiHeight, 0, 0, roiWidth, roiHeight);
-                    const result = await localWorker.recognize(ocrCanvas);
-                    const { extractPeruvianPlate } = await loadPlateOcr();
-                    const detected = extractPeruvianPlate(result.data.text);
-                    const confidence = Number(result.data.confidence);
-                    scannerDebug('ocr_frame', `#${attempts}; OCR ${(performance.now() - recognizeStartedAt).toFixed(0)}ms; confianza=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; ROI=${roiWidth}×${roiHeight}; texto recibido=${Boolean(result.data.text?.trim())}; placa válida=${Boolean(detected)}.`);
-                    if (detected) {
-                        if (statusEl) statusEl.textContent = 'Placa candidata detectada. Confirmando lectura…';
-                        const immediate = Number.isFinite(confidence) && confidence >= PLATE_OCR_HIGH_CONFIDENCE;
-                        scannerDebug('ocr_candidate', `Formato peruano válido; confianza=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; ${immediate ? 'umbral alto: autocompleta en esta lectura.' : 'requiere coincidencia en otra lectura.'}.`);
-                        registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl, false, immediate);
+                if (detectorReady && detectorModule && detectorCtx && localWorker) {
+                    detectorCanvas.width = crop.width;
+                    detectorCanvas.height = crop.height;
+                    detectorCtx.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+                    const detectionStartedAt = performance.now();
+                    let box: Awaited<ReturnType<typeof detectorModule.detectPlate>>;
+                    try {
+                        box = await detectorModule.detectPlate(detectorCanvas);
+                    } catch (error) {
+                        detectorReady = false;
+                        detectorError = true;
+                        scannerDebug('plate_inference_error', `${(error as Error)?.name || 'Error'}: ${(error as Error)?.message || 'Falló la inferencia local.'}`, 'ERROR');
+                        throw error;
                     }
+                    const detectorMs = performance.now() - detectionStartedAt;
+                    if (!box) {
+                        scannerDebug('plate_detect', `#${attempts}; sin placa en la guía; modelo=${detectorMs.toFixed(0)}ms.`);
+                    } else {
+                        // YOLO puede cortar los bordes o el inicio de una fila:
+                        // añadimos más margen arriba y poco margen a los lados.
+                        const marginX = box.width * 0.12;
+                        const marginTop = box.height * 0.22;
+                        const marginBottom = box.height * 0.10;
+                        const left = Math.max(0, Math.floor(crop.x + box.x - marginX));
+                        const top = Math.max(0, Math.floor(crop.y + box.y - marginTop));
+                        const right = Math.min(sourceWidth, Math.ceil(crop.x + box.x + box.width + marginX));
+                        const bottom = Math.min(sourceHeight, Math.ceil(crop.y + box.y + box.height + marginBottom));
+                        const roiWidth = Math.max(1, right - left);
+                        const roiHeight = Math.max(1, bottom - top);
+                        scannerDebug('plate_detect', `#${attempts}; placa localizada; confianza=${(box.confidence * 100).toFixed(1)}%; inferencia=${detectorMs.toFixed(0)}ms; caja=${left},${top},${roiWidth}×${roiHeight}; márgenes=12% lados,22% arriba,10% abajo.`);
+                        ocrCanvas.width = roiWidth;
+                        ocrCanvas.height = roiHeight;
+                        ocrCtx?.drawImage(video, left, top, roiWidth, roiHeight, 0, 0, roiWidth, roiHeight);
+                        const recognizeStartedAt = performance.now();
+                        let result: Awaited<ReturnType<typeof localWorker.recognize>>;
+                        try {
+                            result = await localWorker.recognize(ocrCanvas);
+                        } catch (error) {
+                            localWorkerError = true;
+                            scannerDebug('ocr_inference_error', `${(error as Error)?.name || 'Error'}: ${(error as Error)?.message || 'Falló el OCR de la región detectada.'}`, 'ERROR');
+                            throw error;
+                        }
+                        const { extractPeruvianPlate } = await loadPlateOcr();
+                        const detected = extractPeruvianPlate(result.data.text);
+                        const confidence = Number(result.data.confidence);
+                        scannerDebug('ocr_frame', `#${attempts}; OCR ${((performance.now() - recognizeStartedAt)).toFixed(0)}ms; confianza=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; solo_roi=${roiWidth}×${roiHeight}; placa válida=${Boolean(detected)}.`);
+                        if (detected) {
+                            if (statusEl) statusEl.textContent = 'Placa localizada. Validando lectura…';
+                            const immediate = Number.isFinite(confidence) && confidence >= PLATE_OCR_HIGH_CONFIDENCE && box.confidence >= 0.55;
+                            scannerDebug('ocr_candidate', `Formato peruano válido; confianza YOLO=${(box.confidence * 100).toFixed(1)}%; confianza OCR=${Number.isFinite(confidence) ? confidence.toFixed(0) : 'n/d'}; ${immediate ? 'autocompleta en esta lectura.' : 'requiere coincidencia en otra lectura.'}`);
+                            registerPlateVote(detected, options, candidateBadge, guideFrame, statusEl, false, immediate);
+                        }
+                    }
+                } else if (detectorError) {
+                    if (statusEl) statusEl.textContent = 'Detector local no disponible; preparando respaldo…';
                 } else if (statusEl) {
-                    if (!fallbackRequested) statusEl.textContent = 'Preparando lectura local de placa…';
+                    statusEl.textContent = 'Buscando la placa con el modelo local…';
                 }
             }
         } catch (e) {
@@ -501,12 +558,13 @@ function startContinuousPlateDetection(video: HTMLVideoElement, options: Scanner
             console.warn('[SCANNER] frame error:', e);
         } finally {
             isProcessingFrame = false;
-            if (!fallbackRequested && (localWorkerError || performance.now() - scanStartedAt >= PLATE_SCAN_LOCAL_FALLBACK_MS)) {
-                scannerDebug('respaldo', localWorkerError ? 'OCR local falló; se activa respaldo backend.' : `OCR local tardó más de ${PLATE_SCAN_LOCAL_FALLBACK_MS}ms; se activa respaldo backend.` , localWorkerError ? 'WARN' : 'INFO');
+            if (!fallbackRequested && (detectorError || localWorkerError) && latestFullFrame) {
+                scannerDebug('respaldo', detectorError ? 'El detector local falló; se activa respaldo backend.' : 'El OCR local falló; se activa respaldo backend.', 'WARN');
                 requestBackendFallback(latestFullFrame);
             }
             // Programar siguiente frame solo si el timer sigue activo
             if (scanTimer != null) scanTimer = setTimeout(scanFrame, PLATE_SCAN_INTERVAL_MS);
+            else void detectorModule?.disposePlateDetector();
         }
     }
 
@@ -699,6 +757,7 @@ function stopAllCameraResources() {
         activeStream.getTracks().forEach(track => track.stop());
         activeStream = null;
     }
+    if (!isProcessingFrame) void plateDetectorModulePromise?.then(({ disposePlateDetector }) => disposePlateDetector());
 }
 
 function toggleTorch() {

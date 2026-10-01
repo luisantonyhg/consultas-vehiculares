@@ -20,8 +20,8 @@ export function getPlateOcrWorker() {
     }).then(async (worker) => {
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
-        // La guía encuadra una sola línea de placa. Evita analizar texto del
-        // entorno (pantallas, carteles) y reduce el tiempo de segmentación.
+        // El detector ya separa la placa del fondo. El OCR recibe la banda de
+        // caracteres de la placa, no el rótulo superior "PERÚ".
         tessedit_pageseg_mode: PSM.SINGLE_LINE,
         user_defined_dpi: '180',
       });

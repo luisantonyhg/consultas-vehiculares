@@ -27,14 +27,18 @@ test('el escáner prioriza detección automática y deja una sola acción de arc
   assert.match(scanner, /detectaremos automáticamente/);
 });
 
-test('el escaneo confirma lecturas próximas y activa respaldo remoto con timeout', () => {
+test('el modelo local detecta la placa antes de OCR y conserva el respaldo con timeout', () => {
   assert.match(scanner, /const VOTE_RING_SIZE = 3/);
   assert.match(scanner, /const VOTES_NEEDED = 2/);
   assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 300/);
   assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 25000/);
-  assert.match(scanner, /const PLATE_SCAN_LOCAL_FALLBACK_MS = 4500/);
+  assert.match(scanner, /loadPlateDetector\(\)/);
+  assert.match(scanner, /if \(detectorReady && detectorModule && detectorCtx && localWorker\)/);
+  assert.ok(scanner.indexOf('await detectorModule.detectPlate(detectorCanvas)') < scanner.indexOf('await localWorker.recognize(ocrCanvas)'));
+  assert.match(scanner, /márgenes=12% lados,22% arriba,10% abajo/);
+  assert.match(scanner, /confianza YOLO=/);
   assert.match(scanner, /region_only: false/);
-  assert.match(scanner, /Leyendo placa automáticamente/);
+  assert.match(scanner, /Buscando placa con el modelo local/);
   assert.match(scanner, /AbortSignal\.timeout\(8000\)/);
   assert.match(scanner, /res\.status/);
   assert.match(scanner, /focusMode: 'continuous'/);
