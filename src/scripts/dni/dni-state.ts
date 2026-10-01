@@ -241,7 +241,9 @@ export function paintDniSection(name: string, rawData: unknown): void {
       const padrones = str(inner.padrones || '');
 
       if (tieneRuc) {
-        badgeHtml = estado.includes('ACTIVO') ? badgePill('success', `${estado} · ${condicion}`) : badgePill('warning', estado);
+        // El color comunica si existe inscripción RUC; la condición tributaria
+        // se conserva como dato y no cambia el estado de registro.
+        badgeHtml = badgePill('success', `CON REGISTRO RUC${estado ? ` · ${estado}` : ''}`);
         tableRows = `
           <div class="overflow-x-auto w-full">
             <table class="w-full text-left border-collapse">
@@ -686,11 +688,11 @@ export function paintDniSection(name: string, rawData: unknown): void {
           </div>
         `;
       } else {
-        badgeHtml = badgePill('neutral', 'SIN REGISTROS');
+        badgeHtml = badgePill('danger', 'SIN REGISTRO');
         tableRows = `
-          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-poppins">
-            <div class="flex items-center gap-2 text-slate-800 font-bold mb-1.5">
-              <i class="fas fa-circle-info text-slate-400 text-sm"></i>
+          <div class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-slate-700 text-xs font-poppins">
+            <div class="flex items-center gap-2 text-rose-800 font-bold mb-1.5">
+              <i class="fas fa-circle-xmark text-rose-500 text-sm"></i>
               <span>Resultado de la búsqueda de grados y títulos</span>
             </div>
             <div class="bg-white border border-slate-200 rounded-lg p-3 my-2 text-slate-600">

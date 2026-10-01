@@ -17,29 +17,28 @@ export const ENABLED_EXECUTION_ORDER = Object.freeze([
     { position: 11, id: 'citv', phase: 'background' },
     { position: 11, id: 'callao', phase: 'background' },
     { position: 13, id: 'sigm', phase: 'advanced' },
-    // SAT corre primero en la fase pesada: Captura y Depósito unificados se resuelven en ~18s.
+    // SAT conserva prioridad, pero no bloquea los proveedores independientes.
     { position: 14, id: 'sat', phase: 'advanced' },
-    // Lima es valiosa, pero su CAPTCHA puede ser lento. Corre después de SAT.
+    // Lima y Municipal se despachan con el límite avanzado compartido.
     { position: 15, id: 'lima', phase: 'background' },
     { position: 16, id: 'municipal', phase: 'advanced' },
-    // SPRL es valioso, pero es el proveedor más variable y costoso.
-    { position: 17, id: 'historial_dueños', phase: 'registry' },
-    // Lunas corre después del historial registral.
-    { position: 18, id: 'lunas', phase: 'final' },
-    // SBS corre al final absoluto, después de Lunas Polarizadas, para no bloquear ni retrasar ninguna otra consulta.
-    { position: 19, id: 'sbs', phase: 'post_final' },
+    // Lunas y SBS avanzan antes que SPRL; Historial queda al final porque su
+    // navegador puede demorar y no debe retener otras secciones.
+    { position: 17, id: 'lunas', phase: 'final' },
+    { position: 18, id: 'sbs', phase: 'post_final' },
+    { position: 19, id: 'historial_dueños', phase: 'last' },
 ]);
 
-// Historial cierra la fase avanzada. Lunas queda aún después, programada por
-// el flujo de consulta, para aislar su CAPTCHA de la ruta crítica visual.
+// SPRL no participa en la cola avanzada: el controlador lo despacha cuando las
+// demás fuentes y los portales municipales ya terminaron.
 export const ADVANCED_EXECUTION_ORDER = Object.freeze([
     'sigm',
     'soat',
     'sat',  // SAT unificado
     'lima',
     'municipal',
-    'historial_dueños',
     'sbs',
+    'historial_dueños',
 ]);
 
 /**
@@ -68,10 +67,10 @@ export function splitPrioritySections(order, priorityIds = []) {
 export const ADVANCED_DEPENDENCIES = Object.freeze({
     // SAT unificado corre de forma independiente sin esperar SBS.
     sat: Object.freeze([]),
-    // Lima y Municipal corren tras SAT. Historial SPRL es independiente de
-    // Municipal y se despacha antes para no quedar detrás de dos scrapers.
-    lima: Object.freeze(['sat']),
-    municipal: Object.freeze(['sat']),
+    // Lima y Municipal consultan fuentes independientes: no heredan la
+    // latencia/CAPTCHA del SAT. El dispatcher limita su concurrencia global.
+    lima: Object.freeze([]),
+    municipal: Object.freeze([]),
     historial_dueños: Object.freeze([]),
     // SBS corre al final absoluto, después de que Lunas haya completado.
     sbs: Object.freeze(['lunas']),

@@ -117,40 +117,43 @@ test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () =>
   assert.ok(!consultaSource.includes('advancedLanes.map((entry'), 'sin lanes que reserven workers');
 });
 
-test('el historial se despacha después de Lima y en paralelo a Municipal/ATU', () => {
+test('el historial queda fuera del lote y se despacha después de las fuentes rápidas', () => {
   const nodes = buildAdvancedNodes([
     'sigm', 'soat', 'sat', 'lima', 'municipal', 'historial_dueños', 'sbs',
   ]);
   assert.deepEqual(
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
-      sigm: [], soat: [], sat: [], lima: ['sat'],
-      municipal: ['sat'], historial_dueños: [], sbs: ['lunas'],
+      sigm: [], soat: [], sat: [], lima: [],
+      municipal: [], historial_dueños: [], sbs: ['lunas'],
     },
   );
   assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);
   assert.match(consultaSource, /const coreAdvancedNodes = advancedNodes\.filter/);
-  assert.match(consultaSource, /!\['sbs', 'lima', 'municipal', 'historial_dueños'\]\.includes\(node\.id\)/);
+  assert.match(consultaSource, /!\['sbs', 'historial_dueños'\]\.includes\(node\.id\)/);
   assert.match(consultaSource, /Resultados principales listos\. Verificando historial registral avanzado/);
-  assert.match(consultaSource, /provider=municipal priority=90 reason=background_after_sat state=queued/);
-  assert.match(consultaSource, /provider=lima priority=88 reason=background_after_sat state=started/);
-  assert.match(consultaSource, /provider=historial_dueños priority=89 reason=after_lima state=queued/);
+  assert.doesNotMatch(consultaSource, /provider=municipal priority=90 reason=background_after_sat/);
+  assert.match(consultaSource, /then=historial_dueños/);
+  assert.match(consultaSource, /reason=parallel_with_advanced state=started/);
+  assert.match(consultaSource, /const runHistorialLast = async \(\) =>/);
+  assert.match(consultaSource, /provider=historial_dueños priority=5 reason=last_after_other_sources state=queued/);
   assert.match(consultaSource, /\[ADVANCED-SCHEDULE\] consultation_id=\$\{activeConsultationId\}/);
   assert.doesNotMatch(consultaSource, /splitPrioritySections/);
 });
 
-test('Historial comienza tras Lima y antes de la espera de ATU y Municipal', () => {
+test('Lima y Municipal corren en el lote avanzado sin esperar SAT; Historial sigue al final', () => {
   const mainReadyAt = consultaSource.indexOf('[UI-MAIN-READY]');
-  const limaBackgroundAt = consultaSource.indexOf('provider=lima priority=88 reason=background_after_sat state=started');
-  const waitForLimaAt = consultaSource.indexOf('await limaBackgroundPromise;');
-  const historialAt = consultaSource.indexOf('provider=historial_dueños priority=89 reason=after_lima state=queued', waitForLimaAt);
-  const atuWaitAt = consultaSource.indexOf('await atuInfraccionesPromise;', historialAt);
+  const advancedStartAt = consultaSource.indexOf('const advancedPromise = runSectionsWithDependencies');
+  const sbsWaitAt = consultaSource.indexOf('await sbsDeferredPromise;');
+  const historialAt = consultaSource.indexOf('await runHistorialLast();', sbsWaitAt);
 
   assert.ok(mainReadyAt >= 0, 'la ruta principal debe marcar explícitamente que la UI está lista');
-  assert.ok(limaBackgroundAt > mainReadyAt, 'Lima no debe ocupar Chromium antes de mostrar resultados principales');
-  assert.ok(waitForLimaAt >= 0 && historialAt > waitForLimaAt,
-    'Historial debe despacharse después de Lima');
-  assert.ok(atuWaitAt > historialAt, 'ATU no debe retrasar el despacho del historial');
+  assert.ok(advancedStartAt >= 0 && mainReadyAt > advancedStartAt,
+    'las fuentes avanzadas se despachan en el mismo carril acotado');
+  assert.match(consultaSource, /!\['sbs', 'historial_dueños'\]\.includes\(node\.id\)/,
+    'Lima y Municipal no esperan el resultado SAT');
+  assert.ok(historialAt > sbsWaitAt, 'Historial se inicia después de SBS y al final de las fuentes prioritarias');
+  assert.ok(sbsWaitAt >= 0 && historialAt > sbsWaitAt, 'Historial se inicia al final del trabajo prioritario');
 });
 
 test('un Municipal rechazado no impide el Historial posterior', async () => {
@@ -168,26 +171,28 @@ test('un Municipal rechazado no impide el Historial posterior', async () => {
 });
 
 test('el ticket se completa solo después de Municipal e Historial', () => {
-  const municipalStart = consultaSource.indexOf("if (municipalNode) {");
-  const historialStart = consultaSource.indexOf("if (historialNode) {");
+  const municipalDispatched = consultaSource.indexOf("const coreAdvancedNodes = advancedNodes.filter");
+  const advancedComplete = consultaSource.indexOf('await advancedPromise;');
+  const historialStart = consultaSource.indexOf('await runHistorialLast();');
   const release = consultaSource.indexOf('await releaseConsultationSlot(BACKEND_URL, ticketToRelease);');
   const loader = consultaSource.indexOf('hideLoadingOverlay();', consultaSource.indexOf('Resultados principales listos.'));
 
-  assert.ok(loader >= 0 && municipalStart > loader, 'el loader se oculta antes de Municipal');
+  assert.ok(municipalDispatched >= 0 && advancedComplete > municipalDispatched && loader > advancedComplete,
+    'Municipal termina dentro del dispatcher avanzado antes de declarar listo el informe');
   assert.ok(historialStart > loader, 'Historial debe iniciar después de la UI principal');
   assert.ok(release > historialStart, 'el ticket se libera tras Historial');
 });
 
 test('Lunas se ejecuta al final y el ticket no se libera antes de terminarla', () => {
-  const historialStart = consultaSource.indexOf("if (historialNode) {");
-  const lunasStart = consultaSource.indexOf('provider=lunas priority=110 reason=final_after_historial state=started');
+  const historialStart = consultaSource.indexOf('await runHistorialLast();');
+  const lunasStart = consultaSource.indexOf('provider=lunas priority=110 reason=after_fast_and_municipal state=started');
   const release = consultaSource.indexOf('await releaseConsultationSlot(BACKEND_URL, ticketToRelease);');
   const variableBlock = consultaSource.slice(
     consultaSource.indexOf('const variableSectionsPromise = runInBatches'),
     consultaSource.indexOf('const atuInfraccionesPromise'),
   );
 
-  assert.ok(lunasStart > historialStart, 'Lunas debe comenzar después de Historial');
+  assert.ok(historialStart > lunasStart, 'Historial no debe retrasar Lunas');
   assert.ok(release > lunasStart, 'el ticket se libera únicamente después de Lunas');
   assert.doesNotMatch(variableBlock, /fetchLunas\(plate\)/, 'Lunas no pertenece al lote variable temprano');
 });

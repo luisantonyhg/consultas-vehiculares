@@ -71,7 +71,9 @@ test('DNI procesa y notifica las secciones en el orden SSE recibido', () => {
   const expected = ['identidad', 'jne_multas', 'minedu', 'sunat', 'transporte_papeletas', 'transporte_record', 'osce', 'webmii', 'infogob', 'transporte_licencias'];
   const eventList = stream.match(/\["identidad"[\s\S]*?\]/)?.[0] ?? '';
   assert.deepEqual(JSON.parse(eventList), expected);
-  assert.match(controller, /Consultando fuentes oficiales una por una/);
+  assert.match(controller, /Consultando fuentes oficiales en paralelo/);
+  assert.match(controller, /for \(const providerId of dniSequence\.slice\(1\)\)/);
+  assert.doesNotMatch(controller, /const nextSection = dniSequence\[sequenceIndex \+ 1\]/);
   assert.match(readFileSync(new URL('../src/scripts/consulta/consulta-controller.ts', import.meta.url), 'utf8'), /initDniConsultation\(plateInput\)/);
 });
 
@@ -89,4 +91,17 @@ test('DNI no convierte fallos de fuente en afirmaciones negativas', () => {
   assert.match(state, /resultadoConfirmado/);
   assert.doesNotMatch(dniCards, /En cola/);
   assert.match(dniCards, /En espera/);
+});
+
+test('SUNAT y grados/títulos distinguen registro presente y ausente con colores claros', () => {
+  assert.match(state, /badgePill\('success', `CON REGISTRO RUC/);
+  assert.match(state, /badgePill\('danger', 'SIN REGISTRO'/);
+});
+
+test('la interfaz revela SUNARP al completar el fetch sin quedar esperando RAF suspendidos', () => {
+  const start = consultation.indexOf('const sunarpReadyPromise');
+  const end = consultation.indexOf('// SUNARP es el único proveedor', start);
+  const handler = consultation.slice(start, end);
+  assert.match(handler, /revealResults\('sunarp_terminal'/);
+  assert.doesNotMatch(handler, /await new Promise\(resolve => requestAnimationFrame/);
 });

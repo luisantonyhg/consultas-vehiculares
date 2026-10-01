@@ -1452,7 +1452,7 @@
                             revealResults('sunarp_visual_budget', 'pending');
                         }, 40000);
 
-                        const sunarpReadyPromise = sunarpPromise.then(async (result: any) => {
+                        const sunarpReadyPromise = sunarpPromise.then((result: any) => {
                             clearTimeout(sunarpVisualTimeout);
                             const validation = result?.validation_status;
                             queryStatus.textContent = validation === 'found'
@@ -1467,7 +1467,11 @@
                                         ? 'SUNARP terminó la validación de la placa.'
                                         : 'SUNARP terminó con una respuesta no concluyente.'
                             );
-                            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                            // No esperar requestAnimationFrame para liberar la
+                            // pantalla: los RAF se suspenden cuando el navegador
+                            // limita una pestaña y pueden ocultar resultados que
+                            // SUNARP ya devolvió (en logs: 13 s de red y 61 s
+                            // hasta la revelación visual).
                             revealResults('sunarp_terminal', validation || 'indeterminate');
                             return result;
                         });
@@ -1640,22 +1644,22 @@
                             const startedAt = performance.now();
                             console.info(`[ORDEN-CONSULTA] Inicio ${sectionId}`);
                             const result = await runSectionSafely(sectionId, advancedJobs[sectionId]);
-                            console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${Math.round(performance.now() - startedAt)}ms`);
+                            const durationMs = Math.round(performance.now() - startedAt);
+                            if (sectionId === 'municipal') municipalElapsedMs = durationMs;
+                            console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${durationMs}ms`);
                             return result;
                         };
                         const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
                         // SPRL no comparte la ruta crítica visual. Se programa
                         // deliberadamente después del resto de la cola pesada,
                         // pero el ticket y heartbeat siguen vivos hasta su final.
-                        // Municipal puede abrir Playwright para algunos portales.
-                        // Igual que SPRL, no debe retener la experiencia principal.
-                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['sbs', 'lima', 'municipal', 'historial_dueños'].includes(node.id));
-                        const sbsNode = advancedNodes.find((node: any) => node.id === 'sbs');
-                        const limaNode = advancedNodes.find((node: any) => node.id === 'lima');
-                        const municipalNode = advancedNodes.find((node: any) => node.id === 'municipal');
+                        // Lima y Municipal son independientes del SAT. Se
+                        // mantienen en el dispatcher acotado para que un
+                        // CAPTCHA lento no retenga sus resultados.
+                        const coreAdvancedNodes = advancedNodes.filter((node: any) => !['sbs', 'historial_dueños'].includes(node.id));
                         const historialNode = advancedNodes.find((node: any) => node.id === 'historial_dueños');
                         const advancedBatchStartedAt = Date.now();
-                        console.info(`[ADVANCED-SCHEDULE] consultation_id=${activeConsultationId} heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=lima,municipal,historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
+                        console.info(`[ADVANCED-SCHEDULE] consultation_id=${activeConsultationId} heavy_ready order=${coreAdvancedNodes.map((node: any) => node.id).join(',')} then=historial_dueños deps=${advancedNodes.filter((node: any) => node.deps.length).map((node: any) => `${node.id}<-${node.deps.join('+')}`).join(',') || 'none'} concurrency=${advancedConcurrency} started_at=${new Date(advancedBatchStartedAt).toISOString()}`);
                         const advancedPromise = runSectionsWithDependencies(
                             coreAdvancedNodes.map((node: any) => ({
                                 ...node,
@@ -1676,6 +1680,23 @@
                                 ),
                             },
                         );
+
+                        // Callao no depende del SAT; corre en paralelo con la
+                        // fase avanzada para no heredar su CAPTCHA/timeout.
+                        const callaoBackgroundPromise = (async () => {
+                            const startedAt = performance.now();
+                            console.info('[SCHEDULER] provider=callao priority=85 reason=parallel_with_advanced state=started');
+                            const result = await runSectionSafely('callao', () => fetchCallao(plate));
+                            console.info(
+                                '[SCHEDULER] provider=callao priority=85 state=finished success=%s duration_ms=%d',
+                                Boolean(result?.success),
+                                Math.round(performance.now() - startedAt),
+                            );
+                            renderVehicleScore(plate);
+                            saveToCache(plate);
+                            return result;
+                        })();
+
                         await advancedPromise;
                         if (activeConsultationTicket) {
                             const released = await releaseHeavyPhase(BACKEND_URL, activeConsultationTicket);
@@ -1691,7 +1712,9 @@
                         // El informe principal ya está listo: no ocultar sus
                         // tarjetas por verificaciones lentas (Lunas/SPRL).
                         // El ticket permanece activo para los trabajos de fondo.
-                        queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado...';
+                        queryStatus.textContent = 'Resultados principales listos. Verificando historial registral avanzado... La vía rápida ya terminó; SPRL y las demás fuentes lentas continúan en segundo plano.';
+                        queryStatus.dataset.phase = 'slow-background';
+                        queryStatus.classList.remove('opacity-0');
                         hideLoadingOverlay();
                         saveToCache(plate);
                         console.info('[UI-MAIN-READY]', {
@@ -1700,35 +1723,8 @@
                             consultation_id: activeConsultationId,
                         });
 
-                        // Callao es HTTP/OCR, no Chromium. Corre tras SAT con
-                        // la interfaz disponible y no bloquea Lima/Municipal.
-                        const callaoBackgroundPromise = (async () => {
-                            const startedAt = performance.now();
-                            console.info('[SCHEDULER] provider=callao priority=85 reason=background_after_sat state=started');
-                            const result = await runSectionSafely('callao', () => fetchCallao(plate));
-                            console.info(
-                                '[SCHEDULER] provider=callao priority=85 state=finished success=%s duration_ms=%d',
-                                Boolean(result?.success),
-                                Math.round(performance.now() - startedAt),
-                            );
-                            renderVehicleScore(plate);
-                            saveToCache(plate);
-                            return result;
-                        })();
-
-                        const limaBackgroundPromise = (async () => {
-                            if (!limaNode) return null;
-                            const startedAt = performance.now();
-                            console.info('[SCHEDULER] provider=lima priority=88 reason=background_after_sat state=started');
-                            const result = await runSectionsWithDependencies([{ ...limaNode, deps: [], run: () => runAdvancedSection(limaNode.id) }], 1);
-                            console.info('[SCHEDULER] provider=lima priority=88 state=finished duration_ms=%d', Math.round(performance.now() - startedAt));
-                            renderVehicleScore(plate);
-                            saveToCache(plate);
-                            return result;
-                        })();
-
-                        // Lunas se programa al final, después de Municipal y
-                        // SPRL. Nunca se inicia dos veces automáticamente: su
+                        // Lunas corre después de Municipal y nunca se inicia
+                        // dos veces automáticamente: su
                         // única ejecución usa el presupuesto interno del proveedor.
                         let lunasDeferredRetry: Promise<any> = Promise.resolve();
                         backgroundStatusNotice = setTimeout(() => {
@@ -1738,67 +1734,37 @@
                             }
                         }, 45000);
 
-                        await limaBackgroundPromise;
-
                         // SPRL es independiente de Municipal y tarda ~49s en
-                        // una consulta real. Despacharlo apenas termina Lima
-                        // evita sumar la espera de ATU y Municipal antes de
-                        // siquiera entrar a la cola del navegador.
-                        let historialPromise: Promise<any> = Promise.resolve();
-                        if (historialNode) {
+                        // una consulta real. Se despacha después del lote
+                        // prioritario sin depender de que ATU termine.
+                        const runHistorialLast = async () => {
+                            if (!historialNode) return null;
                             const historialStartedAt = performance.now();
-                            console.info('[SCHEDULER] provider=historial_dueños priority=89 reason=after_lima state=queued');
-                            historialPromise = runSectionsWithDependencies([
+                            console.info('[SCHEDULER] provider=historial_dueños priority=5 reason=last_after_other_sources state=queued');
+                            const result = await runSectionsWithDependencies([
                                 { ...historialNode, deps: [], run: () => runAdvancedSection(historialNode.id) },
                             ], 1, {
                                 onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=89 state=started queue_ms=${Math.round(queue_wait_ms)}`
+                                    `[SCHEDULER] provider=${id} priority=5 state=started queue_ms=${Math.round(queue_wait_ms)}`
                                 ),
                                 onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=89 state=${status} duration_ms=${Math.round(processing_ms)}`
-                                ),
-                            }).then((result) => {
-                                historialElapsedMs = Math.round(performance.now() - historialStartedAt);
-                                renderVehicleScore(plate);
-                                saveToCache(plate);
-                                return result;
-                            });
-                        }
-
-                        if (municipalNode) {
-                            const municipalStartedAt = performance.now();
-                            console.info('[SCHEDULER] provider=municipal priority=90 reason=background_after_sat state=queued');
-                            await runSectionsWithDependencies([
-                                {
-                                    ...municipalNode,
-                                    // SAT terminó en el lote principal; este
-                                    // scheduler independiente no conoce sus
-                                    // dependencias ya satisfechas.
-                                    deps: [],
-                                    run: () => runAdvancedSection(municipalNode.id),
-                                },
-                            ], 1, {
-                                onStart: async ({ id, queue_wait_ms }: { id: string; queue_wait_ms: number }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=90 state=started queue_ms=${Math.round(queue_wait_ms)}`
-                                ),
-                                onFinish: ({ id, processing_ms, status }: { id: string; processing_ms: number; status: string }) => console.info(
-                                    `[SCHEDULER] provider=${id} priority=90 state=${status} duration_ms=${Math.round(processing_ms)}`
+                                    `[SCHEDULER] provider=${id} priority=5 state=${status} duration_ms=${Math.round(processing_ms)}`
                                 ),
                             });
-                            municipalElapsedMs = Math.round(performance.now() - municipalStartedAt);
-                        }
+                            historialElapsedMs = Math.round(performance.now() - historialStartedAt);
+                            renderVehicleScore(plate);
+                            saveToCache(plate);
+                            return result;
+                        };
 
                         // ATU no usa Chromium. Su ciclo sigue formando parte
                         // de la consulta, pero ya no retrasa el despacho SPRL.
                         await atuInfraccionesPromise;
                         renderVehicleScore(plate);
-                        // La llamada registral ya corre mientras se resuelve
-                        // Municipal; el error de una no cancela a la otra.
-                        await historialPromise;
                         if (consultationLifecycle === 'active' && activeConsultationTicket) {
                             lunasDeferredRetry = (async () => {
                                 const startedAt = performance.now();
-                                console.info('[SCHEDULER] provider=lunas priority=110 reason=final_after_historial state=started');
+                                console.info('[SCHEDULER] provider=lunas priority=110 reason=after_fast_and_municipal state=started');
                                 setCardLoading('lunas', 'Lunas Oscurecidas', 'Verificando permiso policial...', 'fas fa-car-side', '', 'PNP');
                                 const result = await runSectionSafely('lunas', () => fetchLunas(plate));
                                 console.info('[SCHEDULER] provider=lunas priority=110 state=finished success=%s duration_ms=%d', Boolean(result?.success), Math.round(performance.now() - startedAt));
@@ -1845,6 +1811,10 @@
                             })();
                         }
                         await sbsDeferredPromise;
+                        // Historial SPRL usa Chromium y es la fuente más lenta.
+                        // Despacharlo al final evita que retenga Lunas/SBS o las
+                        // tarjetas provinciales; la UI ya queda libre y progresa.
+                        await runHistorialLast();
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);

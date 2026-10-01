@@ -288,7 +288,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
 
             if (dniLoadingOverlay) {
                 if (dniLoaderBadge) dniLoaderBadge.textContent = dni;
-                if (dniLoaderStatus) dniLoaderStatus.textContent = 'Consultando fuentes oficiales una por una...';
+                if (dniLoaderStatus) dniLoaderStatus.textContent = 'Consultando fuentes oficiales en paralelo...';
                 dniLoadingOverlay.classList.remove('hidden');
                 dniLoadingOverlay.classList.add('flex');
                 dniLoadingOverlay.style.opacity = '1';
@@ -427,22 +427,21 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                             transporte_papeletas: 'MTC – Consulta de Papeletas / Sanciones', minedu: 'MINEDU',
                             osce: 'OECE - Proveedores Adjudicados', infogob: 'INFOGOB', webmii: 'WebMii / Presencia Digital'
                         };
-                        dniLoaderStatus.textContent = `Sección completada: ${labels[section] || section}. Continuando con la siguiente...`;
+                        dniLoaderStatus.textContent = `Sección completada: ${labels[section] || section}. Las demás consultas continúan en paralelo...`;
                     }
                     if (section === 'identidad') {
                         setSection(section, data);
                         hideDniModal();
-                        const nextCard = document.getElementById(`dni-card-${dniSequence[1]}`);
-                        const nextBadge = nextCard?.querySelector('.status-badge-container');
-                        if (nextBadge) nextBadge.innerHTML = badgeLoading();
+                        // Las fuentes ya arrancan por carriles; indicar todas
+                        // como consultando evita presentar una cola secuencial.
+                        for (const providerId of dniSequence.slice(1)) {
+                            const providerCard = document.getElementById(`dni-card-${providerId}`);
+                            const providerBadge = providerCard?.querySelector('.status-badge-container');
+                            if (providerBadge) providerBadge.innerHTML = badgeLoading();
+                        }
                         return;
                     }
                     setSection(section, data);
-                    const sequenceIndex = dniSequence.indexOf(section);
-                    const nextSection = dniSequence[sequenceIndex + 1];
-                    const nextCard = nextSection ? document.getElementById(`dni-card-${nextSection}`) : null;
-                    const nextBadge = nextCard?.querySelector('.status-badge-container');
-                    if (nextBadge) nextBadge.innerHTML = badgeLoading();
                 },
                 () => cleanupStream('done'),
                 (error) => cleanupStream('error', error)

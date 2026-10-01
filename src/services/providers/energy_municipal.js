@@ -17,6 +17,33 @@ export const MUNICIPAL_SOURCE_URLS = Object.freeze({
     'Trujillo': 'https://digital.satt.gob.pe/pagos/',
 });
 
+const municipalEscape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
+function renderHuancayoFast(item, plate) {
+    const records = Array.isArray(item?.data) ? item.data : [];
+    const recordHtml = records.map((record, index) => {
+        const pending = record.EstadoPago === 'PENDING';
+        const stateLabel = record.EstadoPago === 'UNKNOWN'
+            ? 'Estado de pago no informado'
+            : (pending ? 'Pendiente de pago' : 'Cancelada / pagada');
+        const amount = Number(String(record.Importe ?? '').replace(/[^\d.,-]/g, '').replace(',', '.'));
+        const money = Number.isFinite(amount) ? `S/ ${amount.toFixed(2)}` : 'No informado';
+        const cells = [
+            ['Folio', record.Papeleta], ['Placa', record.Placa || plate], ['Código', record.Código],
+            ['Infracción', record.Infracción], ['Fecha', record.Fecha], ['Infractor', record.Conductor],
+            ['Propietario', record.Propietario], ['Importe', money], ['Pago', stateLabel],
+        ];
+        return `<article class="rounded-xl border ${pending ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900 dark:bg-rose-950/20' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'} p-3">
+            <h4 class="mb-2 text-xs font-black text-slate-900 dark:text-white">Papeleta ${index + 1}</h4>
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">${cells.map(([label, value]) => `<div class="min-w-0"><dt class="text-[9px] font-bold uppercase text-slate-400">${label}</dt><dd class="break-words text-xs font-semibold ${label === 'Importe' && pending ? 'text-rose-700 dark:text-rose-300' : 'text-slate-700 dark:text-slate-200'}">${municipalEscape(value || '—')}</dd></div>`).join('')}</dl>
+            <span class="mt-2 inline-flex rounded-full px-2 py-1 text-[9px] font-black uppercase ${pending ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}">${municipalEscape(stateLabel)}</span>
+        </article>`;
+    }).join('');
+    return `<div class="space-y-3 p-3"><div class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900"><strong class="text-sm">Huancayo · SATH</strong><p class="text-xs text-slate-500">Resultado rápido de una fuente. La cobertura provincial completa sigue verificándose.</p></div>${recordHtml || '<p class="text-sm text-slate-500">Huancayo no reportó filas.</p>'}</div>`;
+}
+
 export async function runFetchGNV(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('gnv', 'Gas Natural Vehicular (GNV)', '', 'fas fa-fire-flame-curved', '', 'Infogas');
     const controller = new AbortController();
@@ -129,26 +156,68 @@ export async function runFetchFISE(plate, BACKEND_URL, callbacks) {
 
 export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades');
+    const fastHuancayoPromise = secureFetch(`${BACKEND_URL}/municipal/huancayo/${plate}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+            const item = data?.data?.find(candidate => String(candidate?.municipio || '').toLowerCase() === 'huancayo');
+            if (item) {
+                const active = Boolean(item.tiene_papeletas);
+                callbacks.setCardData(
+                    'municipal', 'Papeletas Otras Municipalidades', 'Huancayo · SATH',
+                    'fas fa-building-columns', '', 'SATH Huancayo', renderHuancayoFast(item, plate),
+                    true, active,
+                    `<span class="inline-flex rounded-md bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase text-white">Huancayo recibido · verificando otras municipalidades</span>`,
+                );
+            }
+            return data;
+        })
+        .catch(error => {
+            console.info('[MUNICIPAL-FAST-SOURCE]', { source: 'Huancayo', status: 'unavailable', error: error?.message || 'network' });
+            return null;
+        });
     const controller = new AbortController();
     // Doce portales se consultan en paralelo y algunos requieren reintento de
     // conexión. No abortar el agregado mientras el backend aún está dentro de
     // su presupuesto; la tarjeta se actualiza sin retener el modal SUNARP.
     const timeoutId = setTimeout(() => controller.abort(), 85000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/municipal/${plate}?exclude_huancayo=true`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(res.status === 404 ? 'HTTP 404: Sección en actualización.' : `Error ${res.status}`);
         const data = await res.json();
-        const items = Array.isArray(data.data) ? data.data : [];
+        const fastData = await fastHuancayoPromise;
+        const fastItem = fastData?.data?.find(candidate => String(candidate?.municipio || '').toLowerCase() === 'huancayo');
+        const items = Array.isArray(data.data) ? [...data.data] : [];
+        const aggregateHasHuancayo = items.some(item => String(item?.municipio || '').toLowerCase() === 'huancayo');
+        if (fastItem && !aggregateHasHuancayo) items.push(fastItem);
+        if (fastItem && !aggregateHasHuancayo) {
+            data.municipios_total = Number(data.municipios_total || 0) + 1;
+            data.municipios_verificados = Number(data.municipios_verificados || 0) + Number(String(fastItem.verification_status || '').startsWith('VERIFIED_'));
+            data.municipios_no_disponibles = Number(data.municipios_no_disponibles || 0) + Number(!String(fastItem.verification_status || '').startsWith('VERIFIED_'));
+        } else if (!fastItem && Number(data.municipios_total || 0) < 12) {
+            // El agregado se pidió excluyendo Huancayo. Si el endpoint rápido
+            // falla, conserva el denominador oficial y registra esa fuente.
+            data.municipios_total = 12;
+            data.municipios_no_disponibles = Number(data.municipios_no_disponibles || 0) + 1;
+            data.fuentes_no_disponibles = [...(data.fuentes_no_disponibles || []), 'Huancayo'];
+        }
+        data.municipios_total = Math.max(12, Number(data.municipios_total || 0));
+        data.coverage_status = Number(data.municipios_verificados || 0) === Number(data.municipios_total)
+            ? 'FULL' : (Number(data.municipios_verificados || 0) ? 'PARTIAL' : 'UNAVAILABLE');
+        data.success = Boolean(data.success || fastItem?.success);
+        data.data = items;
         const rows = items.map(m => {
             const err = !m.success;
             const con = !!m.tiene_papeletas;
+            const safeMunicipio = municipalEscape(m.municipio || 'Municipalidad');
+            const safeProvincia = municipalEscape(m.provincia || '');
+            const safeFuente = municipalEscape(m.fuente || 'Gobierno Local');
             const cls = err ? 'text-slate-400 dark:text-slate-500' : (con ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-emerald-600 dark:text-emerald-400 font-bold');
             const icon = err ? 'fa-circle-minus' : (con ? 'fa-triangle-exclamation animate-pulse' : 'fa-circle-check');
-            const estado = err ? 'No disponible' : (con ? `${m.total || 1} papeleta(s) registrada(s)` : 'Sin papeletas');
+            const estado = municipalEscape(err ? 'No disponible' : (con ? `${m.total || 1} papeleta(s) registrada(s)` : 'Sin papeletas'));
             const url = MUNICIPAL_SOURCE_URLS[m.municipio] || '';
             const verBtn = url
-                ? `<a href="${url}" target="_blank" rel="noopener noreferrer" title="Verificar en el portal oficial de ${m.municipio}"
+                ? `<a href="${url}" target="_blank" rel="noopener noreferrer" title="Verificar en el portal oficial de ${safeMunicipio}"
                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-all shadow-xs border border-slate-200/80 dark:border-slate-700 shrink-0">
                      <i class="fas fa-arrow-up-right-from-square text-[9px] text-brand-red"></i> Verificar portal</a>`
                 : '';
@@ -157,32 +226,39 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
             let detalleHTML = '';
             if (con && Array.isArray(m.data) && m.data.length > 0) {
                 const totalCount = m.data.length;
-                const pendientesCount = m.data.filter(d => (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
-                const canceladasCount = totalCount - pendientesCount;
+                const pendientesCount = m.data.filter(d => d.EstadoPago === 'PENDING' || (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
+                const canceladasCount = m.data.filter(d => d.EstadoPago === 'PAID' || /PAGAD[AO]|CANCELAD[AO]/i.test(d['Situación'] || '')).length;
+                const unknownCount = totalCount - pendientesCount - canceladasCount;
 
                 const itemCards = m.data.map((d, idx) => {
-                    const esPendiente = (d['Situación'] || '').toUpperCase().includes('PENDIENTE');
-                    const badgeSit = esPendiente
-                        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold bg-rose-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-clock"></i> ${d['Situación']}</span>`
-                        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500 text-white shadow-xs tracking-wider uppercase"><i class="fas fa-check-double"></i> ${d['Situación']}</span>`;
+                    const paymentStatus = d.EstadoPago || 'UNKNOWN';
+                    const esPendiente = paymentStatus === 'PENDING' || (d['Situación'] || '').toUpperCase().includes('PENDIENTE');
+                    const esPagada = paymentStatus === 'PAID' || /PAGAD[AO]|CANCELAD[AO]/i.test(d['Situación'] || '');
+                    const stateClass = esPendiente ? 'bg-rose-600 text-white' : (esPagada ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white');
+                    const badgeSit = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold ${stateClass} shadow-xs tracking-wider uppercase">${municipalEscape(d['Situación'] || 'Estado de pago desconocido')}</span>`;
+                    const safe = (value) => municipalEscape(value || '—');
+                    const amount = Number(String(d.Importe ?? '').replace(/[^\d.,-]/g, '').replace(',', '.'));
+                    const amountText = Number.isFinite(amount) ? `S/ ${amount.toFixed(2)}` : '—';
 
                     return `
                         <div class="p-2.5 rounded-xl border ${esPendiente ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80'} shadow-xs font-poppins transition-all">
                             <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-1.5 flex-wrap">
                                 <div class="flex items-center gap-1.5">
                                     <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] font-black flex items-center justify-center">${idx + 1}</span>
-                                    <span class="text-xs font-black text-slate-900 dark:text-white font-mono">${d['Papeleta'] || 'S/N'}</span>
-                                    <span class="px-1.5 py-0.5 rounded bg-brand-red/10 text-brand-red text-[9px] font-bold">${d['Infracción'] || ''}</span>
+                                    <span class="text-xs font-black text-slate-900 dark:text-white font-mono">${safe(d['Papeleta'] || 'S/N')}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-brand-red/10 text-brand-red text-[9px] font-bold">${safe(d['Código'])}</span>
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     ${badgeSit}
-                                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-semibold">${d['Estado'] || ''}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-semibold">${safe(d['EstadoRegistro'] || d['Estado'])}</span>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 text-[10px] text-slate-600 dark:text-slate-300">
-                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Fecha Infracción:</strong> ${d['Fecha'] || '—'}</div>
-                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Conductor:</strong> <span class="uppercase font-semibold">${d['Conductor'] || '—'}</span></div>
-                                <div class="sm:col-span-2 md:col-span-1"><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Lugar:</strong> <span class="capitalize">${d['Lugar'] || '—'}</span></div>
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Fecha:</strong> ${safe(d['Fecha'])}</div>
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Infractor:</strong> <span class="uppercase font-semibold">${safe(d['Conductor'])}</span></div>
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Propietario:</strong> <span class="uppercase font-semibold">${safe(d['Propietario'])}</span></div>
+                                <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Importe:</strong> <span class="font-black ${esPendiente ? 'text-rose-600 dark:text-rose-400' : ''}">${amountText}</span></div>
+                                <div class="sm:col-span-2 md:col-span-1"><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Infracción:</strong> <span>${safe(d['Infracción'])}</span></div>
                             </div>
                         </div>`;
                 }).join('');
@@ -195,7 +271,8 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                             </span>
                             <div class="flex items-center gap-2">
                                 <span class="text-rose-600 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded-full text-[10px]">${pendientesCount} pendientes</span>
-                                <span class="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full text-[10px]">${canceladasCount} canceladas</span>
+                                <span class="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full text-[10px]">${canceladasCount} pagadas</span>
+                                <span class="text-amber-700 dark:text-amber-300 font-bold bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full text-[10px]">${unknownCount} desconocidas</span>
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
@@ -208,9 +285,9 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                 <div class="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
                     <div class="min-w-0">
                         <p class="text-[13px] md:text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight flex items-center gap-1.5">
-                            <i class="fas fa-city text-[11px] text-slate-400"></i> ${m.municipio || ''}
+                            <i class="fas fa-city text-[11px] text-slate-400"></i> ${safeMunicipio}
                         </p>
-                        <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold mt-0.5">${m.provincia || ''} · ${m.fuente || 'Gobierno Local'}</p>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold mt-0.5">${safeProvincia} · ${safeFuente}</p>
                     </div>
                     <div class="flex items-center gap-2.5 shrink-0">
                         <span class="inline-flex items-center gap-1.5 text-[11px] md:text-xs ${cls}">
@@ -219,7 +296,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                         ${verBtn}
                     </div>
                 </div>
-                ${m.mensaje && m.mensaje !== 'Sin papeletas registradas.' && !con ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">${m.mensaje}</p>` : ''}
+                ${m.mensaje && m.mensaje !== 'Sin papeletas registradas.' && !con ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">${municipalEscape(m.mensaje)}</p>` : ''}
                 ${detalleHTML}
             </div>`;
         }).join('');

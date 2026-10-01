@@ -165,6 +165,8 @@ export function setupDocumentViewer(backendUrl: string, getActiveTicket: () => s
                 loading.classList.add('hidden');
 
                 if (result.success && result.foto) {
+                    const fotoCache = (window as any).cinemometroFotos || ((window as any).cinemometroFotos = {});
+                    fotoCache[nroPapeleta] = result.foto;
                     imgViewer.src = result.foto;
                     imgViewer.classList.remove('hidden');
                 } else {

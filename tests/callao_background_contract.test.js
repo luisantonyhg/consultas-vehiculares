@@ -11,11 +11,11 @@ test('Callao tiene un solo ciclo automático y el manual fuerza fuente oficial',
   assert.match(providerSource, /forceRefresh \? '\?force_refresh=true' : ''/);
 });
 
-test('Callao se inicia después de SAT y no participa en el lote variable previo', () => {
+test('Callao se inicia en paralelo con la fase avanzada, sin duplicarse en el lote rápido', () => {
   const variableStart = source.indexOf('const variableSectionsPromise');
   const variableEnd = source.indexOf('// ATU queda aislada', variableStart);
   assert.ok(variableStart >= 0 && variableEnd > variableStart);
   assert.doesNotMatch(source.slice(variableStart, variableEnd), /fetchCallao/);
-  assert.match(source, /provider=callao priority=85 reason=background_after_sat state=started/);
-  assert.ok(source.indexOf('callaoBackgroundPromise') > source.indexOf("[UI-MAIN-READY]"));
+  assert.match(source, /provider=callao priority=85 reason=parallel_with_advanced state=started/);
+  assert.ok(source.indexOf('callaoBackgroundPromise') < source.indexOf('await advancedPromise'));
 });

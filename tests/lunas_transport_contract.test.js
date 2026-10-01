@@ -58,7 +58,7 @@ test('Lunas deferred retry uses a new official session only when explicitly requ
 });
 
 test('Lunas tiene una sola ejecución automática final y el reintento manual fuerza fuente oficial', () => {
-    assert.match(consultationSource, /provider=lunas priority=110 reason=final_after_historial state=started/);
+    assert.match(consultationSource, /provider=lunas priority=110 reason=after_fast_and_municipal state=started/);
     assert.match(consultationSource, /runFetchWithRetry\('lunas',[\s\S]*?callbacks, \{ forceRefresh \}\), plate\)\);/);
     assert.match(consultationSource, /cardId === 'lunas'\)\s+await fetchLunas\(plate, \{ forceRefresh: true \}\)/);
     assert.doesNotMatch(consultationSource, /lunasCaptchaRejected/);
