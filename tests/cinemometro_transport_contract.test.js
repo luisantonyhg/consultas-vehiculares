@@ -28,8 +28,8 @@ test('Cinemómetro conserva margen cliente sobre el presupuesto máximo del back
     try {
         const result = await runFetchCinemometro('BHP751', 'http://backend', callbacks());
         assert.equal(result.success, true);
-        // Route: 80 s; follower SingleFlight: 90 s. Cliente: 95 s.
-        assert.equal(scheduled[0], 95_000);
+        // Backend: 75 s; cliente conserva 10 s de margen para la respuesta.
+        assert.equal(scheduled[0], 85_000);
     } finally {
         globalThis.fetch = oldFetch;
         globalThis.setTimeout = oldSetTimeout;

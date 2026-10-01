@@ -4,7 +4,7 @@ import { secureFetch } from '../transport.js';
 export async function runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefresh = false } = {}) {
     callbacks.setCardLoading('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 165000);
+    const timeoutId = setTimeout(() => controller.abort(), 105000);
     try {
         const query = forceRefresh ? '?force_refresh=true' : '';
         const res = await secureFetch(`${BACKEND_URL}/lunas/${plate}${query}`, { signal: controller.signal });
@@ -33,7 +33,7 @@ export async function runFetchLunas(plate, BACKEND_URL, callbacks, { forceRefres
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (165s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (105s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('lunas', 'Lunas Oscurecidas', '', 'fas fa-eye-slash', '', 'PNP', msg, plate);
         const result = { success: false, error: msg };
         if (err?.code) result.code = err.code;
@@ -121,10 +121,9 @@ export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
 export async function runFetchCinemometro(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('cinemometro', 'Papeletas y Cinemómetro SUTRAN', 'Fotos e Infracciones de velocidad', 'fas fa-gauge-high', '', 'SUTRAN');
     const controller = new AbortController();
-    // El route mantiene un presupuesto de 80 s y single-flight permite a un
-    // follower esperar hasta 90 s. El cliente debe dejar un margen de red para
-    // no abortar una respuesta válida antes de que el backend la entregue.
-    const timeoutId = setTimeout(() => controller.abort(), 95000);
+    // El route limita el trabajo a 75 s; el cliente deja margen para recibir
+    // y procesar la respuesta final.
+    const timeoutId = setTimeout(() => controller.abort(), 85000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/cinemometro/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -180,9 +179,9 @@ export async function runFetchATU(plate, BACKEND_URL, callbacks) {
 export async function runFetchSBS(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS');
     const controller = new AbortController();
-    // 160s: SBS comparte el navegador con ATU (1 a la vez). Si ATU lo usa primero,
-    // SBS espera; este margen evita el timeout cuando se ejecutan en serie.
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
+    // Backend: hasta 120s contando espera del navegador y consulta; se dejan
+    // 10s para recibir y procesar la respuesta.
+    const timeoutId = setTimeout(() => controller.abort(), 130000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sbs/${plate}?tipos=SOAT,Vehicular,CAT`, { signal: controller.signal });
         clearTimeout(timeoutId);

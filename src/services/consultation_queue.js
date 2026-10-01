@@ -88,7 +88,9 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
     }
     if (!reserve || !reserve.ok) throw new Error(`No se pudo reservar la fase avanzada (HTTP ${reserve?.status || '503'}).`);
     let state = await reserve.json();
-    const deadline = Date.now() + 12 * 60 * 1000;
+    // El backend libera las reservas avanzadas tras 4 min absolutos; dejar un
+    // margen corto para el último polling sin mantener tarjetas esperando más.
+    const deadline = Date.now() + 5 * 60 * 1000;
     let backoffMs = 1500;
     while (state.heavy_status === 'queued') {
         if (onUpdate) onUpdate(state);
@@ -107,6 +109,11 @@ export async function waitForHeavyPhase(BACKEND_URL, ticketId, onUpdate) {
         if (!current.ok) throw new Error(`El turno de la fase avanzada expiró (HTTP ${current.status}).`);
         state = await current.json();
     }
+    if (state.heavy_status !== 'active') {
+        const err = new Error('La fase avanzada agotó su turno. Los resultados rápidos siguen disponibles; puedes reintentar las secciones pendientes.');
+        err.name = 'HeavyPhaseTimeout';
+        throw err;
+    }
     if (onUpdate) onUpdate(state);
     return state;
 }
@@ -116,7 +123,7 @@ export async function releaseHeavyPhase(BACKEND_URL, ticketId) {
     try {
         const res = await secureFetch(
             `${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/heavy-phase/complete`,
-            { method: 'POST' }
+            { method: 'POST', signal: AbortSignal.timeout(3000) }
         );
         return res.ok;
     } catch {

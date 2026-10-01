@@ -42,9 +42,9 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
 
     try {
         let cap = null, dep = null, satLastError = null;
-        // El backend combinado reserva 170 s de trabajo más 5 s de cierre.
-        // El cliente conserva margen adicional para recibir la respuesta final.
-        const SAT_BUDGET_MS = 180000;
+        // El backend permite hasta 100 s de trabajo y cierre; el cliente deja
+        // 20 s extra para recibir y procesar la respuesta.
+        const SAT_BUDGET_MS = 120000;
         const satStart = Date.now();
 
         const requestSAT = async (path) => {
@@ -88,7 +88,7 @@ export async function runFetchSAT(plate, BACKEND_URL, callbacks) {
 
         return { success: !!(cap && cap.success) || !!(dep && dep.success), error: satLastError, captura: cap, deposito: dep, deuda: null };
     } catch (err) {
-        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (160s).' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (120s).' : (err.message || 'Error de conexión');
         callbacks.setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', msg, plate);
         callbacks.setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', msg, plate);
         return { success: false, error: msg };
@@ -380,7 +380,7 @@ export async function runFetchOsinergmin(plate, BACKEND_URL, callbacks) {
 export async function runFetchLima(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('lima', 'Papeletas Lima', 'Infracciones de tránsito', 'fas fa-traffic-light', '', 'SAT Lima');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 160000);
+    const timeoutId = setTimeout(() => controller.abort(), 100000);
     const LIMA_URL = 'https://www.sat.gob.pe/VirtualSAT/modulos/papeletas.aspx';
     try {
         const res = await secureFetch(`${BACKEND_URL}/lima/${plate}`, { signal: controller.signal });
@@ -508,9 +508,9 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
     const TIT = 'Historial de Dueños y Gravámenes';
     callbacks.setCardLoading('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral');
     const controller = new AbortController();
-    // El backend admite 30s de cola y hasta dos sesiones de 90s (un reintento
+    // El backend admite 25s de cola y hasta dos sesiones de 65s (un reintento
     // limpio si la sesión del portal queda transitoriamente rota), más margen.
-    const timeoutMs = 240000;
+    const timeoutMs = 180000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const queryParam = oficina ? `?oficina=${encodeURIComponent(oficina)}` : '';
@@ -552,7 +552,7 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (240s). Pulse Reintentar.' : (err.message || 'Error de conexión');
+        const msg = err.name === 'AbortError' ? 'La consulta registral superó el tiempo máximo (180s). Pulse Reintentar.' : (err.message || 'Error de conexión');
         callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', msg, plate);
         return { success: false, error: msg };
     }

@@ -1561,6 +1561,8 @@
                                 if (state.heavy_status === 'queued') {
                                     const minutes = Math.max(1, Math.ceil((state.heavy_estimated_wait_seconds || 0) / 60));
                                     queryStatus.innerHTML = `<span class="text-amber-600 font-bold"><i class="fas fa-list-ol mr-1"></i> Resultados rápidos listos. Secciones avanzadas en posición ${state.heavy_position}; espera estimada ${minutes} min.</span>`;
+                                } else if (state.heavy_status === 'timeout') {
+                                    queryStatus.innerHTML = '<span class="text-amber-700 font-bold"><i class="fas fa-clock mr-1"></i> El turno avanzado superó 4 minutos. Los resultados rápidos siguen disponibles; puedes reintentar las secciones pendientes.</span>';
                                 } else {
                                     const modeLabel = state.load_mode === 'fast' ? 'capacidad rápida' : state.load_mode === 'balanced' ? 'capacidad balanceada' : 'capacidad protegida';
                                     queryStatus.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fas fa-gears mr-1"></i> Iniciando secciones avanzadas con ${modeLabel}...</span>`;
@@ -1582,7 +1584,19 @@
                         // queda al final porque en la medición real tomó 37.4 s.
                         // Se espera el slot heavy (ya solicitado arriba) antes de lanzar.
                         if (heavyPhasePromise) {
-                            await heavyPhasePromise;
+                            try {
+                                await heavyPhasePromise;
+                            } catch (error: any) {
+                                const message = error?.message || 'El turno avanzado agotó su tiempo.';
+                                setCardError('historial_dueños', 'Historial de Dueños y Gravámenes', 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', message, plate);
+                                setCardError('lima', 'Papeletas Lima (SAT)', 'reCAPTCHA v2', 'fas fa-traffic-light', '', 'SAT Lima', message, plate);
+                                setCardError('municipal', 'Papeletas Otras Municipalidades', 'Provincias del Perú', 'fas fa-building-columns', '', 'Municipalidades', message, plate);
+                                setCardError('soat', 'Historial SOAT', 'Pólizas y vigencia', 'fas fa-shield-halved', '', 'SBS', message, plate);
+                                setCardError('sbs', 'Siniestralidad Vehicular', 'SOAT · Vehicular · CAT', 'fas fa-car-burst', '', 'SBS', message, plate);
+                                setCardError('sat_captura', 'Orden de Captura (SAT)', 'Provincia de Lima', 'fas fa-gavel', '', 'SAT Lima', message, plate);
+                                setCardError('sat_deposito', 'Internamiento en Depósito (SAT)', '', 'fas fa-warehouse', '', 'SAT Lima', message, plate);
+                                throw error;
+                            }
                         }
                         queryStatus.textContent = 'Fase 2: Consultando servicios avanzados...';
 
@@ -1664,7 +1678,8 @@
                         );
                         await advancedPromise;
                         if (activeConsultationTicket) {
-                            void releaseHeavyPhase(BACKEND_URL, activeConsultationTicket);
+                            const released = await releaseHeavyPhase(BACKEND_URL, activeConsultationTicket);
+                            console.info(`[HEAVY-PHASE] release acknowledged=${released}`);
                         }
 
                         // P0.3 (corrige P0.2): el score necesita TODAS las secciones,
