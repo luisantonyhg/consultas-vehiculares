@@ -15,12 +15,6 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
         let activeDniHeartbeat: ReturnType<typeof setInterval> | null = null;
         let dniTraceStartedAt = 0;
         let activeDniTraceId = '';
-        let dniTraceLines: string[] = [];
-
-        const diagnosticPanel = document.getElementById('dni-diagnostic-panel') as HTMLDetailsElement | null;
-        const diagnosticOutput = document.getElementById('dni-diagnostic-output');
-        const diagnosticCount = document.getElementById('dni-diagnostic-count');
-        const diagnosticCopy = document.getElementById('dni-diagnostic-copy');
 
         const recordDniDiagnostic = (event: DniDiagnostic) => {
             const allowed = [
@@ -41,35 +35,10 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     : value;
             }
             const elapsed = dniTraceStartedAt ? ((performance.now() - dniTraceStartedAt) / 1000).toFixed(2) : '0.00';
-            const line = `+${elapsed}s ${JSON.stringify(safe)}`;
-            dniTraceLines.push(line);
-            if (dniTraceLines.length > 300) dniTraceLines = dniTraceLines.slice(-300);
-            if (diagnosticOutput) {
-                diagnosticOutput.textContent = dniTraceLines.join('\n');
-                diagnosticOutput.scrollTop = diagnosticOutput.scrollHeight;
-            }
-            if (diagnosticCount) diagnosticCount.textContent = `${dniTraceLines.length} eventos`;
-            // Eventos acotados y sin PII; útiles para consola local o soporte.
-            console.info('[DNI-TRACE]', safe);
+            // Eventos acotados y sin PII; el diagnóstico queda en DevTools,
+            // nunca se renderiza como un terminal dentro de los resultados.
+            console.log(`[DNI-TRACE] +${elapsed}s`, safe);
         };
-
-        diagnosticCopy?.addEventListener('click', async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            try {
-                await navigator.clipboard.writeText(dniTraceLines.join('\n'));
-                diagnosticCopy.textContent = 'Copiado';
-                setTimeout(() => { if (diagnosticCopy) diagnosticCopy.textContent = 'Copiar'; }, 1400);
-            } catch {
-                if (diagnosticOutput) {
-                    const range = document.createRange();
-                    range.selectNodeContents(diagnosticOutput);
-                    const selection = window.getSelection();
-                    selection?.removeAllRanges();
-                    selection?.addRange(range);
-                }
-            }
-        });
 
         // Reintento de UNA sola sección DNI (ej. papeletas tras timeout).
         // Usa el ticket original dentro de la ventana de gracia manual del
@@ -270,16 +239,11 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             if (activeDniTicket) void releaseDniTicket(activeDniTicket, 'superseded');
             const requestId = ++dniRequestId;
             dniTraceStartedAt = performance.now();
-            dniTraceLines = [];
             const traceId = (() => {
                 try { return crypto.randomUUID(); }
                 catch { return `dni-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
             })();
             activeDniTraceId = traceId;
-            if (diagnosticPanel) {
-                diagnosticPanel.classList.remove('hidden');
-                diagnosticPanel.open = true;
-            }
             recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'frontend', stage: 'consultation_started', status: 'RUNNING' });
             if (resultsSection) resultsSection.classList.add('hidden');
             if (dniResultsSection) {
