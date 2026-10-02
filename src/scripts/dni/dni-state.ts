@@ -157,6 +157,18 @@ export function paintDniSection(name: string, rawData: unknown): void {
           </button>
         </div>
       `;
+    } else if (name === 'webmii') {
+      badgeHtml = badgePill('neutral', unavailable ? 'FUENTE NO DISPONIBLE' : 'RESULTADO SIN CONFIRMAR');
+      tableRows = `
+        <div class="p-4 text-center text-slate-600 bg-slate-50 rounded-xl border border-slate-200">
+          <i class="fas fa-circle-info text-slate-400 text-lg mb-1 block"></i>
+          <p class="text-xs font-bold text-slate-900">No se pudo verificar WebMii ni el índice de respaldo en esta consulta.</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">No se infiere que no exista presencia digital. Puedes volver a consultar la fuente.</p>
+          <button data-dni-retry="webmii" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold bg-slate-900 text-white uppercase tracking-wider font-poppins hover:bg-slate-700 transition-colors">
+            <i class="fas fa-arrows-rotate text-[10px]"></i> Reintentar WebMii
+          </button>
+        </div>
+      `;
     } else {
       badgeHtml = badgePill('neutral', unavailable ? 'FUENTE NO DISPONIBLE' : 'RESULTADO SIN CONFIRMAR');
       tableRows = `
