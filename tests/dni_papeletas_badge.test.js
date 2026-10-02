@@ -41,3 +41,13 @@ test('verde SIN SANCIONES sigue exigiendo resultado confirmado', () => {
   assert.match(stateSource, /resultadoConfirmado = inner\.resultado_confirmado === true && providerStatus === 'OK'/);
   assert.match(stateSource, /badgePill\('success', 'SIN SANCIONES'\)/);
 });
+
+test('MTC papeletas positivas también exige respuesta confirmada', () => {
+  assert.match(stateSource, /else if \(tieneInfracciones && resultadoConfirmado\)/);
+});
+
+test('MTC récord no afirma ausencia sin confirmación ni ignora sanciones', () => {
+  assert.match(stateSource, /inner\.consulta_confirmada === true && providerStatus === 'OK'/);
+  assert.match(stateSource, /puntos === 0 && sancionesCountKnown && sancionesCount === 0/);
+  assert.match(stateSource, /badgePill\('neutral', 'RESULTADO SIN CONFIRMAR'\)/);
+});

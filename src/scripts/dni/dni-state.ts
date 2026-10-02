@@ -509,21 +509,47 @@ export function paintDniSection(name: string, rawData: unknown): void {
     }
 
     case 'transporte_record': {
-      const tieneLic = inner.tiene_licencia !== false && inner.posee_licencia !== false && str(inner.estado).toUpperCase() !== 'SIN_LICENCIA';
+      const tieneLic = inner.tiene_licencia === true || inner.posee_licencia === true;
+      const sinLicenciaConfirmada = (inner.tiene_licencia === false && inner.posee_licencia === false) || str(inner.estado).toUpperCase() === 'SIN_LICENCIA';
       const puntos = Number(inner.puntos_firmes ?? 0);
+      const puntosConfirmados = inner.puntos_firmes !== undefined && inner.puntos_firmes !== null && Number.isFinite(puntos);
       const estado = str(inner.estado || (tieneLic ? 'HABILITADO' : 'SIN LICENCIA')).toUpperCase();
+      const sanciones = arr(inner.sanciones);
+      const sancionesCount = Array.isArray(inner.sanciones)
+        ? sanciones.length
+        : (inner.sanciones == null || inner.sanciones === '' ? 0 : Number(inner.sanciones));
+      const sancionesCountKnown = Number.isFinite(sancionesCount);
+      const resultadoConfirmado = inner.consulta_confirmada === true && providerStatus === 'OK';
 
-      if (!tieneLic || puntos === 0) {
-        badgeHtml = badgePill('success', 'SIN RÉCORD');
+      if (!resultadoConfirmado || (!tieneLic && !sinLicenciaConfirmada) || (tieneLic && !puntosConfirmados)) {
+        badgeHtml = badgePill('neutral', 'RESULTADO SIN CONFIRMAR');
+        tableRows = `
+          <div class="p-4 sm:p-5 text-center text-slate-700 bg-slate-50 rounded-xl border border-slate-200 font-poppins">
+            <i class="fas fa-circle-info text-slate-500 text-xl mb-1.5 block"></i>
+            <p class="text-xs sm:text-sm font-black text-slate-900">El MTC no confirmó un resultado completo.</p>
+            <p class="text-[11px] text-slate-600 mt-1">No se infiere que tenga o no tenga licencia, sanciones o puntos.</p>
+          </div>
+        `;
+      } else if (!tieneLic) {
+        badgeHtml = badgePill('danger', 'SIN LICENCIA');
+        tableRows = `
+          <div class="p-4 sm:p-5 text-center text-slate-700 bg-rose-50/50 rounded-xl border border-rose-200 font-poppins">
+            <i class="fas fa-circle-xmark text-rose-600 text-xl mb-1.5 block"></i>
+            <p class="text-xs sm:text-sm font-black text-slate-900">El MTC confirmó que no registra licencia.</p>
+            <p class="text-[11px] text-slate-600 mt-1">Este resultado no se interpreta como una verificación de papeletas.</p>
+          </div>
+        `;
+      } else if (puntos === 0 && sancionesCountKnown && sancionesCount === 0) {
+        badgeHtml = badgePill('success', 'SIN RÉCORD NEGATIVO');
         tableRows = `
           <div class="p-4 sm:p-5 text-center text-slate-700 bg-emerald-50/50 rounded-xl border border-emerald-200 font-poppins">
             <i class="fas fa-circle-check text-emerald-600 text-xl mb-1.5 block"></i>
-            <p class="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide">Sin Infracciones ni Récord Negativo</p>
-            <p class="text-[11px] text-slate-600 mt-1 max-w-md mx-auto">El ciudadano no registra papeletas firmes, sanciones vigentes ni acumulación de puntos en el Sistema de Récord de Conductor del MTC.</p>
+            <p class="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide">Sin sanciones ni puntos firmes reportados</p>
+            <p class="text-[11px] text-slate-600 mt-1 max-w-md mx-auto">Resultado confirmado por el Sistema de Récord de Conductor del MTC.</p>
           </div>
         `;
       } else {
-        badgeHtml = badgePill('warning', `${puntos} PUNTOS`);
+        badgeHtml = badgePill('warning', `${puntos} PUNTOS · ${sancionesCountKnown ? sancionesCount : 'SIN DETALLE'} SANCIONES`);
         tableRows = `
           <div class="overflow-x-auto w-full font-poppins">
             <table class="w-full min-w-[320px] text-left border-collapse">
@@ -532,7 +558,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
                 ${fila('Estado del Conductor', estado)}
                 ${fila('Número de Licencia', str(inner.numero_licencia || '—'))}
                 ${fila('Récord Correlativo', str(inner.num_record || '—'))}
-                ${fila('Sanciones Firmes', str(Array.isArray(inner.sanciones) ? inner.sanciones.length : (inner.sanciones || '0')))}
+                ${fila('Sanciones Firmes', sancionesCountKnown ? String(sancionesCount) : 'No informado')}
                 ${fila('Puntos en Proceso', str(inner.puntos_proceso || '0'))}
               </tbody>
             </table>
@@ -558,7 +584,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
             <p class="text-[10px] text-slate-500 mt-0.5">Portal oficial SCPPP (MTC · SUTRAN · ATU) libre de sanciones firmes.</p>
           </div>
         `;
-      } else if (tieneInfracciones) {
+      } else if (tieneInfracciones && resultadoConfirmado) {
         const total = infracciones.length || Number(inner.total_papeletas ?? inner.total ?? 1);
         badgeHtml = badgePill('danger', `CON SANCIONES (${total})`);
         tableRows = `

@@ -33,7 +33,7 @@ test('el modelo local detecta la placa antes de OCR y conserva el respaldo con t
   assert.match(scanner, /const PLATE_SCAN_INTERVAL_MS = 300/);
   assert.match(scanner, /const PLATE_SCAN_MAX_DURATION_MS = 30000/);
   assert.match(scanner, /const PLATE_SCAN_BACKEND_WARMUP_MS = 4500/);
-  assert.match(scanner, /Sin placa confirmada tras/);
+  assert.match(scanner, /elapsed >= PLATE_SCAN_MAX_DURATION_MS/);
   assert.match(scanner, /loadPlateDetector\(\)/);
   assert.match(scanner, /if \(detectorReady && detectorModule && detectorCtx\)/);
   assert.match(scanner, /paintPlateDetection\(video, left, top, roiWidth, roiHeight, box\.confidence\)/);
@@ -43,15 +43,13 @@ test('el modelo local detecta la placa antes de OCR y conserva el respaldo con t
   assert.match(scanner, /id="scanner-detection-box"/);
   assert.match(scanner, /if \(runId !== scannerRunId\) return/);
   assert.ok(scanner.indexOf('await detectorModule.detectPlate(detectorCanvas)') < scanner.indexOf('recognizeWithDeadline(() => localWorker!.recognize(ocrCanvas)'));
-  assert.match(scanner, /márgenes=12% lados,22% arriba,10% abajo/);
-  assert.match(scanner, /confianza YOLO=/);
+  assert.match(scanner, /const marginX = box\.width \* 0\.12/);
+  assert.match(scanner, /const marginTop = box\.height \* 0\.22/);
+  assert.match(scanner, /const marginBottom = box\.height \* 0\.10/);
   assert.match(scanner, /region_only: false/);
   assert.match(scanner, /MOBILE_BACKEND_WARMUP_MS = 2500/);
-  assert.match(scanner, /captura=frame_completo/);
   assert.match(scanner, /mobileOcrMode && !latestFullFrame/);
   assert.match(scanner, /PLATE_OCR_CALL_TIMEOUT_MS = 5500/);
-  assert.match(scanner, /scan_timeout/);
-  assert.match(scanner, /scan=\$\{scannerDebugId\}/);
   assert.match(scanner, /terminatePlateOcrWorker\(\)/);
   assert.match(scanner, /if \(scanDeadlineTimer\) clearTimeout\(scanDeadlineTimer\)/);
   assert.match(scanner, /Buscando placa con el modelo local/);
@@ -75,15 +73,10 @@ test('la zona que se envía al OCR se calcula desde el marco visible y object-co
   assert.match(scanner, /ctx\.drawImage\(video, capture\.x, capture\.y, capture\.width, capture\.height/);
 });
 
-test('el modal muestra diagnóstico OCR/cámara/backend en vivo y permite copiarlo', () => {
-  assert.match(scanner, /id="scanner-debug-panel"/);
-  assert.match(scanner, /id="scanner-debug-output" role="log" aria-live="polite"/);
-  assert.match(scanner, /id="scanner-debug-copy"/);
-  assert.match(scanner, /navigator\.clipboard\.writeText\(scannerDebugEvents\.join\('\\n'\)\)/);
-  assert.match(scanner, /setPlateOcrDiagnosticHandler/);
-  assert.match(scanner, /debug_trace: true/);
-  assert.match(scanner, /scannerDebug\('backend_http'/);
-  assert.match(scanner, /scannerDebug\(`backend\.\$\{item\.stage/);
-  assert.match(scanner, /scannerDebugEvents\.length > 240/);
-  assert.doesNotMatch(scanner, /scannerDebug\([^\n]*image_base64/);
+test('el modal de placa no muestra el panel de diagnóstico retirado', () => {
+  assert.doesNotMatch(scanner, /id="scanner-debug-panel"/);
+  assert.doesNotMatch(scanner, /id="scanner-debug-output"/);
+  assert.doesNotMatch(scanner, /id="scanner-debug-copy"/);
+  assert.doesNotMatch(scanner, /debug_trace: true/);
+  assert.match(scanner, /debug_trace: false/);
 });
