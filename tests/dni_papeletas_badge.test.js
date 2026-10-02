@@ -58,3 +58,10 @@ test('WebMii confirmado sin menciones usa verde y respuesta no verificable conse
   assert.match(webmii, /border-emerald-200 bg-emerald-50\/60/);
   assert.match(webmii, /Este resultado no descarta presencia digital fuera de los índices consultados/);
 });
+
+test('identidad fallida no se presenta como verificada y el frontend informa el bloqueo', () => {
+  assert.match(stateSource, /providerStatus === 'ERROR'.*providerStatus === 'EMPTY'/s);
+  assert.match(controllerSource, /identity_unverified_partial/);
+  assert.match(controllerSource, /las fuentes que aceptan DNI/i);
+  assert.match(controllerSource, /status: identityStopped \? 'STOPPED' : identityPartial \? 'PARTIAL'/);
+});

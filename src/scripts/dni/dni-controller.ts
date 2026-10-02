@@ -434,7 +434,10 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             }
 
             const cleanupStream = (reason: 'done' | 'error', detail?: unknown) => {
-                recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'frontend', stage: 'consultation_finished', status: reason === 'done' ? 'OK' : 'ERROR', reason: reason === 'error' ? (detail instanceof Error ? detail.message : 'STREAM_ERROR') : undefined, elapsed_ms: performance.now() - dniTraceStartedAt });
+                const doneReason = detail && typeof detail === 'object' && 'reason' in detail ? String((detail as { reason?: unknown }).reason || '') : '';
+                const identityStopped = reason === 'done' && doneReason === 'identity_not_found';
+                const identityPartial = reason === 'done' && doneReason === 'identity_unverified_partial';
+                recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'frontend', stage: 'consultation_finished', status: identityStopped ? 'STOPPED' : identityPartial ? 'PARTIAL' : reason === 'done' ? 'OK' : 'ERROR', reason: identityStopped || identityPartial ? 'identity_not_confirmed' : reason === 'error' ? (detail instanceof Error ? detail.message : 'STREAM_ERROR') : undefined, elapsed_ms: performance.now() - dniTraceStartedAt });
                 void releaseDniTicket(ticketId, reason);
                 if (requestId !== dniRequestId) return;
                 hideDniModal();
@@ -445,7 +448,13 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     submitBtn.innerHTML = '<i class="fas fa-search text-xs"></i><span id="submit-btn-text">Consultar DNI</span><i class="fas fa-arrow-right text-xs ml-0.5"></i>';
                 }
                 if (queryStatus) {
-                    if (reason === 'done') {
+                    if (identityStopped) {
+                        queryStatus.textContent = 'No se pudo verificar la identidad con las fuentes disponibles. Las demás secciones se detuvieron; vuelve a intentarlo más tarde.';
+                        queryStatus.className = 'text-rose-600 font-bold';
+                    } else if (identityPartial) {
+                        queryStatus.textContent = 'No se verificó el nombre. Se consultaron las fuentes que aceptan DNI; WebMii y MINEDU quedan sin confirmar.';
+                        queryStatus.className = 'text-amber-700 font-bold';
+                    } else if (reason === 'done') {
                         queryStatus.innerHTML = '<span class="text-emerald-700 font-bold"><i class="fas fa-circle-check mr-1"></i> Consulta de identidad completada.</span>';
                     } else {
                         const message = detail instanceof Error ? detail.message : 'La consulta se interrumpió. Puedes intentarlo nuevamente.';
@@ -486,7 +495,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     }
                     setSection(section, data);
                 },
-                () => cleanupStream('done'),
+                (result) => cleanupStream('done', result),
                 (error) => cleanupStream('error', error),
                 (event) => recordDniDiagnostic(event),
                 traceId,

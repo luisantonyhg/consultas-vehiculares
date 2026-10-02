@@ -28,7 +28,7 @@ export function startDniStream(
   dni: string,
   ticket: string,
   onSectionReady: SectionHandler,
-  onDone?: () => void,
+  onDone?: (result?: unknown) => void,
   onError?: (err: any) => void,
   onDiagnostic?: (event: DniDiagnostic) => void,
   traceId = createTraceId(),
@@ -94,9 +94,11 @@ export function startDniStream(
             if (eventName === "done") {
               completed = true;
               abort.abort();
+              let result: unknown;
+              try { result = JSON.parse(payload); } catch { /* Keep undefined for malformed done payload. */ }
               onDiagnostic?.({ source: "frontend", request_id: traceId, provider: "backend", stage: "sse_done_received", status: "OK", elapsed_ms: Date.now() - t0 });
               dniDbg("done", { elapsed_ms: Date.now() - t0 });
-              onDone?.();
+              onDone?.(result);
               break;
             }
             if (eventName === "diagnostic") {
