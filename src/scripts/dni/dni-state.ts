@@ -929,7 +929,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
       const scoreStr = rawScore > 0 ? `${rawScore.toFixed(1)} / 10` : consultaConfirmada ? 'Sin puntuación disponible' : 'Resultado no verificable';
       badgeHtml = total > 0
         ? badgePill('success', `MENCIONES (${total})`)
-        : consultaConfirmada ? badgePill('neutral', 'SIN MENCIONES CONFIRMADAS') : badgePill('neutral', 'FUENTE SIN RESPUESTA');
+        : consultaConfirmada ? badgePill('success', 'SIN MENCIONES CONFIRMADAS') : badgePill('neutral', 'FUENTE SIN RESPUESTA');
 
       tableRows = `
         <div class="space-y-3.5 font-poppins">
@@ -987,8 +987,8 @@ export function paintDniSection(name: string, rawData: unknown): void {
               </table>
             </div>
           ` : consultaConfirmada ? `
-            <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/60 text-slate-600 text-xs">
-              <p class="font-bold text-slate-800"><i class="fas fa-circle-info text-amber-600 mr-1.5"></i>No se confirmaron enlaces públicos en esta consulta.</p>
+            <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 text-slate-600 text-xs">
+              <p class="font-bold text-slate-800"><i class="fas fa-circle-check text-emerald-600 mr-1.5"></i>Consulta completada: no se encontraron menciones en las fuentes consultadas.</p>
               <p class="text-[11px] text-slate-500 mt-1">Este resultado no descarta presencia digital fuera de los índices consultados.</p>
             </div>
           ` : `

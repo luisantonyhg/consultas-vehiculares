@@ -51,3 +51,10 @@ test('MTC récord no afirma ausencia sin confirmación ni ignora sanciones', () 
   assert.match(stateSource, /puntos === 0 && sancionesCountKnown && sancionesCount === 0/);
   assert.match(stateSource, /badgePill\('neutral', 'RESULTADO SIN CONFIRMAR'\)/);
 });
+
+test('WebMii confirmado sin menciones usa verde y respuesta no verificable conserva gris', () => {
+  const webmii = stateSource.slice(stateSource.indexOf("case 'webmii':"), stateSource.indexOf('\n    }\n  }', stateSource.indexOf("case 'webmii':")));
+  assert.match(webmii, /consultaConfirmada \? badgePill\('success', 'SIN MENCIONES CONFIRMADAS'\) : badgePill\('neutral', 'FUENTE SIN RESPUESTA'/);
+  assert.match(webmii, /border-emerald-200 bg-emerald-50\/60/);
+  assert.match(webmii, /Este resultado no descarta presencia digital fuera de los índices consultados/);
+});
