@@ -319,90 +319,36 @@ export function reorderCards() {
     const wrapper = document.getElementById('results-cards-wrapper');
     if (!wrapper) return;
     const cards = Array.from(wrapper.children);
-    
-    const getCardScore = (card) => {
-        const status = card.getAttribute('data-status') || 'loading';
-        const statusOrder = {
-            'funciona': 1,
-            'loading': 2,
-            'waiting': 2,
-            'no-funciona': 3,
-            'mantenimiento': 10,
-            'maintenance': 10,
-            'development': 10
-        };
-        const score = statusOrder[status] ?? 2;
-        if (card.id === 'vehiculo-card-container' && score === 2) return 2.5;
-        return score;
-    };
 
-    cards.sort((a, b) => {
-        const scoreA = getCardScore(a);
-        const scoreB = getCardScore(b);
-        if (scoreA !== scoreB) {
-            return scoreA - scoreB;
-        }
+    // El estado de una fuente no cambia su posición: reordenar por estado hacía
+    // que todas las tarjetas se movieran cada vez que llegaba una respuesta.
+    const stableOrder = [
+        'sunarp-card-container', 'historial_dueños-card-container', 'placas_pe-card-container',
+        'soat-card-container', 'soat_detallado-card-container', 'citv-card-container',
+        'atu-card-container', 'valor_venal-card-container', 'sbs-card-container',
+        'lima-card-container', 'callao-card-container', 'sutran-card-container',
+        'cinemometro-card-container', 'municipal-card-container', 'atu_infracciones-card-container',
+        'sigm-card-container', 'gnv-card-container', 'fise-card-container',
+        'osinergmin-card-container', 'sat_captura-card-container', 'sat_deposito-card-container',
+        'lunas-card-container', 'pnp_contacto-card-container', 'score-card-container',
+        'sat_deuda-card-container'
+    ];
+    const orderIndex = new Map(stableOrder.map((id, index) => [id, index]));
+    cards.sort((a, b) => (orderIndex.get(a.id) ?? 999) - (orderIndex.get(b.id) ?? 999));
 
-        const defaultOrder = [
-            'sunarp-card-container',
-            'historial_dueños-card-container',
-            'lima-card-container',
-            'placas_pe-card-container',
-            'soat-card-container',
-            'soat_detallado-card-container',
-            'sbs-card-container',
-            'valor_venal-card-container',
-            'citv-card-container',
-            'gnv-card-container',
-            'fise-card-container',
-            'osinergmin-card-container',
-            'sutran-card-container',
-            'cinemometro-card-container',
-            'callao-card-container',
-            'municipal-card-container',
-            'sigm-card-container',
-            'pnp_contacto-card-container',
-            'sat_captura-card-container',
-            'sat_deposito-card-container',
-            'lunas-card-container',
-            // ANÁLISIS INTELIGENTE DEL VEHÍCULO: evaluación final consolidada
-            'score-card-container',
-            // Secciones informativas / en desarrollo después del diagnóstico:
-            'sat_deuda-card-container'
-        ];
-        const _ia = defaultOrder.indexOf(a.id); const _ib = defaultOrder.indexOf(b.id);
-        return (_ia === -1 ? 999 : _ia) - (_ib === -1 ? 999 : _ib);
+    // insertBefore solo se usa si cambió realmente el orden; mover nodos aunque
+    // ya estén en su sitio reiniciaba sus animaciones y causaba el destello.
+    cards.forEach((card, index) => {
+        const current = wrapper.children[index] || null;
+        if (current !== card) wrapper.insertBefore(card, current);
     });
-    cards.forEach(card => wrapper.appendChild(card));
-
-    // Lunas se presenta junto a Papeletas Lima SAT si ya respondió correctamente
-    const lunasCard = document.getElementById('lunas-card-container');
-    const limaCard = document.getElementById('lima-card-container');
-    if (lunasCard?.parentElement === wrapper) {
-        if (lunasCard.getAttribute('data-status') === 'funciona' && limaCard?.parentElement === wrapper) {
-            limaCard.insertAdjacentElement('afterend', lunasCard);
-        } else {
-            wrapper.appendChild(lunasCard);
-        }
-    }
-
-    // El diagnóstico cierra las consultas activas.
-    const scoreCard = document.getElementById('score-card-container');
-    if (scoreCard?.parentElement === wrapper) wrapper.appendChild(scoreCard);
-
-    // Deuda SAT se muestra después del diagnóstico como sección informativa / en desarrollo.
-    const satDebtCard = document.getElementById('sat_deuda-card-container');
-    if (satDebtCard?.parentElement === wrapper) wrapper.appendChild(satDebtCard);
-
-    const atuCard = document.getElementById('atu-card-container');
-    if (atuCard?.parentElement === wrapper) wrapper.appendChild(atuCard);
 }
 
 export function setCardLoading(cardId, title, sub, iconClass, bgColorClass, sourceName) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', 'loading');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    container.className = "accordion-card results-card bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const loadingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
         <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 border-t-transparent spin-icon"></span> Consultando
     </span>`;
@@ -440,7 +386,7 @@ export function setCardWaiting(cardId, title, sub, iconClass, bgColorClass, sour
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', 'waiting');
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    container.className = "accordion-card results-card bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const waitingBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100 shadow-sm uppercase tracking-wider">
         <i class="fas fa-clock text-slate-300 dark:text-slate-600 animate-pulse"></i> ${queueText || 'En espera'}
     </span>`;
@@ -478,7 +424,7 @@ function _renderUnavailableCard(cardId, title, iconClass, sourceName, badgeLabel
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     container.setAttribute('data-status', statusAttr);
-    container.className = "accordion-card results-card card-animate bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/70 rounded-2xl shadow-md ring-1 ring-white/5 flex flex-col overflow-hidden font-poppins transition-all duration-300";
+    container.className = "accordion-card results-card bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/70 rounded-2xl shadow-md ring-1 ring-white/5 flex flex-col overflow-hidden font-poppins transition-all duration-300";
     const badge = `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-700/60 text-slate-200 border border-slate-600/70 shadow-inner uppercase tracking-wider backdrop-blur-sm">
         <i class="fas fa-screwdriver-wrench text-slate-400"></i> ${badgeLabel}
     </span>`;
@@ -624,7 +570,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
             </div>
         </div>`;
 
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.className = "accordion-card results-card bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
     container.setAttribute('data-export-title', title);
     container.innerHTML = `
         ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
@@ -722,7 +668,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
             </div>
         </div>`;
 
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.className = "accordion-card results-card bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
     container.innerHTML = `
         ${cardHeaderAccordion(cardId, title, sourceName, iconClass, badgeHTML, isExpanded)}
         <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">

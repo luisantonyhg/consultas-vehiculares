@@ -1,6 +1,8 @@
 import { createWorker, PSM } from 'tesseract.js';
 
 let workerPromise: ReturnType<typeof createWorker> | null = null;
+let activeWorker: Awaited<ReturnType<typeof createWorker>> | null = null;
+let workerGeneration = 0;
 let diagnosticHandler: ((event: { status: string; progress?: number }) => void) | null = null;
 
 export function setPlateOcrDiagnosticHandler(handler: ((event: { status: string; progress?: number }) => void) | null) {
@@ -9,6 +11,7 @@ export function setPlateOcrDiagnosticHandler(handler: ((event: { status: string;
 
 export function getPlateOcrWorker() {
   if (!workerPromise) {
+    const generation = workerGeneration;
     workerPromise = createWorker('eng', undefined, {
       logger: (event) => {
         diagnosticHandler?.({ status: event.status, progress: event.progress });
@@ -18,6 +21,11 @@ export function getPlateOcrWorker() {
         }
       },
     }).then(async (worker) => {
+      if (generation !== workerGeneration) {
+        await worker.terminate();
+        throw new Error('OCR_WORKER_CANCELLED');
+      }
+      activeWorker = worker;
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
         // El detector ya separa la placa del fondo. El OCR recibe la banda de
@@ -27,11 +35,26 @@ export function getPlateOcrWorker() {
       });
       return worker;
     }).catch((error) => {
-      workerPromise = null;
+      if (generation === workerGeneration) workerPromise = null;
       throw error;
     });
   }
   return workerPromise;
+}
+
+/** Finaliza el worker cuando un reconocimiento queda colgado o se cierra el escáner. */
+export async function terminatePlateOcrWorker() {
+  workerGeneration++;
+  const worker = activeWorker;
+  activeWorker = null;
+  workerPromise = null;
+  if (worker) {
+    try {
+      await worker.terminate();
+    } catch {
+      // El escáner debe poder cerrarse aunque el worker ya haya terminado.
+    }
+  }
 }
 
 /**

@@ -505,7 +505,7 @@ export function renderVehicleInfoCard(vehicleData, isExpanded = false) {
             </div>`;
     }
 
-    container.className = "accordion-card results-card card-animate bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
+    container.className = "accordion-card results-card bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 font-poppins";
     container.setAttribute('data-export-title', 'Información Vehicular SUNARP');
     container.innerHTML = `
         ${cardHeaderAccordion('vehiculo', 'Información Vehicular (SUNARP)', 'REGISTRO MULTIFUENTE', 'fas fa-car-side', badgeHTML, isExpanded)}
