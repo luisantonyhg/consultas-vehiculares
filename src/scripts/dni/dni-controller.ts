@@ -1,6 +1,6 @@
 import { openScannerModal } from '../../ui/scanner_modal.ts';
 import { setSection, badgeLoading, badgeWaiting } from './dni-state.ts';
-import { startDniStream } from './dni-stream-client.ts';
+import { startDniStream, type DniDiagnostic } from './dni-stream-client.ts';
 import { acquireConsultationSlot, waitForConsultationSlot, touchConsultationSlot, releaseConsultationSlot } from '../../services/consultation_queue.js';
 import { setConsultationTicket } from '../../services/api.js';
 import { backendBase } from './dni-stream-client.ts';
@@ -13,6 +13,63 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
         let activeDniTicket: string | null = null;
         let lastDniTicketForRetry: string | null = null;
         let activeDniHeartbeat: ReturnType<typeof setInterval> | null = null;
+        let dniTraceStartedAt = 0;
+        let activeDniTraceId = '';
+        let dniTraceLines: string[] = [];
+
+        const diagnosticPanel = document.getElementById('dni-diagnostic-panel') as HTMLDetailsElement | null;
+        const diagnosticOutput = document.getElementById('dni-diagnostic-output');
+        const diagnosticCount = document.getElementById('dni-diagnostic-count');
+        const diagnosticCopy = document.getElementById('dni-diagnostic-copy');
+
+        const recordDniDiagnostic = (event: DniDiagnostic) => {
+            const allowed = [
+                'source', 'request_id', 'backend_request_id', 'provider', 'stage', 'status',
+                'elapsed_ms', 'provider_elapsed_ms', 'payload_bytes', 'reason',
+                'providers_ok', 'providers_fail', 'position', 'estimated_wait_seconds', 'load_mode',
+                'attempt', 'http', 'bytes', 'chars', 'solved', 'candidates', 'top_votes',
+                'rejected', 'licenses', 'message_class',
+                'route',
+            ];
+            const safe: Record<string, unknown> = {};
+            for (const key of allowed) {
+                const value = event[key];
+                if (value === undefined || value === null || typeof value === 'object') continue;
+                const text = String(value);
+                safe[key] = /request_id|provider|stage|status|reason|source|load_mode/.test(key)
+                    ? text.replace(/[^A-Za-z0-9_.:-]/g, '').slice(0, 80)
+                    : value;
+            }
+            const elapsed = dniTraceStartedAt ? ((performance.now() - dniTraceStartedAt) / 1000).toFixed(2) : '0.00';
+            const line = `+${elapsed}s ${JSON.stringify(safe)}`;
+            dniTraceLines.push(line);
+            if (dniTraceLines.length > 300) dniTraceLines = dniTraceLines.slice(-300);
+            if (diagnosticOutput) {
+                diagnosticOutput.textContent = dniTraceLines.join('\n');
+                diagnosticOutput.scrollTop = diagnosticOutput.scrollHeight;
+            }
+            if (diagnosticCount) diagnosticCount.textContent = `${dniTraceLines.length} eventos`;
+            // Eventos acotados y sin PII; útiles para consola local o soporte.
+            console.info('[DNI-TRACE]', safe);
+        };
+
+        diagnosticCopy?.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+                await navigator.clipboard.writeText(dniTraceLines.join('\n'));
+                diagnosticCopy.textContent = 'Copiado';
+                setTimeout(() => { if (diagnosticCopy) diagnosticCopy.textContent = 'Copiar'; }, 1400);
+            } catch {
+                if (diagnosticOutput) {
+                    const range = document.createRange();
+                    range.selectNodeContents(diagnosticOutput);
+                    const selection = window.getSelection();
+                    selection?.removeAllRanges();
+                    selection?.addRange(range);
+                }
+            }
+        });
 
         // Reintento de UNA sola sección DNI (ej. papeletas tras timeout).
         // Usa el ticket original dentro de la ventana de gracia manual del
@@ -25,6 +82,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 return;
             }
             const prevHtml = btn.innerHTML;
+            const retryStartedAt = performance.now();
+            recordDniDiagnostic({ source: 'frontend', request_id: activeDniTraceId, provider: section, stage: 'manual_retry_started', status: 'RUNNING' });
             btn.setAttribute('disabled', 'true');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i> Reintentando...';
             try {
@@ -36,9 +95,11 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 const payload = await resp.json().catch(() => ({}));
                 if (!resp.ok) throw new Error(payload?.error || `HTTP ${resp.status}`);
                 setSection(section, payload);
+                recordDniDiagnostic({ source: 'frontend', request_id: activeDniTraceId, provider: section, stage: 'manual_retry_completed', status: payload.status || 'OK', elapsed_ms: performance.now() - retryStartedAt, reason: payload.error ? 'provider_error' : undefined });
                 console.info('[DNI] section retried', { section, status: payload.status, elapsed_ms: payload.elapsed_ms, cached: payload.cached });
             } catch (error) {
-                console.warn('[DNI] section retry failed', { section, error });
+                recordDniDiagnostic({ source: 'frontend', request_id: activeDniTraceId, provider: section, stage: 'manual_retry_failed', status: 'ERROR', reason: error instanceof Error ? error.name : 'RETRY_ERROR', elapsed_ms: performance.now() - retryStartedAt });
+                console.warn('[DNI] section retry failed', { section, reason: error instanceof Error ? error.name : 'RETRY_ERROR' });
                 setSection(section, { status: 'ERROR', data: {}, error: error instanceof Error ? error.message : String(error) });
             } finally {
                 btn.removeAttribute('disabled');
@@ -63,12 +124,12 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             try {
                 const released = await releaseConsultationSlot(BACKEND_URL, ticket);
                 if (released) {
-                    console.info('[DNI] ticket released', { reason, ticket: ticket.slice(0, 8) });
+                    console.info('[DNI] ticket released', { reason });
                 } else {
-                    console.warn('[DNI] ticket release was not confirmed', { reason, ticket: ticket.slice(0, 8) });
+                    console.warn('[DNI] ticket release was not confirmed', { reason });
                 }
             } catch (error) {
-                console.warn('[DNI] ticket release failed', { reason, ticket: ticket.slice(0, 8), error });
+                console.warn('[DNI] ticket release failed', { reason, error_type: error instanceof Error ? error.name : 'RELEASE_ERROR' });
             }
         };
 
@@ -208,7 +269,18 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             activeDniStream?.close();
             if (activeDniTicket) void releaseDniTicket(activeDniTicket, 'superseded');
             const requestId = ++dniRequestId;
-            console.info('[DNI] consultation started', { requestId });
+            dniTraceStartedAt = performance.now();
+            dniTraceLines = [];
+            const traceId = (() => {
+                try { return crypto.randomUUID(); }
+                catch { return `dni-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
+            })();
+            activeDniTraceId = traceId;
+            if (diagnosticPanel) {
+                diagnosticPanel.classList.remove('hidden');
+                diagnosticPanel.open = true;
+            }
+            recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'frontend', stage: 'consultation_started', status: 'RUNNING' });
             if (resultsSection) resultsSection.classList.add('hidden');
             if (dniResultsSection) {
                 dniResultsSection.classList.remove('hidden');
@@ -330,6 +402,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
 
             let ticketId = '';
             let activeConsultationTicket = '';
+            const queueStartedAt = performance.now();
             try {
                 const turnstileToken = (window as any).__canitaTurnstileToken || '';
                 const captchaProof = {
@@ -341,10 +414,12 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     queryStatus.innerHTML = '<i class="fas fa-ticket mr-1"></i> Reservando turno seguro para DNI...';
                     queryStatus.classList.remove('opacity-0');
                 }
+                recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'queue', stage: 'ticket_reservation_started', status: 'RUNNING' });
                 let admission = await acquireConsultationSlot(BACKEND_URL, captchaProof);
                 if (admission?.supported) {
                     activeConsultationTicket = admission.ticket_id;
                     admission = await waitForConsultationSlot(BACKEND_URL, admission, (state: any) => {
+                        recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'queue', stage: state.status === 'queued' ? 'ticket_queued' : 'ticket_state_changed', status: String(state.status || 'UNKNOWN'), position: Number(state.position) || 0, estimated_wait_seconds: Number(state.estimated_wait_seconds) || 0, load_mode: String(state.load_mode || '') });
                         if (state.status === 'queued') {
                             const wait = Math.max(1, Math.round((state.estimated_wait_seconds || 0) / 60));
                             showConsultationQueueModal(state);
@@ -366,7 +441,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     activeDniTicket = ticketId;
                     lastDniTicketForRetry = ticketId;
                     setConsultationTicket(ticketId);
-                    console.info('[DNI] ticket active', { requestId, ticket: ticketId.slice(0, 8) });
+                    recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'queue', stage: 'ticket_active', status: 'OK', elapsed_ms: performance.now() - queueStartedAt });
+                    console.info('[DNI] ticket active', { requestId, request_id: traceId });
                     activeDniHeartbeat = setInterval(() => {
                         if (ticketId && document.visibilityState === 'visible') {
                             void touchConsultationSlot(BACKEND_URL, ticketId);
@@ -377,7 +453,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     queryStatus.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fas fa-bolt mr-1"></i> Turno confirmado. Analizando fuentes oficiales...</span>';
                 }
             } catch (ticketErr: any) {
-                console.warn('[DNI-QUEUE] Error reservando turno:', ticketErr);
+                recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'queue', stage: 'ticket_reservation_failed', status: 'ERROR', reason: ticketErr?.code || ticketErr?.name || 'QUEUE_ERROR', elapsed_ms: performance.now() - queueStartedAt });
+                console.warn('[DNI-QUEUE] Error reservando turno', { request_id: traceId, reason: ticketErr?.code || ticketErr?.name || 'QUEUE_ERROR' });
                 hideDniModal();
                 hideConsultationQueueModal();
                 if (queryStatus) {
@@ -393,6 +470,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             }
 
             const cleanupStream = (reason: 'done' | 'error', detail?: unknown) => {
+                recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: 'frontend', stage: 'consultation_finished', status: reason === 'done' ? 'OK' : 'ERROR', reason: reason === 'error' ? (detail instanceof Error ? detail.message : 'STREAM_ERROR') : undefined, elapsed_ms: performance.now() - dniTraceStartedAt });
                 void releaseDniTicket(ticketId, reason);
                 if (requestId !== dniRequestId) return;
                 hideDniModal();
@@ -411,7 +489,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                         queryStatus.className = 'text-rose-600 font-bold';
                     }
                 }
-                console.info('[DNI] stream closed', { requestId, reason });
+                console.info('[DNI] stream closed', { requestId, request_id: traceId, reason });
             };
 
             activeDniStream = startDniStream(
@@ -419,7 +497,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 ticketId,
                 (section, data) => {
                     if (requestId !== dniRequestId) return;
-                    console.info('[DNI] provider completed', { requestId, section, status: (data as any)?.status || 'OK' });
+                    recordDniDiagnostic({ source: 'frontend', request_id: traceId, provider: section, stage: 'provider_result_received', status: (data as any)?.status || 'OK', elapsed_ms: Number((data as any)?.elapsed_ms) || 0, reason: (data as any)?.error ? 'provider_error' : undefined });
+                    console.info('[DNI] provider completed', { requestId, request_id: traceId, section, status: (data as any)?.status || 'OK', elapsed_ms: (data as any)?.elapsed_ms });
                     if (dniLoaderStatus) {
                         const labels: Record<string, string> = {
                             identidad: 'INFORMACIÓN PERSONAL', sunat: 'SUNAT', jne_multas: 'JNE',
@@ -444,7 +523,9 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     setSection(section, data);
                 },
                 () => cleanupStream('done'),
-                (error) => cleanupStream('error', error)
+                (error) => cleanupStream('error', error),
+                (event) => recordDniDiagnostic(event),
+                traceId,
             );
         }
     return {
