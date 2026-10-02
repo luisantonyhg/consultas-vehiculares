@@ -49,7 +49,7 @@ export function startDniStream(
           "Content-Type": "application/json",
           "Accept": "text/event-stream",
           "X-Consultation-Ticket": ticket,
-          "X-Client-Request-ID": traceId,
+          "X-Request-ID": traceId,
         },
         body: JSON.stringify({ dni }),
         signal: abort.signal,
