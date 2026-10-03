@@ -1827,6 +1827,7 @@
                         // Despacharlo al final evita que retenga Lunas/SBS o las
                         // tarjetas provinciales; la UI ya queda libre y progresa.
                         await runHistorialLast();
+                        if (consultationLifecycle === 'active') saveToCache(plate, true);
                     } catch (err) {
                         console.error('[FASES] Error general en ejecución por fases:', err);
                         clearTimeout(safetyLoaderTimeout);

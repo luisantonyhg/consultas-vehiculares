@@ -19,7 +19,7 @@ export function createResultCache({ getValidation, setValidation, getVehicleData
             }
             return (hash >>> 0).toString(16).padStart(8, '0');
         };
-        function saveToCache(plate: string) {
+        function saveToCache(plate: string, complete = false) {
             // Solo se reutiliza un informe si SUNARP confirmó la existencia. Así una
             // falla temporal nunca se convierte en una validación persistente.
             if (getValidation() !== 'found') return;
@@ -30,8 +30,9 @@ export function createResultCache({ getValidation, setValidation, getVehicleData
                 'sat_deposito', 'lunas', 'atu', 'atu_infracciones'
             ];
             const cacheData: any = {
-                version: 3,
+                version: 4,
                 timestamp: Date.now(),
+                complete,
                 sunarpValidation: getValidation(),
                 vehicleData: getVehicleData(),
                 cards: {}
@@ -57,6 +58,7 @@ export function createResultCache({ getValidation, setValidation, getVehicleData
                 action: 'WRITE',
                 plate_hash: cachePlateToken(plate),
                 sections: Object.keys(cacheData.cards).length,
+                complete,
                 ttl_ms: 5 * 60 * 1000,
             });
         }
@@ -72,7 +74,7 @@ export function createResultCache({ getValidation, setValidation, getVehicleData
                 return 'miss';
             }
             try {
-                if (cacheData.version !== 3 || cacheData.sunarpValidation !== 'found' || !cacheData.cards?.sunarp) {
+                if (cacheData.version !== 4 || cacheData.sunarpValidation !== 'found' || !cacheData.cards?.sunarp) {
                     resultCache.delete(plate);
                     console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'SKIP_INVALID', plate_hash: cachePlateToken(plate) });
                     return 'miss';
@@ -85,7 +87,9 @@ export function createResultCache({ getValidation, setValidation, getVehicleData
                     console.info('[CACHE-DECISION]', { source: 'frontend-memory', action: 'EXPIRED', plate_hash: cachePlateToken(plate), age_ms: age, ttl_ms: staleRetentionMs });
                     return 'miss';
                 }
-                const cacheState = age > freshTtlMs ? 'stale' : 'fresh';
+                // Un informe parcial puede mostrarse mientras se vuelve a
+                // consultar, pero jamás omitir las secciones pendientes.
+                const cacheState = cacheData.complete && age <= freshTtlMs ? 'fresh' : 'stale';
                 
                 // Restore vehicleData
                 restoreVehicleData(cacheData.vehicleData || {});
