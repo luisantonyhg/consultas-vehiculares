@@ -81,15 +81,20 @@ export const ADVANCED_DEPENDENCIES = Object.freeze({
  * Conserva el orden estratégico recibido y declara únicamente las dependencias
  * explícitas. Cada sección debe llegar al scheduler una sola vez.
  */
-export function buildAdvancedNodes(standardOrder) {
+export function buildAdvancedNodes(standardOrder, executionPlan = null) {
     const seen = new Set();
+    const members = new Set(standardOrder);
+    const declared = new Map((executionPlan?.sections || []).map(section => [section.id, section]));
     return standardOrder.filter((id) => {
         if (seen.has(id)) return false;
         seen.add(id);
         return true;
     }).map(id => ({
         id,
-        deps: [...(ADVANCED_DEPENDENCIES[id] || [])],
+        // Dependencias de otras fases ya se satisfacen antes del dispatcher;
+        // el plan del backend gobierna solo los nodos de esta fase.
+        deps: [...(declared.get(id)?.depends_on || ADVANCED_DEPENDENCIES[id] || [])]
+            .filter(dependency => members.has(dependency)),
     }));
 }
 
@@ -122,7 +127,7 @@ export function resolveExecutionLimits(plan, admission = {}) {
     return {
         fast_concurrency: Math.max(1, Math.min(4, Number(source.fast_concurrency) || fallback.fast_concurrency)),
         background_concurrency: Math.max(1, Math.min(2, Number(source.background_concurrency) || fallback.background_concurrency)),
-        // El navegador está deliberadamente fijado a uno también del lado web.
+        // Mantener el límite conservador hasta comparar memoria en canary.
         heavy_concurrency: 1,
         // Dos wrappers pueden iniciar/seguir un mismo vuelo SBS o esperar red.
         // El bulkhead del backend mantiene un único Chromium físico.

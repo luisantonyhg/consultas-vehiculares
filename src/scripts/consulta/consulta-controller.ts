@@ -263,6 +263,8 @@
         // ====================================================
         let vehicleData: Record<string, any> = {};
         let sectionResults: Record<string, any> = {};
+        let currentConsultationStartedAt = 0;
+        let firstVerifiedResultAt = 0;
         let activeScorePlate = '';
         let queryAttempts: Record<string, number> = {};
         let currentSunarpValidation: 'found' | 'not_found' | 'indeterminate' = 'indeterminate';
@@ -550,6 +552,14 @@
             try {
                 const result = await job();
                 sectionResults[sectionId] = result;
+                if (!firstVerifiedResultAt && currentConsultationStartedAt && result?.success === true) {
+                    firstVerifiedResultAt = performance.now();
+                    console.info('[CONSULTATION-TIMING]', {
+                        event: 'first_verified_result',
+                        section: sectionId,
+                        elapsed_ms: Math.round(firstVerifiedResultAt - currentConsultationStartedAt),
+                    });
+                }
                 if (activeScorePlate && sectionResults.sunarp && document.getElementById('score-card-container')) {
                     renderVehicleScore(activeScorePlate);
                     const diagnosticStatus = result?.status || result?.provider_status ||
@@ -1315,6 +1325,8 @@
                 consultationLifecycle = 'active';
                 const activeConsultationId = createConsultationId();
                 const consultationStartedAt = performance.now();
+                currentConsultationStartedAt = consultationStartedAt;
+                firstVerifiedResultAt = 0;
                 setConsultationId(activeConsultationId);
 
                 const captchaProof = captcha.getProof(captchaInput?.value || '');
@@ -1649,7 +1661,7 @@
                             console.info(`[ORDEN-CONSULTA] Fin ${sectionId}: ${durationMs}ms`);
                             return result;
                         };
-                        const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);
+                        const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER, executionPlan);
                         // SPRL no comparte la ruta crítica visual. Se programa
                         // deliberadamente después del resto de la cola pesada,
                         // pero el ticket y heartbeat siguen vivos hasta su final.
@@ -1831,6 +1843,7 @@
                         console.info('[CONSULTATION-FULL-COMPLETE]', {
                             consultation_id: activeConsultationId,
                             total_ms: Math.round(performance.now() - consultationStartedAt),
+                            first_result_ms: firstVerifiedResultAt ? Math.round(firstVerifiedResultAt - consultationStartedAt) : null,
                             municipal_ms: municipalElapsedMs,
                             sprl_ms: historialElapsedMs,
                         });
