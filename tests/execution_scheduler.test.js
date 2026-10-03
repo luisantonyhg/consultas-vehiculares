@@ -108,7 +108,7 @@ test('las secciones avanzadas despachan dos wrappers sin ampliar el navegador gl
 
 test('P0.4.1: fase avanzada usa scheduling por sección con dependencias', () => {
   // NUNCA un lane-cadena reteniendo un worker: cada sección libera su slot.
-  const nodesPos = consultaSource.indexOf('const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER);');
+  const nodesPos = consultaSource.indexOf('const advancedNodes = buildAdvancedNodes(ADVANCED_EXECUTION_ORDER, executionPlan);');
   assert.ok(nodesPos >= 0, 'los nodos derivan del orden estratégico completo');
   assert.match(
     consultaSource,
@@ -125,7 +125,7 @@ test('el historial queda fuera del lote y se despacha después de las fuentes r�
     Object.fromEntries(nodes.map(node => [node.id, node.deps])),
     {
       sigm: [], soat: [], sat: [], lima: [],
-      municipal: [], historial_dueños: [], sbs: ['lunas'],
+      municipal: [], historial_dueños: [], sbs: [],
     },
   );
   assert.match(consultaSource, /historial_dueños:\s*\(\) => \{/);

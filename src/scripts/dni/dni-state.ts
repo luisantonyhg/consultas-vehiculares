@@ -35,44 +35,6 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;");
 }
 
-// Algoritmo de inferencia de género por nombres en Perú
-export function inferirSexoPorNombre(nombres: string): string {
-  if (!nombres || nombres === '—' || nombres === '-') return '—';
-  const primerNombre = nombres.trim().toUpperCase().split(/\s+/)[0]
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  const nombresFemeninos = new Set([
-    'MARIA', 'ANA', 'ROSA', 'CARMEN', 'LUZ', 'JUANA', 'PATRICIA', 'DIANA',
-    'CLAUDIA', 'ANDREA', 'SOFIA', 'ELENA', 'LAURA', 'GLORIA', 'LILIANA',
-    'MONICA', 'SILVIA', 'ELIZABETH', 'YESSICA', 'JESSICA', 'VERONICA',
-    'MARITZA', 'PILAR', 'MILAGROS', 'TERESA', 'BEATRIZ', 'LUCIA', 'CECILIA',
-    'GABRIELA', 'VANESSA', 'ROCIO', 'KAREN', 'STEPHANIE', 'CINTHIA', 'CYNTHIA',
-    'PAOLA', 'FIORELLA', 'ESTHER', 'MIRIAM', 'MIRIAN', 'SANDRA', 'KARLA',
-    'ALEJANDRA', 'DANIELA', 'VALERIA', 'CAMILA', 'ISABEL', 'MERCEDES', 'INDIRA',
-    'YOLANDA', 'BLANCA', 'GLADYS', 'SONIA', 'IRMA', 'HILDA', 'BERTHA', 'NORMA',
-    'VICTORIA', 'RITA', 'OLGA', 'LUCILA', 'AIDA', 'ANGELA', 'LOURDES', 'JULIA'
-  ]);
-
-  const nombresMasculinos = new Set([
-    'JUAN', 'JOSE', 'CARLOS', 'LUIS', 'JORGE', 'MIGUEL', 'MANUEL', 'DAVID',
-    'VICTOR', 'JESUS', 'MARIO', 'FERNANDO', 'ROBERTO', 'CRISTIAN', 'CHRISTIAN',
-    'FRANCISCO', 'JULIO', 'CESAR', 'EDUARDO', 'ANGEL', 'DANIEL', 'DIEGO',
-    'ALBERTO', 'MARCO', 'ALEX', 'JAVIER', 'RICARDO', 'MARTIN', 'RAUL',
-    'ENRIQUE', 'HUGO', 'ALEXANDER', 'EDGAR', 'ALFREDO', 'WALTER', 'OSCAR',
-    'RUBEN', 'HECTOR', 'JAIME', 'ARTURO', 'EDWIN', 'GUILLERMO', 'PEDRO',
-    'RONALD', 'JONATHAN', 'ALONSO', 'SEBASTIAN', 'ADRIAN', 'GABRIEL', 'RENZO',
-    'SERGIO', 'RODRIGO', 'LEONARDO', 'GONZALO', 'GUSTAVO', 'PABLO', 'FELIPE'
-  ]);
-
-  if (nombresFemeninos.has(primerNombre)) return 'FEMENINO';
-  if (nombresMasculinos.has(primerNombre)) return 'MASCULINO';
-
-  if (primerNombre.endsWith('A') && !['JOSHUA'].includes(primerNombre)) return 'FEMENINO';
-  if (primerNombre.endsWith('O') || primerNombre.endsWith('OR') || primerNombre.endsWith('EL') || primerNombre.endsWith('AN') || primerNombre.endsWith('ER')) return 'MASCULINO';
-
-  return '—';
-}
-
 export function fila(label: string, value: unknown): string {
   if (value === null || value === undefined || value === "null" || value === "undefined") return "";
   const strVal = String(value).trim();
@@ -189,10 +151,8 @@ export function paintDniSection(name: string, rawData: unknown): void {
       const edadTxt = str(edadObj.legible || inner.edad || '—');
       const fecNac = str(inner.fecha_nacimiento || '—');
       
-      let sexo = str(inner.sexo || '');
-      if (!sexo || sexo === '—' || sexo === '-' || sexo === 'null') {
-        sexo = inferirSexoPorNombre(nombres || completo);
-      }
+      // Solo mostrar un dato recibido de la fuente; el nombre no prueba el sexo.
+      const sexo = str(inner.sexo || '');
       
       const inputDni = (document.getElementById('dni-search-input') as HTMLInputElement)?.value?.trim() 
         || (document.getElementById('dni-input') as HTMLInputElement)?.value?.trim() || '';

@@ -52,7 +52,8 @@ test('historial se independiza de Municipal para entrar antes en la cola del nav
   assert.deepEqual(deps.lima, []);
   assert.deepEqual(deps.municipal, []);
   assert.deepEqual(deps.historial_dueños, []);
-  assert.deepEqual(deps.sbs, ['lunas']);
+  // Lunas belongs to a different phase; the controller awaits it before SBS.
+  assert.deepEqual(deps.sbs, []);
 });
 
 test('P0.3: split conserva orden relativo y tolera ids desconocidos', () => {
@@ -73,7 +74,7 @@ test('P0.4.1: nodos mantienen una cadena determinista para un solo navegador', (
   assert.deepEqual(deps.lima, []);
   assert.deepEqual(deps.municipal, []);
   assert.deepEqual(deps.historial_dueños, []);
-  assert.deepEqual(deps.sbs, ['lunas']);
+  assert.deepEqual(deps.sbs, []);
   assert.deepEqual(deps.soat, []);
   assert.deepEqual(ADVANCED_DEPENDENCIES, {
     sat: [], lima: [], municipal: [], historial_dueños: [], sbs: ['lunas'],
