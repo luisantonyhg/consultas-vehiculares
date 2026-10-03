@@ -131,10 +131,13 @@ export async function releaseHeavyPhase(BACKEND_URL, ticketId) {
     }
 }
 
-export async function releaseConsultationSlot(BACKEND_URL, ticketId, keepalive = false) {
+export async function releaseConsultationSlot(BACKEND_URL, ticketId, keepalive = false, endReason = '', kind = '') {
     if (!ticketId) return false;
     try {
-        const response = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/complete`, {
+        const suffix = endReason === 'client_pagehide'
+            ? `?end_reason=client_pagehide&consultation_kind=${kind === 'dni' ? 'dni' : kind === 'plate' ? 'plate' : 'unknown'}`
+            : '';
+        const response = await secureFetch(`${BACKEND_URL}/consultations/${encodeURIComponent(ticketId)}/complete${suffix}`, {
             method: 'POST',
             keepalive,
         });

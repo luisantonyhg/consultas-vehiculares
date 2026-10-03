@@ -91,7 +91,9 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                 setConsultationTicket(null);
             }
             try {
-                const released = await releaseConsultationSlot(BACKEND_URL, ticket);
+                const released = await releaseConsultationSlot(
+                    BACKEND_URL, ticket, reason === 'pagehide', reason === 'pagehide' ? 'client_pagehide' : '', 'dni'
+                );
                 if (released) {
                     console.info('[DNI] ticket released', { reason });
                 } else {

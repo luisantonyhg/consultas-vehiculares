@@ -134,7 +134,7 @@
         window.addEventListener('pagehide', () => {
             consultationLifecycle = 'cancelled';
             if (activeConsultationTicket) {
-                void releaseConsultationSlot(BACKEND_URL, activeConsultationTicket, true);
+                void releaseConsultationSlot(BACKEND_URL, activeConsultationTicket, true, 'client_pagehide', 'plate');
             }
         });
 
