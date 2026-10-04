@@ -1417,14 +1417,8 @@
                         }
                         const executionLimits = resolveExecutionLimits(executionPlan, admission);
 
-                        // Verificación rápida de disponibilidad del backend
-                        try {
-                            const baseUrl = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
-                            const healthRes = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(10000) });
-                            if (!healthRes.ok) throw new Error("HTTP Status " + healthRes.status);
-                        } catch (_healthErr) {
-                            console.warn("[CONEXION] Health check aviso (continuando consulta):", _healthErr);
-                        }
+                        // La reserva del turno ya obtuvo respuesta del backend.
+                        // Evitar una segunda petición /health por cada consulta.
 
                         // SUNARP comienza junto a las fuentes rápidas. Las rápidas
                         // avanzan detrás del modal, pero la pantalla principal solo se
