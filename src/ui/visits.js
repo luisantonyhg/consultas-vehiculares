@@ -13,6 +13,13 @@ function animateCount(element, target) {
 
 export async function initVisits(BACKEND_URL, clientSecret) {
     const counterEl = document.getElementById('visit-counter');
+    const trackingEnabled = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_ENABLE_VISITS_TRACKING === 'true');
+    if (!trackingEnabled) {
+        if (counterEl && (!counterEl.textContent || counterEl.textContent.trim() === '...')) {
+            counterEl.textContent = '50,000+';
+        }
+        return;
+    }
     let visitorId = localStorage.getItem('canita-visitor-id');
     if (!visitorId) {
         visitorId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;

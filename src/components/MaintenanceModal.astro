@@ -1,8 +1,8 @@
 ---
-// Modal global de mantenimiento: se muestra al cargar la vista y bloquea
-// temporalmente las consultas mientras mejoramos el sistema.
-// Para reactivar las consultas: setCardMaintenance solo en frontend y
-// MAINTENANCE_MODE=False en el backend (ver config.py).
+// Modal global de mantenimiento: controlado desde frontend (PUBLIC_MAINTENANCE_MODE).
+// Si PUBLIC_MAINTENANCE_MODE=true en Vercel, se muestra inmediatamente el modal
+// y se deshabilitan las consultas sin tocar ni despertar el backend de Railway (0 tráfico HTTP).
+const isMaintenance = import.meta.env.PUBLIC_MAINTENANCE_MODE === 'true';
 ---
 
 <div id="mnt-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
@@ -133,7 +133,7 @@
     .mnt-modal { transition: opacity 0.3s ease; }
 </style>
 
-<script>
+<script define:vars={{ isMaintenance }}>
     function openModal() {
         const el = document.getElementById('mnt-modal');
         if (!el) return;
@@ -150,36 +150,21 @@
         document.body.style.overflow = '';
     }
 
-    (window as any).showMaintenanceModal = openModal;
-    (window as any).closeMaintenanceModal = closeModal;
-    (window as any).__maintenanceMode = false;
+    window.showMaintenanceModal = openModal;
+    window.closeMaintenanceModal = closeModal;
+    window.__maintenanceMode = Boolean(isMaintenance);
 
-    async function checkMaintenanceStatus() {
-        try {
-            const backendUrl = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-                ? 'http://localhost:8000'
-                : 'https://backend-consultarvehiculos-production.up.railway.app';
-            const res = await fetch(`${backendUrl}/api/v1/maintenance-status`, {
-                signal: AbortSignal.timeout(5000)
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            (window as any).__maintenanceMode = data.maintenance_mode === true;
-            if (data.maintenance_mode) {
-                openModal();
-                document.querySelectorAll('#submit-btn, #query-form button[type="submit"]').forEach((btn: Element) => {
-                    (btn as HTMLButtonElement).disabled = true;
-                    (btn as HTMLButtonElement).classList.add('opacity-60', 'cursor-not-allowed');
-                    (btn as HTMLButtonElement).innerHTML = '<i class="fas fa-wrench"></i> Mantenimiento';
-                });
-                const qs = document.getElementById('query-status');
-                if (qs) {
-                    qs.innerHTML = '<span class="text-amber-500 font-bold"><i class="fas fa-wrench mr-1"></i>Sistema en mantenimiento. Las consultas están deshabilitadas.</span>';
-                    qs.classList.remove('opacity-0');
-                }
-            }
-        } catch (e) {
-            console.warn('[MAINTENANCE] No se pudo verificar estado:', e);
+    function applyMaintenanceUI() {
+        openModal();
+        document.querySelectorAll('#submit-btn, #query-form button[type="submit"]').forEach((btn) => {
+            btn.disabled = true;
+            btn.classList.add('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fas fa-wrench"></i> Mantenimiento';
+        });
+        const qs = document.getElementById('query-status');
+        if (qs) {
+            qs.innerHTML = '<span class="text-amber-500 font-bold"><i class="fas fa-wrench mr-1"></i>Sistema en mantenimiento. Las consultas están deshabilitadas.</span>';
+            qs.classList.remove('opacity-0');
         }
     }
 
@@ -188,6 +173,8 @@
         const backdrop = document.getElementById('mnt-backdrop');
         if (close) close.addEventListener('click', closeModal);
         if (backdrop) backdrop.addEventListener('click', closeModal);
-        void checkMaintenanceStatus();
+        if (isMaintenance) {
+            applyMaintenanceUI();
+        }
     });
 </script>
