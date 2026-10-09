@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initVisits } from '../src/ui/visits.js';
+import { initVisits, setVisitsTrackingForTests } from '../src/ui/visits.js';
 
 function storage() {
     const values = new Map();
     return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
 }
+
+setVisitsTrackingForTests(true);
 
 test('contador real: deduplica navegación, comparte solicitudes y rechaza cifras inválidas', async () => {
     const names = ['document', 'localStorage', 'sessionStorage', 'fetch'];
@@ -41,5 +43,25 @@ test('contador real: deduplica navegación, comparte solicitudes y rechaza cifra
         assert.equal(counter.textContent, 'No disponible');
     } finally {
         names.forEach((name, i) => originals[i] ? Object.defineProperty(globalThis, name, originals[i]) : delete globalThis[name]);
+    }
+});
+
+test('deshabilitado por defecto: no hace ninguna peticion y oculta el contador', async () => {
+    setVisitsTrackingForTests(false);
+    const card = { style: {} };
+    const counter = { textContent: '...', closest: () => card };
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: () => counter } });
+    const fetchOriginal = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return new Response('{}'); };
+    try {
+        await initVisits('https://backend.test', 'test');
+        assert.equal(calls, 0);
+        assert.equal(card.style.display, 'none');
+    } finally {
+        globalThis.fetch = fetchOriginal;
+        if (original) Object.defineProperty(globalThis, 'document', original); else delete globalThis.document;
+        setVisitsTrackingForTests(true);
     }
 });

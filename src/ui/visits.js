@@ -2,6 +2,19 @@ const SESSION_KEY = 'canita-visits-session-v1';
 const SESSION_TTL = 30 * 60 * 1000;
 const pending = new Map();
 
+// DESHABILITADO: el contador de visitas despertaba el contenedor de Railway (cada
+// POST /visits reabre Redis y Railway deja de dormirlo = RAM facturada 24/7).
+// Solo se reactiva con PUBLIC_ENABLE_VISITS_TRACKING=true en el build.
+let trackingEnabled = import.meta.env?.PUBLIC_ENABLE_VISITS_TRACKING === 'true';
+export function setVisitsTrackingForTests(value) { trackingEnabled = Boolean(value); }
+
+function hideCounter(counterEl) {
+    try {
+        const card = counterEl?.closest?.('.inline-flex') || counterEl?.parentElement?.parentElement;
+        if (card?.style) card.style.display = 'none';
+    } catch { /* DOM no disponible. */ }
+}
+
 function read(storage, key) {
     try { return globalThis[storage].getItem(key); } catch { return null; }
 }
@@ -14,7 +27,7 @@ function validTotal(data) {
 
 export async function initVisits(BACKEND_URL, clientSecret) {
     const counterEl = document.getElementById('visit-counter');
-    const trackingEnabled = import.meta.env?.PUBLIC_ENABLE_VISITS_TRACKING !== 'false';
+    if (!trackingEnabled) { hideCounter(counterEl); return; }
     const key = `${SESSION_KEY}:${BACKEND_URL}`;
     let cached;
     try { cached = JSON.parse(read('sessionStorage', key)); } catch { /* Ignore corrupt cache. */ }
@@ -22,7 +35,6 @@ export async function initVisits(BACKEND_URL, clientSecret) {
         if (counterEl) counterEl.textContent = Number.isSafeInteger(total) ? total.toLocaleString() : 'No disponible';
     };
     const genuineCache = Number.isSafeInteger(cached?.total) && cached.total >= 0;
-    if (!trackingEnabled) { show(genuineCache ? cached.total : null); return; }
     if (genuineCache && cached.at <= Date.now() && Date.now() - cached.at < SESSION_TTL) {
         show(cached.total);
         return;
