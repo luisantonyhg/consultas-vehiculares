@@ -34,6 +34,10 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                         </button>
                     </div>
                 </div>
+                <div class="flex items-center gap-5 py-4 mb-4">
+                    <div class="flex-1 text-center"><img id="vehicle-preview-image" src="/assets/vehicles/default.png" alt="Imagen referencial del vehículo" class="mx-auto h-36 max-w-full object-contain" /><p class="text-[10px] text-slate-500">Imagen referencial</p></div>
+                    <div class="w-24 text-center"><strong id="vehicle-query-progress" class="text-2xl font-black text-blue-700">0%</strong><progress id="vehicle-query-progressbar" value="0" max="100" aria-label="Avance de consulta" class="w-full h-2"></progress><p class="text-[10px] text-slate-500">Consultado</p></div>
+                </div>
                 <div id="results-cards-wrapper" data-plate="${plate}" class="flex flex-col gap-3 md:gap-4 w-full">
                     <!-- 1. SUNARP Información Registral -->
                     <div id="sunarp-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
@@ -45,7 +49,6 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                     <div id="soat-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="soat_detallado-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="citv-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
-                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                     <div id="valor_venal-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <div id="sbs-card-container" data-status="${fromCache ? 'funciona' : 'loading'}"></div>
                     <!-- 5. Papeletas de Tránsito -->
@@ -70,6 +73,7 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
 
                     <!-- 8. Secciones en desarrollo / informativas -->
                     <div id="sat_deuda-card-container" data-status="development"></div>
+                    <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 font-poppins">
                     <i class="fas fa-circle-info text-slate-300 dark:text-slate-600 text-xs"></i>

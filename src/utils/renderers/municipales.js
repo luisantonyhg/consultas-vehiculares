@@ -149,6 +149,9 @@ export function renderSatCaptura(data, plate) {
 export function renderSatDeposito(data, plate) {
     const safePlate = escapeHTML(plate || '');
     const dep = data?.deposito || data;
+    if (dep?.confirmed !== true) {
+        return `<div class="py-7 px-4 text-center font-poppins text-amber-700 dark:text-amber-400"><p class="font-bold">Depósito no verificado</p><p class="mt-2 text-xs">El SAT no permitió confirmar el internamiento. Este resultado no demuestra que el vehículo esté libre de internamiento.</p></div>`;
+    }
     const internado = Boolean(dep?.internado);
     const fecha = dep?.fecha ? escapeHTML(dep.fecha) : null;
     const detalle = Array.isArray(dep?.detalle) ? dep.detalle : [];

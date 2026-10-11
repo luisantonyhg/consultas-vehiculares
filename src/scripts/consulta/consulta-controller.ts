@@ -1,5 +1,6 @@
         import { setupSectionExport } from '../../ui/section_export';
         import { renderResultsSkeleton } from '../../ui/vehicle_results.ts';
+        import { updateVehiclePreview } from '../../ui/vehicle_preview';
         import { renderVehicleScoreCard } from '../../ui/vehicle_score_card.ts';
         import { setupDocumentViewer } from '../../ui/document_viewer.ts';
         import { createResultCache } from '../../services/result_cache.ts';
@@ -552,6 +553,7 @@
             try {
                 const result = await job();
                 sectionResults[sectionId] = result;
+                void updateVehiclePreview(sectionResults);
                 if (!firstVerifiedResultAt && currentConsultationStartedAt && result?.success === true) {
                     firstVerifiedResultAt = performance.now();
                     console.info('[CONSULTATION-TIMING]', {
@@ -584,6 +586,7 @@
                 console.error(`[SECCION ${sectionId}] Falló sin detener el informe:`, error);
                 const failedResult = { success: false, error: (error as any)?.message || 'Error inesperado' };
                 sectionResults[sectionId] = failedResult;
+                void updateVehiclePreview(sectionResults);
                 console.info(`[SECCION-FIN] ${sectionId}`, {
                     processing_ms: Math.round((performance.now() - startedAt) * 10) / 10,
                     success: false,
@@ -1888,6 +1891,7 @@
 
 
         function renderVehicleScore(plate: string) {
+            void updateVehiclePreview(sectionResults);
             renderVehicleScoreCard(plate, sectionResults);
         }
 
