@@ -42,6 +42,9 @@ export function renderSatDeuda(data, plate) {
 export function renderSatCaptura(data, plate) {
     const safePlate = escapeHTML(plate || '');
     const cap = data?.captura || data;
+    if (cap?.confirmed !== true) {
+        return `<div class="py-7 px-4 text-center font-poppins text-amber-700 dark:text-amber-400"><p class="font-bold">Orden de captura no verificada</p><p class="mt-2 text-xs">El SAT no permitió confirmar las medidas de captura. Este resultado no demuestra que el vehículo esté libre de ellas.</p></div>`;
+    }
     const tiene = Boolean(cap?.tiene);
     const fecha = cap?.fecha ? escapeHTML(cap.fecha) : null;
     const detalle = Array.isArray(cap?.detalle) ? cap.detalle : [];
