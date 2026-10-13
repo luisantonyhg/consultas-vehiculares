@@ -1,5 +1,6 @@
 /** Transporte HTTP compartido por todos los proveedores vehiculares. */
 let activeConsultationTicket = null;
+let documentConsultationTicket = null;
 let activeConsultationId = null;
 let manualRetrySection = null;
 const sectionPerformanceSamples = [];
@@ -30,6 +31,13 @@ export function clearSectionPerformanceSamples() {
 
 export function setConsultationTicket(ticketId) {
     activeConsultationTicket = ticketId || null;
+    if (ticketId) documentConsultationTicket = ticketId;
+}
+
+export function secureDocumentFetch(url, options = {}) {
+    return secureFetch(url, { ...options, headers: { ...options.headers,
+        ...(documentConsultationTicket ? { 'X-Consultation-Ticket': documentConsultationTicket } : {}),
+    } });
 }
 
 export function setConsultationId(consultationId) {

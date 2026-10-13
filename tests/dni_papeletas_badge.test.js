@@ -26,7 +26,9 @@ test('cada tarjeta imprime su velocidad con el número del backend', () => {
 test('papeletas sin confirmar tampoco usa plomo', () => {
   const elseBranch = stateSource.slice(stateSource.indexOf("case 'transporte_papeletas'"));
   const block = elseBranch.slice(0, elseBranch.indexOf("case 'minedu'"));
-  assert.doesNotMatch(block, /badgePill\('neutral'/);
+  const unverifiedBranch = block.slice(block.lastIndexOf('else {'));
+  assert.doesNotMatch(unverifiedBranch, /badgePill\('neutral'/);
+  assert.match(unverifiedBranch, /NO VERIFICADO · REINTENTAR/);
 });
 
 test('un fallo técnico de papeletas jamás afirma CON SANCIONES', () => {

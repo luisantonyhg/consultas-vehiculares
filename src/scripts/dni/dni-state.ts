@@ -529,6 +529,11 @@ export function paintDniSection(name: string, rawData: unknown): void {
     }
 
     case 'transporte_papeletas': {
+      if (inner.estado === 'SIN_LICENCIA' && inner.resultado_confirmado === true && providerStatus === 'OK') {
+        badgeHtml = badgePill('neutral', 'SIN LICENCIA · MTC');
+        tableRows = `<div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-800"><p class="text-xs font-semibold">${escapeHtml(str(inner.mensaje))}</p><p class="mt-2 text-[10px]">Este resultado corresponde al récord del conductor. No certifica ausencia de papeletas vehiculares de otras fuentes.</p></div>`;
+        break;
+      }
       const infracciones = arr(inner.infracciones || inner.papeletas || inner.papeletas_pendientes);
       const tieneInfracciones = inner.tiene_infracciones === true || inner.tiene_papeletas === true || infracciones.length > 0;
       const resultadoConfirmado = inner.resultado_confirmado === true && providerStatus === 'OK';

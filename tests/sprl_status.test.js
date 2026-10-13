@@ -23,10 +23,11 @@ test('SPRL parcial con asientos nunca afirma que no existen gravámenes', () => 
     gravamenes: { status: 'NOT_VERIFIED' },
     verification: { encumbrances_history: 'NOT_VERIFIED' },
     resumen: { total_asientos: 8, gravamenes_vigentes: null },
+    asientos: [{ numero: 1 }],
   });
 
-  assert.match(badge, /GRAVÁMENES PENDIENTES/);
-  assert.match(badge, /bg-amber-500/);
+  assert.match(badge, /GRAVÁMENES SIN VERIFICAR · REINTENTAR/);
+  assert.match(badge, /bg-slate-700/);
   assert.doesNotMatch(badge, /SIN GRAVÁMENES VERIFICADO/);
 });
 

@@ -22,10 +22,11 @@
     }
     /* Ocultar elementos de navegación y formularios */
     header, footer, nav, .no-print,
-    #query-form, #hero-section, #captcha-container { display: none !important; }
+    #query-form, #hero-section, #captcha-container, .banner-luxury-bg { display: none !important; }
+    main { display: block !important; min-height: 0 !important; padding: 0 !important; }
     /* Forzar tarjetas compactas, nítidas y expandidas sin espacios en blanco */
     .results-card, .accordion-card {
-        break-inside: avoid; page-break-inside: avoid;
+        break-inside: auto; page-break-inside: auto;
         box-shadow: none !important; border: 1px solid #cbd5e1 !important;
         background: #fff !important; color: #0f172a !important;
         border-radius: 8px !important; margin-bottom: 8px !important;
@@ -36,6 +37,20 @@
         font-size: 10.5px !important;
     }
     .accordion-body { display: block !important; }
+    #results-cards-wrapper button, .accordion-chevron { display: none !important; }
+    #results-cards-wrapper > [data-status="waiting"] .accordion-body,
+    #results-cards-wrapper > [data-status="loading"] .accordion-body { display: none !important; }
+    #results-cards-wrapper { display: block !important; }
+    #results-cards-wrapper > div { margin-bottom: 8px !important; }
+    .accordion-header, tr, .card-source-footer { break-inside: avoid; }
+    .accordion-header { break-after: avoid; }
+    .accordion-body, .card-body-content, .overflow-x-auto { overflow: visible !important; max-height: none !important; }
+    #results-container { display: block !important; }
+    #results-section > :not(#results-container):not(#print-report-header) { display: none !important; }
+    .vehicle-analysis-preview, #results-container > div:first-child:not(#print-report-header), #print-report-header + div, #results-container > div:last-child { display: none !important; }
+    #print-report-header { margin: 0 0 12px; padding: 0 0 12px; border-bottom: 2px solid #b7791f; }
+    #print-report-header h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+    #print-report-header p { margin: 4px 0; font-size: 11px; }
     #results-section { margin-top: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
     .print-only { display: block !important; }
 }
@@ -66,6 +81,10 @@
     animation: shimmer 1.5s infinite linear;
 }
 .spin-icon { animation: spin 1.2s linear infinite; }
+.spin-icon { box-sizing: border-box; flex-shrink: 0; border-radius: 50% !important; padding: 0 !important; aspect-ratio: 1; }
+.vehicle-health-ring { --health-color: #94a3b8; --health-value: 0%; display: grid; place-items: center; width: 94px; height: 94px; border-radius: 50%; background: conic-gradient(var(--health-color) var(--health-value), #e2e8f0 0); position: relative; color: var(--health-color); }
+.vehicle-health-ring::before { content: ''; position: absolute; inset: 8px; background: white; border-radius: 50%; }
+.vehicle-health-ring strong { position: relative; font-size: 24px; font-weight: 900; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .results-card { transition: box-shadow 0.25s ease, transform 0.2s ease; }
 .results-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.12); transform: translateY(-2px); }
@@ -280,7 +299,7 @@
     }
 
     /* Badge containers en header de cards */
-    .status-badge-container span {
+    .status-badge-container > span {
         font-size: 9px !important;
         padding: 0.25rem 0.5rem !important;
     }

@@ -34,9 +34,9 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-5 py-4 mb-4">
-                    <div class="flex-1 text-center"><img id="vehicle-preview-image" src="/assets/vehicles/default.png" alt="Imagen referencial del vehículo" class="mx-auto h-36 max-w-full object-contain" /><p class="text-[10px] text-slate-500">Imagen referencial</p></div>
-                    <div class="w-24 text-center"><strong id="vehicle-query-progress" class="text-2xl font-black text-blue-700">0%</strong><progress id="vehicle-query-progressbar" value="0" max="100" aria-label="Avance de consulta" class="w-full h-2"></progress><p class="text-[10px] text-slate-500">Consultado</p></div>
+                <div class="vehicle-analysis-preview flex items-center gap-5 py-4 mb-4">
+                    <div class="flex-1 text-center"><img id="vehicle-preview-image" src="/assets/vehicles/default.png" alt="Vehículo consultado" class="mx-auto h-36 max-w-full object-contain" /><p id="vehicle-preview-caption" class="text-[10px] text-slate-600">Vehículo consultado</p></div>
+                    <div class="shrink-0 text-center"><div id="vehicle-query-progressbar" class="vehicle-health-ring" role="progressbar" aria-label="Salud del vehículo según análisis inteligente" aria-valuemin="0" aria-valuemax="100"><strong id="vehicle-query-progress">—</strong></div><p class="mt-2 text-[10px] font-semibold text-slate-600">Salud vehicular</p><p id="vehicle-health-coverage" class="text-[9px] text-slate-500">Analizando fuentes</p></div>
                 </div>
                 <div id="results-cards-wrapper" data-plate="${plate}" class="flex flex-col gap-3 md:gap-4 w-full">
                     <!-- 1. SUNARP Información Registral -->

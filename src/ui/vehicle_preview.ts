@@ -1,4 +1,5 @@
 type Catalog = Record<string, string>;
+import { buildConsolidatedPayload, calculateVehicleScore } from '../services/vehicle_score.js';
 let catalog: Promise<Catalog> | undefined;
 const normalize = (value: unknown) => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -29,12 +30,22 @@ export async function updateVehiclePreview(results: Record<string, any>) {
     const asset = entries[0]?.[1];
     if (!image.isConnected) return;
     image.src = asset || '/assets/vehicles/default.png';
+    const caption = document.getElementById('vehicle-preview-caption');
+    const description = [fields.marca, fields.modelo, fields.color].filter(Boolean).join(' · ');
+    if (caption) caption.textContent = description || 'Vehículo consultado';
+    image.alt = description || 'Vehículo consultado';
     image.onerror = () => { image.onerror = null; image.src = '/assets/vehicles/default.png'; };
-    const cards = [...document.querySelectorAll<HTMLElement>('#results-cards-wrapper > [data-status]')];
-    const finished = cards.filter(card => !['loading', 'waiting'].includes(card.dataset.status || '')).length;
-    const percentage = cards.length ? Math.round(100 * finished / cards.length) : 0;
+    const { score, verified, totalSources, coveragePercent } = calculateVehicleScore(buildConsolidatedPayload('', results));
+    const percentage = verified > 0 ? score : null;
     const label = document.getElementById('vehicle-query-progress');
-    if (label) label.textContent = `${percentage}%`;
-    const progress = document.getElementById('vehicle-query-progressbar') as HTMLProgressElement | null;
-    if (progress) progress.value = percentage;
+    if (label) label.textContent = percentage === null ? '—' : `${percentage}%`;
+    const progress = document.getElementById('vehicle-query-progressbar');
+    if (progress) {
+        progress.style.setProperty('--health-value', `${percentage ?? 0}%`);
+        progress.style.setProperty('--health-color', percentage === null ? '#94a3b8' : percentage >= 80 ? '#059669' : percentage >= 50 ? '#b7791f' : '#e11d48');
+        if (percentage !== null) progress.setAttribute('aria-valuenow', String(percentage));
+        else progress.removeAttribute('aria-valuenow');
+    }
+    const coverage = document.getElementById('vehicle-health-coverage');
+    if (coverage) coverage.textContent = `${verified}/${totalSources} fuentes · ${coveragePercent}% cobertura`;
 }

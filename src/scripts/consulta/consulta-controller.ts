@@ -1114,6 +1114,17 @@
             
             // Eliminar cualquier cabecera previa si existiese
             document.getElementById('print-report-header')?.remove();
+            const reportHeader = document.createElement('div');
+            reportHeader.id = 'print-report-header';
+            reportHeader.className = 'print-only';
+            const reportTitle = document.createElement('h1');
+            reportTitle.textContent = 'Reporte vehicular completo';
+            const reportDetails = document.createElement('p');
+            reportDetails.textContent = `CAÑITA · Placa ${_plate} · ${new Date().toLocaleString('es-PE')}`;
+            const reportScope = document.createElement('p');
+            reportScope.textContent = 'Resultados de fuentes oficiales y análisis inteligente. Las secciones no verificadas se identifican expresamente.';
+            reportHeader.append(reportTitle, reportDetails, reportScope);
+            document.getElementById('results-container')?.prepend(reportHeader);
 
             setTimeout(() => {
                 window.print();

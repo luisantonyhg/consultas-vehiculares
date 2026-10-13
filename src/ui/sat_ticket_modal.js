@@ -2,6 +2,7 @@
  * Modal visualizador oficial de papeletas SAT Lima en formato A4 interactivo.
  * Incluye zoom dinámico (+, -, Ajustar A4), arrastre/pan, descarga directa de imagen/PDF e impresión.
  */
+import { secureDocumentFetch } from '../services/transport.js';
 export function setupSatTicketModal(backendUrl = '') {
     const modal = document.getElementById('sat-ticket-modal');
     const viewport = document.getElementById('sat-modal-viewport');
@@ -30,6 +31,9 @@ export function setupSatTicketModal(backendUrl = '') {
     let startY = 0;
     let currentDocUrl = '';
     let currentDocNumber = '';
+    let objectUrl = '';
+    let request = null;
+    let generation = 0;
 
     function applyTransform(animate = false) {
         if (sheet) {
@@ -46,12 +50,12 @@ export function setupSatTicketModal(backendUrl = '') {
         const vW = viewport.clientWidth - 28;
         const vH = viewport.clientHeight - 28;
         // Dimensiones estándar A4 (ratio 1 : 1.414)
-        const targetW = 750;
-        const targetH = 1060;
+        const targetW = sheet.offsetWidth || 750;
+        const targetH = sheet.offsetHeight || 1060;
         const scaleW = vW / targetW;
         const scaleH = vH / targetH;
         const fitScale = Math.min(scaleW, scaleH, 1.0);
-        zoomLevel = Math.max(minZoom, Math.min(fitScale, 1.15));
+        zoomLevel = Math.max(0.1, Math.min(fitScale, 1.15));
         panX = 0;
         panY = 0;
         applyTransform(true);
@@ -67,12 +71,18 @@ export function setupSatTicketModal(backendUrl = '') {
         applyTransform(true);
     }
 
-    function open(url, docNumber) {
+    async function open(url, docNumber) {
         if (!modal) return;
+        request?.abort();
+        const ownGeneration = ++generation;
+        request = new AbortController();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = '';
         currentDocUrl = url || '';
         currentDocNumber = docNumber || '';
 
         if (title) title.textContent = `N° Documento: ${docNumber || '—'}`;
+        if (loader) loader.innerHTML = '<i class="fas fa-circle-notch fa-spin text-3xl text-slate-600"></i><span class="text-xs font-semibold text-slate-700">Cargando copia oficial…</span>';
         loader?.classList.remove('hidden');
         image?.classList.add('hidden');
         frame?.classList.add('hidden');
@@ -87,59 +97,58 @@ export function setupSatTicketModal(backendUrl = '') {
         const proxyBase = apiBase
             ? `${apiBase}/lima/papeleta-img?url=${encodeURIComponent(url)}&doc_number=${encodeURIComponent(docNumber || '')}`
             : url;
-        const downloadUrl = apiBase
-            ? `${proxyBase}&download=true`
-            : url;
-
         if (download) {
-            download.href = downloadUrl;
-            download.download = `Papeleta_SAT_${docNumber || 'oficial'}.jpg`;
+            download.removeAttribute('href');
+            download.setAttribute('aria-disabled', 'true');
         }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
 
-        function fallbackToFrame(frameUrl) {
-            loader?.classList.add('hidden');
-            image?.classList.add('hidden');
-            if (frame) {
-                frame.src = frameUrl;
-                frame.classList.remove('hidden');
-                requestAnimationFrame(() => calculateFit());
+        try {
+            const response = await secureDocumentFetch(proxyBase, { signal: request.signal });
+            if (!response.ok) throw new Error(response.status === 401 || response.status === 403
+                ? 'La sesión de esta consulta expiró. Actualiza la consulta y vuelve a abrir la copia.'
+                : 'El SAT no pudo entregar la copia. Vuelve a abrirla para reintentar.');
+            const blob = await response.blob();
+            if (!blob.type.startsWith('image/') && blob.type !== 'application/pdf') throw new Error('La fuente no devolvió una imagen o PDF válido. Reintenta la copia.');
+            if (ownGeneration !== generation) return;
+            objectUrl = URL.createObjectURL(blob);
+            if (download) {
+                download.href = objectUrl;
+                download.download = `Papeleta_SAT_${String(docNumber || 'oficial').replace(/[^\w-]/g, '')}.${blob.type === 'application/pdf' ? 'pdf' : blob.type.includes('png') ? 'png' : 'jpg'}`;
+                download.removeAttribute('aria-disabled');
             }
-        }
-
-        // Intento 1: Extraer y renderizar la imagen real vía proxy oficial
-        if (image) {
-            image.src = proxyBase;
+            if (blob.type === 'application/pdf') {
+                if (frame) { frame.src = objectUrl; frame.classList.remove('hidden'); }
+                loader?.classList.add('hidden');
+                sheet.style.width = '750px';
+                requestAnimationFrame(() => calculateFit());
+                return;
+            }
             image.onload = () => {
                 loader?.classList.add('hidden');
                 image.classList.remove('hidden');
                 frame?.classList.add('hidden');
+                sheet.style.width = `${Math.min(image.naturalWidth || 750, 750)}px`;
                 requestAnimationFrame(() => calculateFit());
             };
-            image.onerror = () => {
-                // Si el proxy falla, verificar si es imagen directa o caer a iframe
-                if (url && url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
-                    image.src = url;
-                    image.onload = () => {
-                        loader?.classList.add('hidden');
-                        image.classList.remove('hidden');
-                        requestAnimationFrame(() => calculateFit());
-                    };
-                    image.onerror = () => fallbackToFrame(url);
-                } else {
-                    fallbackToFrame(url);
-                }
-            };
-        } else {
-            fallbackToFrame(url);
+            image.src = objectUrl;
+        } catch (error) {
+            if (error.name === 'AbortError' || ownGeneration !== generation) return;
+            loader?.replaceChildren();
+            const message = document.createElement('p');
+            message.className = 'p-6 text-center text-sm font-semibold text-slate-800';
+            message.textContent = error.message;
+            loader?.append(message);
         }
     }
 
     function close() {
         if (!modal) return;
+        request?.abort(); generation++;
+        if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = ''; }
         modal.classList.add('hidden');
         modal.classList.remove('flex');
         if (image) { image.src = ''; image.classList.add('hidden'); }
