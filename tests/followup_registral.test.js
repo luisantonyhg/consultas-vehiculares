@@ -1,6 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSPRLStatusBadge, hasSPRLRegistryEvidence, runFetchHistorialDuenos } from '../src/services/api.js';
+import { documentExtension } from '../src/ui/sat_ticket_modal.js';
+
+test('la copia GIF real de SAT conserva su extensión al descargar',()=>{
+    assert.equal(documentExtension('image/gif'),'gif');
+    assert.equal(documentExtension('image/png'),'png');
+    assert.equal(documentExtension('application/pdf'),'pdf');
+});
+
+test('once asientos con propietarios parciales no se convierten en once dueños',()=>{
+    const badge=buildSPRLStatusBadge({status:'PARTIAL_RESULT',asientos:[{numero:1}],resumen:{total_asientos:11},gravamenes:{status:'VERIFIED_NONE'},verification:{ownership_history:'PARTIAL'}});
+    assert.match(badge,/11 ASIENTOS REGISTRALES/);
+    assert.doesNotMatch(badge,/11 DUEÑO|1 DUEÑO/);
+});
 
 const failedHistory = { status: 'PARTIAL_RESULT', asientos: [], verification: {
     vehicle_data:'VERIFIED', public_current_owner:'VERIFIED', registry_record:'FAILED',

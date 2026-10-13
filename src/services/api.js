@@ -460,8 +460,6 @@ export function buildSPRLStatusBadge(data) {
     const anteriores = Array.isArray(ownership.previous) 
         ? ownership.previous.length 
         : (Array.isArray(legacyPropiedad.anteriores) ? legacyPropiedad.anteriores.length : 0);
-    const etapas = data?.resumen?.etapas_titularidad ?? ownership.stage_count ?? (Array.isArray(ownership.stages) ? ownership.stages.length : null);
-    const totalDuenos = etapas || (anteriores > 0 ? anteriores + 1 : null) || data?.resumen?.total_propietarios || data?.resumen?.total_duenos;
 
     const verifiedRegistry = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.registry_record || '').toUpperCase());
     const verifiedSeats = ['VERIFIED', 'PARTIAL'].includes(String(data?.verification?.seat_list || '').toUpperCase());
@@ -469,6 +467,10 @@ export function buildSPRLStatusBadge(data) {
     const verifiedEncumbrances = ['VERIFIED', 'VERIFIED_NONE', 'PARTIAL', 'FOUND'].includes(String(encumbrancesStatus).toUpperCase());
     const hasVerifiedRegistryData = verifiedRegistry || verifiedSeats || verifiedOwnership || verifiedEncumbrances;
     const totalAsientos = data?.resumen?.total_asientos || (Array.isArray(data?.asientos) && data.asientos.length ? data.asientos.length : null);
+    const ownershipConfirmed = String(data?.verification?.ownership_history || ownership.status || '').toUpperCase() === 'VERIFIED';
+    const registrySummary = ownershipConfirmed && anteriores > 0
+        ? `${anteriores} DUEÑO${anteriores === 1 ? '' : 'S'} ANTERIORES IDENTIFICADOS`
+        : totalAsientos ? `${totalAsientos} ASIENTO${totalAsientos === 1 ? '' : 'S'} REGISTRALES` : 'TRAZABILIDAD REGISTRAL';
     // Un PARTIAL con asientos reportados ya aporta evidencia registral, pero
     // jamás permite inferir que no existen gravámenes. Debe verse como una
     // verificación pendiente, no como "registro no verificado" ni como cero.
@@ -485,13 +487,12 @@ export function buildSPRLStatusBadge(data) {
         </span>`;
     }
 
-    const num = totalDuenos || anteriores || totalAsientos || 1;
 
     // Solo cuando tiene gravámenes vigentes se pinta en rojo con CON GRAVÁMENES
     if (encumbrancesStatus === 'FOUND' || (gravamenes !== null && gravamenes !== undefined && gravamenes > 0)) {
         return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-rose-600 text-center leading-none">
             <span class="inline-flex items-center gap-1 text-[9px] font-black"><i class="fas fa-triangle-exclamation"></i> CON GRAVÁMENES</span>
-            <span class="text-[8px] font-bold tracking-tight text-rose-100 mt-0.5">${num} DUEÑO${num === 1 ? '' : 'S'} ANTERIORES</span>
+            <span class="text-[8px] font-bold tracking-tight text-rose-100 mt-0.5">${registrySummary}</span>
         </span>`;
     }
 
@@ -499,14 +500,13 @@ export function buildSPRLStatusBadge(data) {
     if (!verifiedNone) {
         return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-slate-700 text-center leading-none">
             <span class="text-[9px] font-black">GRAVÁMENES SIN VERIFICAR · REINTENTAR</span>
-            <span class="text-[8px] font-bold tracking-tight text-slate-100 mt-0.5">${num} DUEÑO${num === 1 ? '' : 'S'} ANTERIORES</span>
+            <span class="text-[8px] font-bold tracking-tight text-slate-100 mt-0.5">${registrySummary}</span>
         </span>`;
     }
 
     return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-emerald-500 text-center leading-none">
         <span class="text-[9px] font-black">SIN GRAVÁMENES VERIFICADO</span>
-        <span class="text-[10px] font-black">${num} DUEÑO${num === 1 ? '' : 'S'}</span>
-        <span class="text-[8px] font-bold tracking-tight text-emerald-100 mt-0.5">ANTERIORES</span>
+        <span class="text-[8px] font-bold tracking-tight text-emerald-100 mt-0.5">${registrySummary}</span>
     </span>`;
 }
 
@@ -540,7 +540,6 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
         const data = await res.json();
 
-        const verification = data.verification || {};
         // registry_record puede venir confirmado por el fallback de SUNARP,
         // aunque SPRL no haya devuelto una sola fila. Para la tarjeta de
         // historial eso no es evidencia suficiente: debe existir al menos una

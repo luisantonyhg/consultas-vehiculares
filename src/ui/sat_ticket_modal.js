@@ -3,6 +3,7 @@
  * Incluye zoom dinámico (+, -, Ajustar A4), arrastre/pan, descarga directa de imagen/PDF e impresión.
  */
 import { secureDocumentFetch } from '../services/transport.js';
+export const documentExtension = media => ({ 'application/pdf': 'pdf', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[media] || 'jpg');
 export function setupSatTicketModal(backendUrl = '') {
     const modal = document.getElementById('sat-ticket-modal');
     const viewport = document.getElementById('sat-modal-viewport');
@@ -117,7 +118,7 @@ export function setupSatTicketModal(backendUrl = '') {
             objectUrl = URL.createObjectURL(blob);
             if (download) {
                 download.href = objectUrl;
-                download.download = `Papeleta_SAT_${String(docNumber || 'oficial').replace(/[^\w-]/g, '')}.${blob.type === 'application/pdf' ? 'pdf' : blob.type.includes('png') ? 'png' : 'jpg'}`;
+                download.download = `Papeleta_SAT_${String(docNumber || 'oficial').replace(/[^\w-]/g, '')}.${documentExtension(blob.type)}`;
                 download.removeAttribute('aria-disabled');
             }
             if (blob.type === 'application/pdf') {
