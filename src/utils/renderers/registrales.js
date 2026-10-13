@@ -368,7 +368,7 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     }
 
     const img = imageBase64 || (datos && (datos.imagen_base64 || datos.official_image_base64 || datos.imagen));
-    const cleanImg = img && img.startsWith('data:') ? img : (img ? `data:image/png;base64,${img}` : null);
+    const cleanImg = img && /^(data:|https?:\/\/)/.test(img) ? img : (img ? `data:image/png;base64,${img}` : null);
 
     let imageHtml = '';
     if (cleanImg) {
@@ -379,13 +379,13 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
                     <i class="fas fa-certificate text-emerald-500"></i>
                     <span>Resultado Gráfico Oficial SUNARP</span>
                 </div>
-                <a href="${cleanImg}" target="_blank" download="SUNARP_${plate}.png" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs">
+                <a href="${escapeHTML(cleanImg)}" target="_blank" rel="noopener noreferrer" download="SUNARP_${plate}.png" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs">
                     <i class="fas fa-download text-[10px]"></i> Descargar
                 </a>
             </div>
             <div class="relative group flex justify-center bg-white dark:bg-slate-900 rounded-xl p-3 md:p-4 border border-slate-200/80 dark:border-slate-800 shadow-inner">
                 <img 
-                    src="${cleanImg}" 
+                    src="${escapeHTML(cleanImg)}" referrerpolicy="no-referrer"
                     alt="Certificado Oficial SUNARP para placa ${escapeHTML(plate)}" 
                     class="w-full max-h-[550px] md:max-h-[650px] object-contain rounded-lg shadow-sm transition-transform duration-200 group-hover:scale-[1.01]" 
                 />
@@ -406,7 +406,7 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
         { label: 'Modelo', get: d => d['Modelo'] || d.modelo },
         { label: 'Placa Vigente', get: d => d['Placa Vigente'] || d.placa_vigente || d['Nº Placa'] || d['N° Placa'] || d.placa || plate },
         { label: 'Placa Anterior', get: d => d['Placa Anterior'] || d.placa_anterior },
-        { label: 'Estado', get: d => d['Estado'] || d.estado || 'EN CIRCULACION' },
+        { label: 'Estado', get: d => d['Estado'] || d.estado || 'No informado' },
         { label: 'Anotaciones', get: d => d['Anotaciones'] || d.anotaciones || 'NINGUNA' },
         { label: 'Sede', get: d => d['Sede'] || d.sede || 'LIMA' },
         { label: 'Año Modelo', get: d => d['Año Modelo'] || d['Año de Modelo'] || d.anio_modelo || d.anio },

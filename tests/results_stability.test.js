@@ -7,13 +7,13 @@ test('reorderCards does not move any result card when a section changes status',
     const ids = [
         'sunarp-card-container', 'historial_dueños-card-container', 'placas_pe-card-container',
         'soat-card-container', 'soat_detallado-card-container', 'citv-card-container',
-        'atu-card-container', 'valor_venal-card-container', 'sbs-card-container',
+        'valor_venal-card-container', 'sbs-card-container',
         'lima-card-container', 'callao-card-container', 'sutran-card-container',
         'cinemometro-card-container', 'municipal-card-container', 'atu_infracciones-card-container',
         'sigm-card-container', 'gnv-card-container', 'fise-card-container',
         'osinergmin-card-container', 'sat_captura-card-container', 'sat_deposito-card-container',
         'lunas-card-container', 'pnp_contacto-card-container', 'score-card-container',
-        'sat_deuda-card-container'
+        'sat_deuda-card-container', 'atu-card-container'
     ];
     const cards = ids.map((id, index) => ({
         id,

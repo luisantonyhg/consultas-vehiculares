@@ -180,10 +180,13 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     // red, serialización y entrega de la respuesta sin dejar el loader indefinido.
     const timeoutId = setTimeout(() => controller.abort(), 95000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal });
+        const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal, headers: { 'X-Image-Transport': 'url' } });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (typeof data.official_image_url === 'string' && data.official_image_url.startsWith('/api/v1/official-assets/')) {
+            data.official_image_url = new URL(data.official_image_url, BACKEND_URL).href;
+        }
         const datos = data.datos && typeof data.datos === 'object' ? data.datos : {};
         const evidence = `${data.error || ''} ${datos.estado || ''} ${datos.mensaje || ''}`.toLowerCase();
         const legacyNotFound = ['no encontrado', 'no encontrada', 'no se encontr', 'no existe', 'no se hallaron', 'no hay resultados']
@@ -203,7 +206,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
             const ignoredKeys = new Set(['estado', 'mensaje', 'html_raw']);
             const hasStructuredData = Object.entries(datos).some(([key, value]) =>
                 !ignoredKeys.has(key) && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0));
-            const hasOfficialImage = Boolean(data.imagen_base64 || data.official_image_base64);
+            const hasOfficialImage = Boolean(data.imagen_base64 || data.official_image_base64 || data.official_image_url);
             const explicitRegistered = ['registrado', 'encontrado'].includes(String(datos.estado || '').trim().toLowerCase());
             const isFound = validationStatus === 'found' || data.vehicle_exists === true || explicitRegistered || hasStructuredData || hasOfficialImage;
 
@@ -219,7 +222,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
             const customBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-sm uppercase tracking-wider">
                 <i class="fas fa-circle-check"></i> REGISTRADO
             </span>`;
-            const content = renderSunarp(datos, plate, data.imagen_base64 || data.official_image_base64);
+            const content = renderSunarp(datos, plate, data.imagen_base64 || data.official_image_base64 || data.official_image_url);
             callbacks.setCardData('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP', content, true, true, customBadge);
             return { ...data, validation_status: 'found', vehicle_exists: true };
 
