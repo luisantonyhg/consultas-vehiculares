@@ -619,7 +619,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                 </div>
                 <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
                     class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
-                    <i class="fas fa-rotate-right"></i> Reintentar Consulta
+                    <i class="fas fa-rotate-right"></i> Reintentar
                 </button>
             </div>`;
     } else {
@@ -647,7 +647,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                 <div class="flex flex-wrap items-center justify-center gap-2">
                     <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
                         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
-                        <i class="fas fa-rotate-right"></i> Reintentar Consulta
+                        <i class="fas fa-rotate-right"></i> Reintentar
                     </button>
                     ${verifyBtn}
                 </div>
