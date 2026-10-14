@@ -373,24 +373,25 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     let imageHtml = '';
     if (cleanImg) {
         imageHtml = `
-        <div class="mb-4 rounded-xl overflow-hidden border border-emerald-200 dark:border-emerald-950/60 bg-gradient-to-b from-emerald-50/40 to-slate-50/40 dark:from-emerald-950/20 dark:to-slate-900/40 p-3 shadow-sm">
+        <div data-official-image-wrapper data-image-state="loading" class="mb-4 rounded-xl overflow-hidden border border-emerald-200 dark:border-emerald-950/60 bg-gradient-to-b from-emerald-50/40 to-slate-50/40 dark:from-emerald-950/20 dark:to-slate-900/40 p-3 shadow-sm">
             <div class="flex items-center justify-between pb-2 mb-2 border-b border-emerald-100/60 dark:border-emerald-900/30">
                 <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                     <i class="fas fa-certificate text-emerald-500"></i>
                     <span>Resultado Gráfico Oficial SUNARP</span>
                 </div>
-                <a href="${escapeHTML(cleanImg)}" target="_blank" rel="noopener noreferrer" download="SUNARP_${plate}.png" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs">
+                <a data-official-image-download href="${escapeHTML(cleanImg)}" target="_blank" rel="noopener noreferrer" download="SUNARP_${escapeHTML(plate)}.png" class="hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs">
                     <i class="fas fa-download text-[10px]"></i> Descargar
                 </a>
             </div>
             <div class="relative group flex justify-center bg-white dark:bg-slate-900 rounded-xl p-3 md:p-4 border border-slate-200/80 dark:border-slate-800 shadow-inner">
-                <img 
+                <p data-official-image-status role="status" class="py-6 text-center text-xs text-slate-500">Cargando imagen oficial…</p>
+                <img data-official-image decoding="async"
                     src="${escapeHTML(cleanImg)}" referrerpolicy="no-referrer"
                     alt="Certificado Oficial SUNARP para placa ${escapeHTML(plate)}" 
-                    class="w-full max-h-[550px] md:max-h-[650px] object-contain rounded-lg shadow-sm transition-transform duration-200 group-hover:scale-[1.01]" 
+                    class="hidden w-full max-h-[550px] md:max-h-[650px] object-contain rounded-lg shadow-sm transition-transform duration-200 group-hover:scale-[1.01]" 
                 />
             </div>
-            <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 mt-2 italic">
+            <p data-official-image-caption class="hidden text-[10px] text-center text-slate-400 dark:text-slate-500 mt-2 italic">
                 * Imagen oficial generada directamente por la Superintendencia Nacional de los Registros Públicos.
             </p>
         </div>`;
@@ -407,8 +408,8 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
         { label: 'Placa Vigente', get: d => d['Placa Vigente'] || d.placa_vigente || d['Nº Placa'] || d['N° Placa'] || d.placa || plate },
         { label: 'Placa Anterior', get: d => d['Placa Anterior'] || d.placa_anterior },
         { label: 'Estado', get: d => d['Estado'] || d.estado || 'No informado' },
-        { label: 'Anotaciones', get: d => d['Anotaciones'] || d.anotaciones || 'NINGUNA' },
-        { label: 'Sede', get: d => d['Sede'] || d.sede || 'LIMA' },
+        { label: 'Anotaciones', get: d => d['Anotaciones'] || d.anotaciones || 'No informado' },
+        { label: 'Sede', get: d => d['Sede'] || d.sede || 'No informada' },
         { label: 'Año Modelo', get: d => d['Año Modelo'] || d['Año de Modelo'] || d.anio_modelo || d.anio },
         { label: 'Propietarios', get: d => d['Propietarios'] || d.propietarios || d.propietario }
     ];
@@ -425,7 +426,7 @@ export function renderSunarp(datos, plate, imageBase64 = null) {
     let tableHtml = '';
     if (rowsHtml) {
         tableHtml = `
-        <div class="hidden rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
+        <div data-sunarp-fields class="${cleanImg ? 'hidden ' : ''}rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800/60 shadow-sm">
             <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
                 <tbody>
                     ${rowsHtml}

@@ -1,5 +1,6 @@
 // Mappings, Core UI Component Builders and Renderers Coordinator
 import DOMPurify from 'dompurify';
+import { initOfficialImageStates } from '../ui/official_image.js';
 
 export * from './renderers/index.js';
 
@@ -577,6 +578,7 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
         <div class="accordion-body w-full p-3 md:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955/20 ${isExpanded ? '' : 'hidden'}">
             ${finalContent}
         </div>`;
+    if (cardId === 'sunarp') initOfficialImageStates(container);
     reorderCards();
 }
 

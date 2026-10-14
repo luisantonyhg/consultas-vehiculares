@@ -180,7 +180,7 @@ export async function runFetchSUNARP(plate, BACKEND_URL, callbacks) {
     // red, serialización y entrega de la respuesta sin dejar el loader indefinido.
     const timeoutId = setTimeout(() => controller.abort(), 95000);
     try {
-        const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal, headers: { 'X-Image-Transport': 'url' } });
+        const res = await secureFetch(`${BACKEND_URL}/sunarp/${plate}`, { signal: controller.signal, headers: { 'X-Image-Transport': 'inline' } });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
