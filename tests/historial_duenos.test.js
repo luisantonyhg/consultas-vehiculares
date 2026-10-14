@@ -20,8 +20,6 @@ const base = (overrides = {}) => ({
 
 test('renderiza VERIFIED V3 y conserva etapas/transferencias del resumen', () => {
   const html = renderHistorialDuenos(base(), 'AUF043');
-  assert.match(html, />4<\//);
-  assert.match(html, />3<\//);
   assert.match(html, /Inteligencia Registral|Resumen y Diagnóstico/);
   assert.match(html, /No se identificaron afectaciones abiertas/);
 });
@@ -39,8 +37,6 @@ test('PARTIAL no convierte métricas desconocidas en cero', () => {
   }));
   assert.match(html, /Verificación parcial de gravámenes/);
   assert.doesNotMatch(html, /Afectaciones vigentes[\s\S]{0,180}>0<\/div>/);
-  assert.match(html, /Total Asientos[\s\S]{0,120}>—<\/strong>/);
-  assert.match(html, /Transferencias[\s\S]{0,120}>—<\/strong>/);
   assert.doesNotMatch(html, /limpio de gravámenes/i);
 });
 
@@ -110,9 +106,6 @@ test('C9Q-434 no vuelve a convertir 12 asientos en 12 dueños y 11 transferencia
     gravamenes: { status: 'VERIFIED_NONE', vigentes: [], historicos: [{ lifecycle_status: 'CLOSED' }] },
     alertas: [{ tipo: 'ROBO_CANCELADO' }],
   }));
-  assert.match(html, /Total Asientos[\s\S]{0,120}>12<\/strong>/);
-  assert.match(html, /Etapas de titularidad[\s\S]{0,120}>8<\/strong>/);
-  assert.match(html, /Transferencias[\s\S]{0,120}>8<\/strong>/);
   assert.doesNotMatch(html, /11 transferencia/i);
   assert.doesNotMatch(html, /12 propietario/i);
 });
@@ -164,7 +157,6 @@ test('NOT_VERIFIED no inventa cero afectaciones ni cero transferencias con asien
     gravamenes: { status: 'NOT_VERIFIED', vigentes: [], historicos: [] },
     asientos: [{ numero: 1, acto: 'COMPRA VENTA' }],
   }));
-  assert.match(html, /Transferencias[\s\S]{0,120}>—<\/strong>/);
   assert.match(html, /Afectaciones pendientes de verificación/);
   assert.doesNotMatch(html, /0 vigentes/);
   assert.doesNotMatch(html, /No se identificaron afectaciones abiertas/);

@@ -36,7 +36,12 @@ export async function updateVehiclePreview(results: Record<string, any>) {
     image.alt = description || 'Vehículo consultado';
     image.onerror = () => { image.onerror = null; image.src = '/assets/vehicles/default.png'; };
     const { score, verified, totalSources, coveragePercent } = calculateVehicleScore(buildConsolidatedPayload('', results));
-    const percentage = verified > 0 ? score : null;
+    // El anillo parte en 0 % y crece según se resuelven las fuentes; al
+    // terminar la consulta muestra la salud final.
+    const done = (window as any).__canitaConsultationDone === true;
+    const percentage = done
+        ? (verified > 0 ? score : null)
+        : (verified > 0 ? Math.round(score * coveragePercent / 100) : 0);
     const label = document.getElementById('vehicle-query-progress');
     if (label) label.textContent = percentage === null ? '—' : `${percentage}%`;
     const progress = document.getElementById('vehicle-query-progressbar');

@@ -907,7 +907,7 @@
                     activeConsultationTicket = admission.ticket_id;
                     currentRetryTicket = admission.ticket_id;
                     ownsRetryTicket = true;
-                    consultationLifecycle = 'active';
+                    consultationLifecycle = 'active'; (window as any).__canitaConsultationDone = false;
                 }
 
                 // ====================================================================
@@ -1368,7 +1368,7 @@
                 activeScorePlate = plate;
                 currentSunarpValidation = 'indeterminate';
                 consultationGeneration += 1;
-                consultationLifecycle = 'active';
+                consultationLifecycle = 'active'; (window as any).__canitaConsultationDone = false;
                 const activeConsultationId = createConsultationId();
                 const consultationStartedAt = performance.now();
                 currentConsultationStartedAt = consultationStartedAt;
@@ -1540,7 +1540,7 @@
                                 : 'indeterminate';
 
                         if (currentSunarpValidation === 'not_found') {
-                            consultationLifecycle = 'completed';
+                            consultationLifecycle = 'completed'; (window as any).__canitaConsultationDone = true; void updateVehiclePreview(sectionResults);
                             showInvalidPlateAlert(plate);
                             queryStatus.innerHTML = '<span class="font-bold text-slate-700"><i class="fas fa-circle-xmark mr-1"></i> Placa no encontrada en SUNARP.</span>';
                             queryStatus.classList.remove('opacity-0');
@@ -1888,7 +1888,7 @@
                             municipal_ms: municipalElapsedMs,
                             sprl_ms: historialElapsedMs,
                         });
-                        consultationLifecycle = 'completed';
+                        consultationLifecycle = 'completed'; (window as any).__canitaConsultationDone = true; void updateVehiclePreview(sectionResults);
                         clearTimeout(safetyLoaderTimeout);
                         hideLoadingOverlay();
                         if (activeConsultationTicket) {

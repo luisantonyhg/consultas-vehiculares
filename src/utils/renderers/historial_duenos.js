@@ -179,39 +179,39 @@ function renderSeat(event) {
         <p class="mt-3 rounded-xl border ${tone.panel} px-3 py-2.5 text-[11px] leading-relaxed text-slate-700">${eventSentence}</p>
         <div class="mt-3 rounded-xl border ${tone.panel} p-3 sm:p-4">
             <p class="mb-3 text-[9px] font-black uppercase tracking-[0.15em] ${tone.accent}">Información registral SUNARP</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-5 text-[11px] sm:text-xs">
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">N.° de Título SUNARP</span><span class="text-slate-900 font-mono font-bold break-words">${safe(titleNumber)}</span>
+            <div class="flex flex-col divide-y divide-slate-100 rounded-xl bg-white px-3 text-[11px] sm:text-xs">
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">N.° de Título SUNARP</span><span class="text-slate-900 font-mono font-bold break-words text-right min-w-0">${safe(titleNumber)}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">N.° de Asiento</span><span class="text-slate-900 font-bold">${safe(seatNumber)}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">N.° de Asiento</span><span class="text-slate-900 font-bold text-right min-w-0">${safe(seatNumber)}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Año</span><span class="text-slate-900 font-bold">${safe(year)}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Año</span><span class="text-slate-900 font-bold text-right min-w-0">${safe(year)}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Código de Rubro</span><span class="text-slate-900 font-bold">${safe(rubroCode)}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Código de Rubro</span><span class="text-slate-900 font-bold text-right min-w-0">${safe(rubroCode)}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Fecha de Presentación</span><span class="text-slate-900 font-medium break-words">${fechaPres}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Fecha de Presentación</span><span class="text-slate-900 font-medium break-words text-right min-w-0">${fechaPres}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Fecha de Inscripción</span><span class="text-slate-900 font-bold break-words">${fechaInsc}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Fecha de Inscripción</span><span class="text-slate-900 font-bold break-words text-right min-w-0">${fechaInsc}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Rubro</span><span class="text-slate-900 font-medium break-words">${rubroStr}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Rubro</span><span class="text-slate-900 font-medium break-words text-right min-w-0">${rubroStr}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Acto</span><span class="font-bold break-words ${tone.accent}">${actoStr}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Acto</span><span class="font-bold break-words ${tone.accent}">${actoStr}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Participantes Naturales</span><span class="text-slate-900 font-medium break-words">${natStr}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Participantes Naturales</span><span class="text-slate-900 font-medium break-words text-right min-w-0">${natStr}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                        <span class="font-bold text-slate-500 sm:w-36 shrink-0">Participantes Jurídicos</span><span class="text-slate-900 font-medium break-words">${jurStr}</span>
+                    <div class="flex items-start justify-between gap-4 py-2">
+                        <span class="font-semibold text-slate-500 shrink-0 w-[42%]">Participantes Jurídicos</span><span class="text-slate-900 font-medium break-words text-right min-w-0">${jurStr}</span>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2"><span class="font-bold text-slate-500 sm:w-36 shrink-0">Páginas</span><span class="text-slate-900 font-medium">${safe(pages)}</span></div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2"><span class="font-bold text-slate-500 sm:w-36 shrink-0">Efecto registral</span><span class="inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${type.effectBadge}">${safe(type.effectLabel)}</span></div>
+                    <div class="flex items-start justify-between gap-4 py-2"><span class="font-semibold text-slate-500 shrink-0 w-[42%]">Páginas</span><span class="text-slate-900 font-medium text-right min-w-0">${safe(pages)}</span></div>
+                    <div class="flex items-start justify-between gap-4 py-2"><span class="font-semibold text-slate-500 shrink-0 w-[42%]">Efecto registral</span><span class="inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${type.effectBadge}">${safe(type.effectLabel)}</span></div>
                 </div>
         </div>
     </article>`;
@@ -331,48 +331,13 @@ export function renderHistorialDuenos(data, plate = '') {
     return `<div id="sprl-historial-container" data-plate="${safe(cleanPlate)}" class="flex flex-col gap-3 font-poppins text-slate-800 w-full overflow-hidden">
         <style>#sprl-historial-container .sprl-timeline-item{min-width:0}#sprl-historial-container .seat-details{animation:sprl-open .2s ease-out}@keyframes sprl-open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}</style>
 
-        <!-- Header Registral SUNARP (Compacto y estilizado) -->
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5 shadow-xs">
-            <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 shrink-0"><i class="fas fa-car text-base sm:text-lg"></i></div>
-                    <div class="min-w-0">
-                        <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">${safe(data.vehiculo?.marca)} ${safe(data.vehiculo?.modelo)}</h3>
-                        <p class="text-[11px] font-medium text-slate-500 truncate mt-0.5">${partidaText} · ${safe(registro.oficina || 'LIMA')}</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 self-start sm:self-auto">
-                    <div class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-bold text-slate-800 tracking-wider">${safe(formatPlate(cleanPlate))}</div>
-                    <span class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><i class="fas fa-circle-check text-[9px]"></i>${safe(data.vehiculo?.estado || 'En circulación')}</span>
-                </div>
-            </div>
-
-            <!-- Diseño compacto original; métricas exclusivamente verificadas -->
-            <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/70 p-1 sm:p-1.5 text-left">
-                <div class="px-2.5 py-1.5 min-w-0">
-                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Total Asientos</span>
-                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(totalSeats)}</strong>
-                </div>
-                <div class="px-2.5 py-1.5 min-w-0">
-                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Etapas de titularidad</span>
-                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(etapasTitularidad)}</strong>
-                </div>
-                <div class="px-2.5 py-1.5 min-w-0">
-                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Transferencias</span>
-                    <strong class="block text-xs sm:text-sm font-bold text-slate-800">${safe(totalTransferencias)}</strong>
-                </div>
-                <div class="px-2.5 py-1.5 min-w-0">
-                    <span class="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">Afectaciones</span>
-                    <strong class="block text-xs sm:text-sm font-bold ${encumbrancesStatus === 'FOUND' ? 'text-rose-600' : (encumbrancesVerified ? 'text-emerald-700' : 'text-amber-600')}">${safe(affectationMetric)}</strong>
-                </div>
-            </div>
-            ${(() => {
+        <!-- Avisos registrales (sin cabecera: el diseño parte directo en el contenido) -->
+        ${(() => {
                 const userWarnings = [...warnings, reconciliationWarning]
                     .filter(Boolean)
                     .filter(w => !['SPRL_SEAT_DETAILS_INCOMPLETE', 'SPRL_OWNERSHIP_PARTICIPANT_MISSING', 'SPRL_CURRENT_OWNER_MISMATCH', 'SPRL_ENCUMBRANCE_UNMAPPED_ACT', 'SPRL_OWNERSHIP_CHRONOLOGY_WARNING', 'SPRL_SEARCH_TIMEOUT', 'SPRL_AUTH_FAILED'].includes(w) && !w.toLowerCase().includes('sprl_') && !w.toLowerCase().includes('timeout'));
                 return userWarnings.length ? `<div class="mt-2.5 rounded-lg border border-amber-200 bg-amber-50/80 p-2 text-[11px] font-medium leading-relaxed text-amber-800 flex items-start gap-1.5"><i class="fas fa-circle-info mt-0.5 text-xs shrink-0"></i><span class="break-words">${safe(userWarnings.join(' '))}</span></div>` : '';
             })()}
-        </section>
 
         <!-- Propietarios Anteriores / Historial de Transferencias -->
         ${anteriores.length ? `
@@ -473,7 +438,7 @@ export function renderHistorialDuenos(data, plate = '') {
                     <p class="mt-1 text-[10px] sm:text-[11px] font-medium text-slate-500">Qué ocurrió, cuándo fue registrado y qué personas aparecen vinculadas en cada asiento. Del más reciente al más antiguo.</p>
                 </div>
             </div>
-            <div id="sprl-timeline-list" class="mt-3.5 space-y-3">
+            <div id="sprl-timeline-list" class="mt-3.5 space-y-3 border-l-2 border-slate-200 pl-3 sm:pl-4 ml-1">
                 ${timeline.length ? timeline.slice().reverse().map(renderSeat).join('') : `
                     <div class="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-xs font-semibold text-slate-500">
                         La consulta dinámica oficial confirmó la titularidad y estado legal del vehículo.

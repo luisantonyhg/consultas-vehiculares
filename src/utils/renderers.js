@@ -605,7 +605,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
     if (isMantenimiento) {
         container.setAttribute('data-status', 'mantenimiento');
         badgeHTML = `<button onclick="event.stopPropagation(); window.reintentarSeccion('${cardId}', '${plate}')" title="Reintentar esta consulta"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white shadow-sm uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer border border-amber-600">
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold bg-black hover:bg-slate-800 text-white shadow-sm uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer border border-slate-700">
             <i class="fas fa-rotate-right"></i> REINTENTAR
         </button>`;
         rightContent = `

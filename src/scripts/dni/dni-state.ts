@@ -491,12 +491,12 @@ export function paintDniSection(name: string, rawData: unknown): void {
           </div>
         `;
       } else if (!tieneLic) {
-        badgeHtml = badgePill('danger', 'SIN LICENCIA');
+        badgeHtml = badgePill('success', 'SIN RÉCORD');
         tableRows = `
-          <div class="p-4 sm:p-5 text-center text-slate-700 bg-rose-50/50 rounded-xl border border-rose-200 font-poppins">
-            <i class="fas fa-circle-xmark text-rose-600 text-xl mb-1.5 block"></i>
-            <p class="text-xs sm:text-sm font-black text-slate-900">El MTC confirmó que no registra licencia.</p>
-            <p class="text-[11px] text-slate-600 mt-1">Este resultado no se interpreta como una verificación de papeletas.</p>
+          <div class="p-4 sm:p-5 text-center text-slate-700 bg-emerald-50/60 rounded-xl border border-emerald-200 font-poppins">
+            <i class="fas fa-circle-check text-emerald-600 text-xl mb-1.5 block"></i>
+            <p class="text-xs sm:text-sm font-black text-slate-900">Sin récord de conductor.</p>
+            <p class="text-[11px] text-slate-600 mt-1">El MTC confirma que este documento no tiene licencia, por lo que no existe récord de puntos ni sanciones.</p>
           </div>
         `;
       } else if (puntos === 0 && sancionesCountKnown && sancionesCount === 0) {
@@ -530,7 +530,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
 
     case 'transporte_papeletas': {
       if (inner.estado === 'SIN_LICENCIA' && inner.resultado_confirmado === true && providerStatus === 'OK') {
-        badgeHtml = badgePill('neutral', 'SIN LICENCIA · MTC');
+        badgeHtml = badgePill('success', 'SIN PAPELETAS');
         tableRows = `<div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-800"><p class="text-xs font-semibold">${escapeHtml(str(inner.mensaje))}</p><p class="mt-2 text-[10px]">Este resultado corresponde al récord del conductor. No certifica ausencia de papeletas vehiculares de otras fuentes.</p></div>`;
         break;
       }
