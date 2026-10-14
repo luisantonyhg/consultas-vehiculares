@@ -82,6 +82,7 @@
         import { runOrderedWithConcurrency, runSectionsWithDependencies } from '../../services/execution_scheduler.js';
         import { shouldAutoRetry } from '../../services/sat_retry_policy.js';
         import { initDniConsultation } from '../../scripts/dni/dni-controller.ts';
+        import { openScannerModal } from '../../ui/scanner_modal.ts';
 
         // ====================================================
         // CONFIG
@@ -205,6 +206,8 @@
                     ? `${cleanVal.slice(0, splitAt)}-${cleanVal.slice(splitAt)}`
                     : cleanVal;
                 plateInput.value = formatted;
+                // Placa completa: cerrar el teclado para ver el botón de consulta.
+                if (cleanVal.length === 6 && document.activeElement === plateInput) plateInput.blur();
                 if (plateMini) {
                     plateMini.textContent = formatted || 'ABC-123';
                 }
@@ -1101,6 +1104,35 @@
             if (form) {
                 form.dispatchEvent(new Event('submit', { cancelable: true }));
             }
+        };
+
+        // Nueva consulta desde la vista de resultados: sube al formulario y
+        // deja el campo listo (la verificación anti-bots vive en el formulario).
+        const goToQueryForm = () => {
+            if (document.body.style.overflow === 'hidden') document.body.style.overflow = '';
+            const form = document.getElementById('query-form');
+            form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        (window as any).requeryFocus = function() {
+            goToQueryForm();
+            if (plateInput) {
+                plateInput.value = '';
+                plateInput.dispatchEvent(new Event('input'));
+                setTimeout(() => plateInput.focus({ preventScroll: true }), 350);
+            }
+        };
+        (window as any).requeryScan = function() {
+            goToQueryForm();
+            void openScannerModal({
+                mode: 'placa',
+                onSuccess: (val: string) => {
+                    if (plateInput) {
+                        plateInput.value = val;
+                        plateInput.dispatchEvent(new Event('input'));
+                    }
+                    goToQueryForm();
+                },
+            });
         };
 
         // ====================================================

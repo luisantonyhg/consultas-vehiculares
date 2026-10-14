@@ -185,6 +185,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
         if (dniInput) {
             dniInput.addEventListener('input', () => {
                 dniInput.value = dniInput.value.replace(/\D/g, '').slice(0, 8);
+                // DNI completo: cerrar el teclado automáticamente.
+                if (dniInput.value.length === 8 && document.activeElement === dniInput) dniInput.blur();
             });
         }
 

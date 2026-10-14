@@ -33,6 +33,19 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                             <i class="fas fa-file-arrow-down text-sm"></i> Descargar PDF
                         </button>
                     </div>
+                    <!-- Nueva consulta sin volver a subir: escanear o escribir otra placa -->
+                    <div class="no-print flex items-center justify-center gap-2 mt-3 flex-wrap">
+                        <button type="button" onclick="window.requeryScan()"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-slate-800 text-xs font-bold border border-slate-900 shadow-sm transition active:scale-95 cursor-pointer"
+                                title="Escanear otra placa con la cámara">
+                            <i class="fas fa-camera"></i> Escanear otra placa
+                        </button>
+                        <button type="button" onclick="window.requeryFocus()"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-slate-800 text-xs font-bold border border-slate-900 shadow-sm transition active:scale-95 cursor-pointer"
+                                title="Escribir otra placa">
+                            <i class="fas fa-keyboard"></i> Escribir otra placa
+                        </button>
+                    </div>
                 </div>
                 <div class="vehicle-analysis-preview flex items-center gap-5 py-4 mb-4">
                     <div class="flex-1 text-center"><img id="vehicle-preview-image" src="/assets/vehicles/default.png" alt="Vehículo consultado" class="mx-auto h-36 max-w-full object-contain" /><p id="vehicle-preview-caption" class="text-[10px] text-slate-600">Vehículo consultado</p></div>
