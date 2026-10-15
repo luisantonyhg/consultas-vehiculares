@@ -332,6 +332,7 @@ export function reorderCards() {
         'sigm-card-container', 'gnv-card-container', 'fise-card-container',
         'osinergmin-card-container', 'sat_captura-card-container', 'sat_deposito-card-container',
         'lunas-card-container', 'pnp_contacto-card-container', 'score-card-container',
+        'service-tive-card-container', 'service-boleta-card-container', 'service-placas-card-container',
         'sat_deuda-card-container', 'atu-card-container'
     ];
     const orderIndex = new Map(stableOrder.map((id, index) => [id, index]));
@@ -618,7 +619,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-[340px] mx-auto leading-relaxed">${safeErrorMessage}</p>
                 </div>
                 <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                    class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
+                    class="mt-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
                     <i class="fas fa-rotate-right"></i> Reintentar
                 </button>
             </div>`;
@@ -646,7 +647,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-2">
                     <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
+                        class="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg border border-slate-700">
                         <i class="fas fa-rotate-right"></i> Reintentar
                     </button>
                     ${verifyBtn}

@@ -47,7 +47,8 @@ export async function updateVehiclePreview(results: Record<string, any>) {
     const progress = document.getElementById('vehicle-query-progressbar');
     if (progress) {
         progress.style.setProperty('--health-value', `${percentage ?? 0}%`);
-        progress.style.setProperty('--health-color', percentage === null ? '#94a3b8' : percentage >= 80 ? '#059669' : percentage >= 50 ? '#b7791f' : '#e11d48');
+        progress.style.setProperty('--health-track', !done ? '#d1fae5' : '#e2e8f0');
+        progress.style.setProperty('--health-color', !done ? '#059669' : percentage === null ? '#94a3b8' : percentage >= 80 ? '#059669' : percentage >= 50 ? '#b7791f' : '#e11d48');
         if (percentage !== null) progress.setAttribute('aria-valuenow', String(percentage));
         else progress.removeAttribute('aria-valuenow');
     }

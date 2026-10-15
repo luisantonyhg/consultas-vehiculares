@@ -26,9 +26,24 @@ test('SPRL parcial con asientos nunca afirma que no existen gravámenes', () => 
     asientos: [{ numero: 1 }],
   });
 
-  assert.match(badge, /GRAVÁMENES SIN VERIFICAR · REINTENTAR/);
+  assert.match(badge, /8 ASIENTOS REGISTRALES/);
+  assert.match(badge, /GRAVÁMENES PENDIENTES DE VERIFICAR/);
+  assert.doesNotMatch(badge, /REINTENTAR/);
   assert.match(badge, /bg-slate-700/);
   assert.doesNotMatch(badge, /SIN GRAVÁMENES VERIFICADO/);
+});
+
+test('dueños verificados se muestran aunque la cobertura de gravámenes sea parcial', () => {
+  const badge = buildSPRLStatusBadge({
+    status: 'PARTIAL_RESULT',
+    verification: {ownership_history: 'VERIFIED', encumbrances_history: 'NOT_VERIFIED'},
+    ownership_history: {previous: [{id: 1}, {id: 2}, {id: 3}, {id: 4}]},
+    resumen: {total_asientos: 8},
+    asientos: [{numero: 1}],
+  });
+  assert.match(badge, /4 DUEÑOS ANTERIORES IDENTIFICADOS/);
+  assert.match(badge, /GRAVÁMENES PENDIENTES DE VERIFICAR/);
+  assert.doesNotMatch(badge, /REINTENTAR|SIN GRAVÁMENES VERIFICADO/);
 });
 
 test('SPRL solo afirma ausencia de gravámenes con verificación explícita', () => {

@@ -1,6 +1,7 @@
 ---
 // src/components/DniResults.astro
 // Sección de resultados DNI (10 tarjetas oficiales con acordiones, insignias y verificación de fuente)
+import { renderServiceOffers } from '../ui/service_offers.js';
 ---
 
 <div id="dni-results-section" class="w-full max-w-[1100px] mt-8 px-4 sm:px-6 md:px-8 z-10 hidden">
@@ -331,6 +332,7 @@
             </div>
         </div>
 
+        <Fragment set:html={renderServiceOffers('dni')} />
     </div>
 </div>
 

@@ -1,0 +1,46 @@
+.service-offer { position: relative; border: 2px solid #15803d; border-radius: 16px; background: #fff; overflow: hidden; color: #0f172a; font-family: Poppins, sans-serif; box-shadow: 0 2px 5px #0f172a08; }
+.service-offer::after { content: ''; position: absolute; inset: 0; border: 1px solid #15803d; border-radius: 14px; pointer-events: none; }
+.service-offer-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 76px; cursor: pointer; list-style: none; }
+.service-offer-header::-webkit-details-marker, .canita-community summary::-webkit-details-marker { display: none; }
+.service-offer-header:hover { background: #f0fdf4; }
+.service-offer-header:focus-visible, .service-offer a:focus-visible, .canita-community summary:focus-visible, .canita-community a:focus-visible { outline: 3px solid #15803d; outline-offset: -4px; border-radius: 12px; }
+.service-offer-logo { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 5px; background: #fff; }
+.service-offer-logo img, .service-offer-intro img { width: 100%; height: 100%; object-fit: contain; }
+.service-offer-label { flex: 1; min-width: 0; }
+.service-offer-label strong { display: block; font-size: 13px; font-weight: 800; line-height: 1.45; }
+.service-offer-label > span { display: block; margin-top: 3px; color: #475569; font-size: 10px; line-height: 1.6; }
+.service-offer-chevron { color: #15803d; font-size: 12px; flex-shrink: 0; }
+.service-offer[open] .service-offer-header { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; }
+.service-offer[open] .service-offer-chevron { transform: rotate(180deg); }
+.service-offer-body { padding: 20px; }
+.service-offer-intro { display: flex; align-items: center; gap: 12px; }
+.service-offer-intro img { width: 40px; height: 40px; flex-shrink: 0; }
+.service-offer-intro h4 { font-size: 14px; font-weight: 800; line-height: 1.5; margin: 0; }
+.service-offer-description { margin: 12px 0 16px; font-size: 12px; line-height: 1.8; color: #475569; }
+.service-offer-benefits { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+.service-offer-benefits li { display: flex; gap: 12px; align-items: flex-start; }
+.service-offer-benefit-icon { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 9px; background: #f0fdf4; color: #15803d; font-size: 14px; }
+.service-offer-benefits strong { font-size: 12px; font-weight: 700; }
+.service-offer-benefits p { margin: 3px 0 0; font-size: 11px; color: #475569; line-height: 1.75; }
+.service-offer-note { margin: 18px 0; padding-top: 14px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 10px; line-height: 1.8; }
+.service-offer-note a { color: #166534; text-decoration: underline; text-underline-offset: 3px; }
+.service-offer-actions { max-width: 360px; margin: 0 auto; display: grid; gap: 10px; }
+.service-offer-request { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 48px; border-radius: 10px; background: #15803d; color: #fff; font-size: 12px; font-weight: 800; }
+.service-offer-request:hover { background: #166534; }
+.service-offer-contact { display: flex; align-items: center; gap: 12px; border: 1.5px solid #16a34a; border-radius: 12px; padding: 10px 14px; min-height: 54px; color: #047857; }
+.service-offer-contact:hover { background: #f0fdf4; }
+.service-offer-contact > .fa-whatsapp { font-size: 26px; }
+.service-offer-contact > span { flex: 1; font-size: 11px; font-weight: 700; }
+.service-offer-contact strong { display: block; margin-top: 2px; font-size: 11px; color: #475569; font-weight: 500; }
+.service-offer-contact > .fa-arrow-up-right-from-square { font-size: 12px; }
+.canita-community-wrap { display: flex; justify-content: center; width: 100%; padding: 16px; }
+.canita-community { max-width: 340px; width: fit-content; font-family: Poppins, sans-serif; border: 1px solid #16a34a; background: #fff; border-radius: 12px; color: #166534; }
+.canita-community summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-height: 48px; cursor: pointer; list-style: none; font-size: 11px; font-weight: 700; }
+.canita-community summary .fa-whatsapp { font-size: 24px; }
+.canita-community summary .fa-chevron-down { font-size: 9px; margin-left: auto; }
+.canita-community[open] summary .fa-chevron-down { transform: rotate(180deg); }
+.canita-community-body { border-top: 1px solid #bbf7d0; padding: 14px; }
+.canita-community-body strong { font-size: 12px; }
+.canita-community-body p { font-size: 11px; color: #475569; margin: 6px 0 12px; line-height: 1.7; }
+.canita-community-body a { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; background: #15803d; border-radius: 8px; color: #fff; font-weight: 700; font-size: 11px; padding: 8px 12px; }
+@media (max-width: 380px) { .service-offer-header { padding: 12px; gap: 10px; } .service-offer-logo { width: 42px; height: 42px; } .service-offer-label strong { font-size: 12px; } .service-offer-body { padding: 16px; } }

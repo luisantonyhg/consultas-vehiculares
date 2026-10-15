@@ -136,11 +136,11 @@ export function renderCITV(data, plate) {
 
 export function renderLunas(data, plate) {
     if (!data || data.length === 0) {
-        return `<div class="flex flex-col items-center justify-center p-5 sm:p-6 text-center font-poppins bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
-            <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center mb-2 text-emerald-600 dark:text-emerald-400">
+        return `<div class="flex flex-col items-center justify-center p-5 sm:p-6 text-center font-poppins bg-rose-50/40 dark:bg-rose-950/20 rounded-xl border border-rose-200 dark:border-rose-900/50">
+            <div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center mb-2 text-rose-600 dark:text-rose-400">
                 <i class="fas fa-shield-halved text-base"></i>
             </div>
-            <p class="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase tracking-wide">Sin Permiso de Lunas Oscurecidas</p>
+            <p class="font-black text-rose-700 dark:text-rose-300 text-xs sm:text-sm uppercase tracking-wide">Sin Permiso de Lunas Oscurecidas</p>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mt-1">No se encontraron autorizaciones de lunas oscurecidas o polarizadas registradas en la PNP para la placa <strong class="font-mono text-slate-700 dark:text-slate-200">${escapeHTML(plate)}</strong>.</p>
         </div>`;
     }

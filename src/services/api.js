@@ -476,8 +476,8 @@ export function buildSPRLStatusBadge(data) {
     // verificación pendiente, no como "registro no verificado" ni como cero.
     if (data?.status === 'PARTIAL_RESULT' && totalAsientos && !verifiedEncumbrances) {
         return `<span class="inline-flex flex-col items-center justify-center px-2.5 py-1 rounded-md text-white shadow-sm uppercase bg-slate-700 text-center leading-none">
-            <span class="text-[9px] font-black">GRAVÁMENES SIN VERIFICAR · REINTENTAR</span>
-            <span class="text-[8px] font-bold tracking-tight text-slate-100 mt-0.5">${totalAsientos} ASIENTO${totalAsientos === 1 ? '' : 'S'} PARCIAL${totalAsientos === 1 ? '' : 'ES'}</span>
+            <span class="text-[9px] font-black">${registrySummary}</span>
+            <span class="text-[8px] font-bold tracking-tight text-slate-100 mt-0.5">GRAVÁMENES PENDIENTES DE VERIFICAR</span>
         </span>`;
     }
     if (!hasVerifiedRegistryData) {

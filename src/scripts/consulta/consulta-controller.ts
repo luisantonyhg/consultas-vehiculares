@@ -1,6 +1,7 @@
         import { setupSectionExport } from '../../ui/section_export';
         import { renderResultsSkeleton } from '../../ui/vehicle_results.ts';
         import { updateVehiclePreview } from '../../ui/vehicle_preview';
+        import { isVehicleReportReady } from '../../ui/vehicle_report_state.js';
         import { renderVehicleScoreCard } from '../../ui/vehicle_score_card.ts';
         import { setupDocumentViewer } from '../../ui/document_viewer.ts';
         import { createResultCache } from '../../services/result_cache.ts';
@@ -1139,6 +1140,7 @@
         // 📄 REPORTE PDF (vía impresión del navegador → "Guardar como PDF")
         // ====================================================
         (window as any).imprimirReporte = function(_plate: string) {
+            if (!isVehicleReportReady()) return;
             // Expandir todas las tarjetas para que salgan completas en el PDF
             const bodies = Array.from(document.querySelectorAll('.accordion-body')) as HTMLElement[];
             const wasHidden = bodies.map(b => b.classList.contains('hidden'));

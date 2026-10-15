@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tive", "kind": "plate", "title": "Duplica o recupera tu TIVe", "subtitle": "Tarjeta de propiedad vehicular electrónica", "entity": "SUNARP", "logo": "sunarp.jpeg",
+    "heading": "Vuelve a tener tu tarjeta a la mano",
+    "description": "¿Perdiste tu tarjeta o necesitas recuperar el archivo digital? Solicita orientación para identificar el trámite que corresponde a tu vehículo y reunir los requisitos.",
+    "benefits": [
+      {"icon": "file-shield", "title": "Pérdida, robo o deterioro", "text": "Si tu tarjeta física se perdió, fue robada o está deteriorada, puedes solicitar un duplicado."},
+      {"icon": "download", "title": "Recupera tu archivo digital", "text": "Si ya tienes una TIVe emitida, revisamos contigo cómo recuperarla o descargarla nuevamente."},
+      {"icon": "car", "title": "Identifica tu vehículo", "text": "La TIVe reúne las características técnicas inscritas. Su nombre oficial es Tarjeta de Identificación Vehicular Electrónica."}
+    ],
+    "note": "Te ayudamos a distinguir entre recuperar una TIVe existente y tramitar un duplicado. Los requisitos dependen de tu caso.",
+    "source": "https://www.gob.pe/institucion/sunarp/pages/306-obtener-la-tarjeta-de-identificacion-vehicular-electronica-tive"
+  },
+  {
+    "id": "boleta", "kind": "plate", "title": "Obtén tu boleta informativa", "subtitle": "SUNARP · Propietarios, características y cargas vehiculares", "entity": "SUNARP", "logo": "sunarp.jpeg",
+    "heading": "Conoce mejor el vehículo antes de decidir",
+    "description": "Solicita tu boleta informativa vehicular y revisa la información registral que necesitas para evaluar una compra o conocer la situación de tu vehículo.",
+    "benefits": [
+      {"icon": "user-check", "title": "Titular registral", "text": "Consulta quién figura como propietario en el registro de SUNARP."},
+      {"icon": "car", "title": "Características y estado", "text": "Contrasta los datos inscritos del vehículo y su estado de circulación."},
+      {"icon": "file-shield", "title": "Cargas y gravámenes", "text": "Revisa afectaciones vigentes y anotaciones registrales, como las de robo, antes de comprar."}
+    ],
+    "note": "La boleta es publicidad registral simple de carácter informativo. Si necesitas una certificación, consulta por el Certificado Registral Vehicular.",
+    "source": "https://www.gob.pe/22911-solicitar-boleta-informativa"
+  },
+  {
+    "id": "placas", "kind": "plate", "title": "Trámite de placas · AAP", "subtitle": "Asociación Automotriz del Perú · Pérdida, robo o renovación", "entity": "AAP", "logo": "aap.png",
+    "heading": "Da el siguiente paso con tus placas",
+    "description": "¿Te falta una placa, está deteriorada o necesitas un cambio? Cuéntanos tu caso y solicita orientación para preparar el trámite y los documentos correspondientes.",
+    "benefits": [
+      {"icon": "shield-halved", "title": "Pérdida o robo", "text": "Te orientamos sobre el duplicado y la denuncia policial que puede requerirse para el recojo."},
+      {"icon": "arrows-rotate", "title": "Deterioro o renovación", "text": "Revisamos si corresponde un duplicado o cambio de placas según tu vehículo y el trámite aplicable."},
+      {"icon": "list-check", "title": "Prepara tu solicitud", "text": "Consulta los documentos, la entrega de placas anteriores cuando corresponda y los pasos para el recojo."}
+    ],
+    "note": "Los requisitos varían según el tipo de trámite. Confirmaremos contigo el procedimiento, costo y disponibilidad por WhatsApp.",
+    "source": "https://aap.org.pe/descarga/requisitos-recojo-placas-de-rodaje.pdf"
+  },
+  {
+    "id": "crediticio", "kind": "dni", "title": "Reporte Infocorp / SBS", "subtitle": "Revisa tu historial crediticio", "entity": "SBS", "logo": "sbs.png",
+    "heading": "Entiende tu situación crediticia",
+    "description": "Solicita orientación para consultar tu propio reporte, conocer las obligaciones registradas y entender tu calificación antes de pedir un crédito.",
+    "benefits": [
+      {"icon": "file-invoice-dollar", "title": "Deudas y líneas de crédito", "text": "El reporte SBS muestra mensualmente los créditos y la calificación reportada por entidades del sistema financiero."},
+      {"icon": "chart-line", "title": "Comportamiento de pago", "text": "Identifica cómo las entidades han calificado tus pagos y revisa información que necesite aclaración."},
+      {"icon": "user-check", "title": "El reporte que necesitas", "text": "Infocorp (Equifax) es una central privada distinta de la SBS. Consúltanos cuál de los dos reportes necesitas."}
+    ],
+    "note": "El reporte SBS puede consultarse gratuitamente en su portal. Nuestra atención es de orientación; confirma el alcance y costo del servicio antes de solicitarlo.",
+    "source": "https://www.sbs.gob.pe/usuarios/nuestros-servicios/reporte-de-deudas"
+  }
+]

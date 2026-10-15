@@ -262,6 +262,7 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
 
             if (dniInitialState) dniInitialState.classList.add('hidden');
             if (dniCardsContainer) {
+                dniCardsContainer.dataset.dni = dni;
                 dniCardsContainer.classList.remove('hidden');
                 dniCardsContainer.classList.add('flex');
             }

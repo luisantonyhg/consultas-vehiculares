@@ -6,7 +6,9 @@ import DniResults from '../components/DniResults.astro';
 import ConsultationHero from '../components/consulta/ConsultationHero.astro';
 import ConsultationOverlays from '../components/consulta/ConsultationOverlays.astro';
 import ConsultationFooter from '../components/consulta/ConsultationFooter.astro';
+import WhatsAppCommunity from '../components/common/WhatsAppCommunity.astro';
 import '../styles/consulta.css';
+import '../styles/service-offers.css';
 import { SITE_LANG, SITE_LOCALE, SITE_THEME_COLOR, SITE_OG_IMAGE, TWITTER_SITE, canonicalFor } from '../data/site';
 const pageUrl = canonicalFor('/consulta');
 const ogImage = canonicalFor(SITE_OG_IMAGE);
@@ -228,12 +230,17 @@ const ogImage = canonicalFor(SITE_OG_IMAGE);
     </main>
 
     {/* Footer */}
+    <WhatsAppCommunity />
     <ConsultationFooter />
 
     <ConsultationOverlays />
 
 
     <script src="../scripts/consulta/consulta-controller.ts"></script>
+    <script>
+        import { bindServiceOfferLinks } from '../ui/service_offers.js';
+        bindServiceOfferLinks();
+    </script>
     <!-- Modal para ver PDF/Imagen de Papeleta -->
     <div id="papeleta-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">

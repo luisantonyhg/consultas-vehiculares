@@ -1,4 +1,6 @@
 import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '../utils/renderers.js';
+import { renderServiceOffers } from './service_offers.js';
+import { setupVehicleReportReadiness } from './vehicle_report_state.js';
 
         export function renderResultsSkeleton(plate: string, whatsappNumber: string, fromCache: boolean = false) {
             const cleanPlate = (plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -27,8 +29,8 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                                 title="Actualizar datos desde las fuentes oficiales">
                             <i class="fas fa-rotate"></i> Actualizar
                         </button>
-                        <button onclick="window.imprimirReporte('${plate}')"
-                                class="no-print inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0 border border-slate-700 cursor-pointer"
+                        <button id="vehicle-report-pdf-button" disabled onclick="window.imprimirReporte('${plate}')"
+                                class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm shrink-0 border border-black cursor-pointer disabled:bg-slate-600 disabled:cursor-not-allowed"
                                 title="Descargar / imprimir reporte en PDF">
                             <i class="fas fa-file-arrow-down text-sm"></i> Descargar PDF
                         </button>
@@ -84,6 +86,7 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                     <!-- 7. ANÁLISIS INTELIGENTE DEL VEHÍCULO (Evaluación integral de todas las secciones) -->
                     <div id="score-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
 
+                    ${renderServiceOffers('plate', cleanPlate)}
                     <!-- 8. Secciones en desarrollo / informativas -->
                     <div id="sat_deuda-card-container" data-status="development"></div>
                     <div id="atu-card-container" data-status="${fromCache ? 'funciona' : 'waiting'}"></div>
@@ -93,6 +96,7 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Datos obtenidos en tiempo real · Última consulta: <strong class="text-slate-600 dark:text-slate-400 font-poppins">${plate}</strong> · <span id="last-query-time"></span></p>
                 </div>`;
             
+            setupVehicleReportReadiness();
             setCardWaiting(
                 'atu',
                 '¿Está inscrito como taxi en ATU?',
@@ -113,9 +117,9 @@ import { setCardWaiting, setCardComingSoon, setCardData, setCardLoading } from '
             );
             const contactText = encodeURIComponent(`Hola, solicito validar si el vehículo de placa ${plate} tiene una requisitoria vehicular policial vigente en 2026.`);
             const contactHref = `https://wa.me/${whatsappNumber}?text=${contactText}`;
-            setCardData('pnp_contacto', 'Requisitoria Vehicular Policiales PNP', 'Validación policial vigente 2026', 'fab fa-whatsapp', '', 'Fuente policial cerrada',
-                `<div class="rounded-2xl border-2 border-rose-500 bg-rose-50/60 p-5 text-center font-poppins"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-600 text-2xl text-white shadow-md"><i class="fas fa-shield-halved"></i></div><h4 class="mt-3 text-sm font-black text-rose-900">Validación de requisitoria vehicular</h4><p class="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-slate-700">Si deseas saber si el vehículo de placa <strong>${plate}</strong> tiene una requisitoria vehicular policial vigente en 2026, escríbenos para asesorarte y apoyarte con la información correspondiente. Esta información proviene de una fuente cerrada.</p><a href="${contactHref}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-[#128C7E]"><i class="fab fa-whatsapp text-base"></i> Solicitar validación</a></div>`,
-                true, false, `<span class="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase text-white"><i class="fas fa-lock"></i> FUENTE CERRADA</span>`);
+            setCardData('pnp_contacto', 'Requisitoria Vehicular Policiales PNP', 'Orientación sobre requisitoria policial', 'fab fa-whatsapp', '', 'PNP',
+                `<div class="rounded-2xl border border-emerald-200 bg-white p-5 text-center font-poppins"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700"><i class="fas fa-shield-halved"></i></div><h4 class="mt-3 text-sm font-black text-slate-900">Consulta de requisitoria vehicular</h4><p class="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-slate-600">Consulta con nuestro equipo sobre la requisitoria vehicular policial de la placa <strong>${plate}</strong>. Te orientamos y atendemos por WhatsApp.</p><a href="${contactHref}" target="_blank" rel="noopener noreferrer" class="mt-5 inline-flex items-center gap-3 rounded-xl border-2 border-emerald-500 bg-white px-5 py-3 text-xs font-black text-emerald-700 transition hover:bg-emerald-50"><i class="fab fa-whatsapp text-xl"></i> Consultar por WhatsApp</a></div>`,
+                true, false, `<span class="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase text-white"><i class="fab fa-whatsapp"></i> CONSULTAR</span>`);
 
             if (!fromCache) {
                 setCardLoading('sunarp', 'Información Registro SUNARP', 'Superintendencia de los Registros Públicos', 'fas fa-file-contract', '', 'SUNARP');

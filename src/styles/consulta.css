@@ -82,7 +82,7 @@
 }
 .spin-icon { animation: spin 1.2s linear infinite; }
 .spin-icon { box-sizing: border-box; flex-shrink: 0; border-radius: 50% !important; padding: 0 !important; aspect-ratio: 1; }
-.vehicle-health-ring { --health-color: #94a3b8; --health-value: 0%; display: grid; place-items: center; width: 94px; height: 94px; border-radius: 50%; background: conic-gradient(var(--health-color) var(--health-value), #e2e8f0 0); position: relative; color: var(--health-color); }
+.vehicle-health-ring { --health-color: #059669; --health-track: #d1fae5; --health-value: 0%; display: grid; place-items: center; width: 94px; height: 94px; border-radius: 50%; background: conic-gradient(var(--health-color) var(--health-value), var(--health-track) 0); position: relative; color: var(--health-color); }
 .vehicle-health-ring::before { content: ''; position: absolute; inset: 8px; background: white; border-radius: 50%; }
 .vehicle-health-ring strong { position: relative; font-size: 24px; font-weight: 900; }
 @keyframes spin { to { transform: rotate(360deg); } }
