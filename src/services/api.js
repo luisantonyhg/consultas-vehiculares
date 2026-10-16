@@ -540,17 +540,14 @@ export async function runFetchHistorialDuenos(plate, BACKEND_URL, callbacks, ofi
         }
         const data = await res.json();
 
-        // registry_record puede venir confirmado por el fallback de SUNARP,
-        // aunque SPRL no haya devuelto una sola fila. Para la tarjeta de
-        // historial eso no es evidencia suficiente: debe existir al menos una
-        // fila/asiento o un dominio registral realmente obtenido de SPRL.
-        const hasSprlEvidence = hasSPRLRegistryEvidence(data);
-        if (data.status === 'PARTIAL_RESULT' && !hasSprlEvidence) {
-            const message = 'No se pudo verificar el historial registral porque el portal SUNARP no entregó asientos ni gravámenes en esta consulta. Puedes reintentarlo.';
-            callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', message, plate, data);
-            return { ...data, success: false, retryable: true, code: 'SPRL_NO_REGISTRY_ROWS', error: message };
+        // Legacy servers may still return partial HTTP 200. Treat incomplete
+        // history as a retryable failure, even when individual seats exist.
+        if (data.status === 'PARTIAL_RESULT') {
+            const message = 'No se pudo obtener y verificar el historial completo de dueños y gravámenes. Pulsa Reintentar.';
+            callbacks.setCardError('historial_dueños', TIT, 'Trazabilidad registral', 'fas fa-clock-rotate-left', '', 'SUNARP / Registral', message, plate);
+            return { success: false, retryable: true, code: 'SPRL_INCOMPLETE_HISTORY', error: message };
         }
-        if (data.status === 'OK' || data.status === 'PARTIAL_RESULT') {
+        if (data.status === 'OK') {
             const content = renderHistorialDuenos(data, plate);
             const badge = buildSPRLStatusBadge(data);
 

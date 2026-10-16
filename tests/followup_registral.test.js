@@ -37,3 +37,21 @@ test('el adaptador envía una falla registral sin filas al callback de reintento
         assert.equal(data.success,false);assert.equal(data.retryable,true);assert.equal(errors.length,1);
     } finally {globalThis.fetch=original;}
 });
+
+test('historial parcial con asientos también exige reintento', async () => {
+    const original = globalThis.fetch;
+    const errors = [];
+    globalThis.fetch = async () => ({ok:true,status:200,headers:new Headers(),json:async()=>({
+        status:'PARTIAL_RESULT',asientos:[{numero:1}],verification:{seat_list:'VERIFIED'},
+    })});
+    try {
+        const result = await runFetchHistorialDuenos('ABC123','https://example.test/api/v1',{
+            setCardLoading(){},setCardData(){assert.fail('historial incompleto no debe mostrarse como éxito')},
+            setCardError(...args){errors.push(args)},
+        });
+        assert.equal(result.success,false);
+        assert.equal(result.retryable,true);
+        assert.equal(errors.length,1);
+        assert.equal(result.asientos,undefined);
+    } finally { globalThis.fetch = original; }
+});
