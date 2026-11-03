@@ -586,20 +586,13 @@ export function setCardData(cardId, title, sub, iconClass, bgColorClass, sourceN
 export function setCardError(cardId, title, sub, iconClass, bgColorClass, sourceName, errorMessage, plate) {
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
-    const safeErrorMessage = escapeHTML(errorMessage || '');
     const errLower = (errorMessage || "").toLowerCase();
-    const isMantenimiento = errLower.includes("mantenimiento") ||
-        errLower.includes("desarrollo") ||
-        errLower.includes("no responde") ||
-        errLower.includes("no disponible") ||
-        errLower.includes("fuera de servicio") ||
-        errLower.includes("temporalmente fuera") ||
-        errLower.includes("no se pudo conectar") ||
-        errLower.includes("servidor ocupado") ||
-        errLower.includes("timeout") ||
-        errLower.includes("502") ||
-        errLower.includes("503") ||
-        errLower.includes("504");
+    const proxyDenied = /traffic_exhausted|proxy_access_denied|\b407\b/.test(errLower);
+    const safeErrorMessage = escapeHTML(proxyDenied
+        ? 'La conexión usada para consultar esta fuente no está disponible. Puedes verificar el portal oficial.'
+        : errorMessage || '');
+    // Connection failures and exhausted proxies do not establish portal maintenance.
+    const isMantenimiento = errLower.includes("mantenimiento") || errLower.includes("en desarrollo");
     let badgeHTML = '';
     let rightContent = '';
 

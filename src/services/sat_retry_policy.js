@@ -77,7 +77,8 @@ export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
         error?.code === 'CITV_CAPTCHA_ERROR' ||
         error?.outcome === 'CAPTCHA_ERROR'
     );
-    const permanentProxy = normalized.includes('configure fise_proxy') || normalized.includes('no permite connect al puerto 23308');
+    const permanentProxy = normalized.includes('configure fise_proxy') || normalized.includes('no permite connect al puerto 23308') ||
+        /traffic_exhausted|proxy_access_denied|proxyerror|\b407\b/.test(normalized);
     const maintenance = normalized.includes('mantenimiento') || normalized.includes('desarrollo');
     // Lima ya agota sus intentos CapSolver dentro del backend. Repetir toda la
     // sección desde el navegador duplica coste y puede crear más tokens, sin

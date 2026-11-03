@@ -1,9 +1,7 @@
 ---
-// Modal global de mantenimiento.
-// Mientras dure el mantenimiento queda ACTIVO por defecto: se muestra al cargar,
-// bloquea las consultas y no genera tráfico hacia el backend de Railway.
-// Para reactivar las consultas: PUBLIC_MAINTENANCE_MODE=false en Vercel y redeploy.
-const isMaintenance = import.meta.env.PUBLIC_MAINTENANCE_MODE !== 'false';
+// Modal global de mantenimiento: desactivado por defecto.
+// Solo se activa si se define explícitamente PUBLIC_MAINTENANCE_MODE=true en Vercel.
+const isMaintenance = import.meta.env.PUBLIC_MAINTENANCE_MODE === 'true';
 ---
 
 <div id="mnt-modal"

@@ -7,7 +7,7 @@ export const MUNICIPAL_SOURCE_URLS = Object.freeze({
     'Chachapoyas': 'https://app.munichachapoyas.gob.pe/servicios/consulta_papeletas/app/papeletas.php',
     'Arequipa': 'https://www.muniarequipa.gob.pe/oficina-virtual/c0nInfrPermisos/faltas/papeletas.php',
     'Cajamarca': 'https://www.satcajamarca.gob.pe/consultas',
-    'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/buscar_placa_',
+    'Chiclayo': 'https://virtualsatch.satch.gob.pe/virtualsatch/record_infracciones/record_placa',
     'Cusco': 'https://cusco.gob.pe/informatica/index.php/',
     'Ica': 'https://m.satica.gob.pe/',
     'Piura': 'https://fiscalizacionelectronica.munipiura.gob.pe/',
@@ -20,6 +20,33 @@ export const MUNICIPAL_SOURCE_URLS = Object.freeze({
 const municipalEscape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]));
+
+export function normalizeMunicipalRecord(row) {
+    const normalizedKey = (key) => String(key).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const value = (...aliases) => {
+        for (const alias of aliases) {
+            const found = Object.entries(row).find(([key, item]) => normalizedKey(key) === normalizedKey(alias) && item != null && String(item).trim());
+            if (found) return found[1];
+        }
+        return '';
+    };
+    const sourceState = String(value('Situación', 'EstadoDeuda', 'estadoPago', 'Estado')).trim();
+    const state = sourceState.toUpperCase();
+    const labels = { PT: 'PAGO TOTAL', PP: 'PAGO PARCIAL', SP: 'SIN PAGO', FR: 'FRACCIONADA', BD: 'BAJA DE DEUDA' };
+    const paid = state === 'PT' || /PAGAD[AO]|CANCELAD[AO]/.test(state);
+    const pending = ['SP', 'PP', 'FR'].includes(state) || /PENDIENTE|POR PAGAR/.test(state);
+    return { ...row,
+        Papeleta: value('Papeleta', 'nroPapeleta', 'numeroPapeleta', 'numero', 'PTCodPapeleta'),
+        Fecha: value('Fecha', 'fechaInfraccion', 'FECHA_IMP', 'FECHA_PAPELETA'),
+        Conductor: value('Conductor', 'infractor', 'nombreInfractor'),
+        Propietario: value('Propietario', 'nombrePropietario'),
+        Código: value('Código', 'codigoInfraccion', 'codInfraccion', 'infraccion'),
+        Infracción: value('Infracción', 'descripcionInfraccion', 'descripcion'),
+        Lugar: value('Lugar', 'lugarInfraccion', 'fanomvia'),
+        Situación: labels[state] || sourceState,
+        EstadoPago: ['PAID', 'PENDING'].includes(row.EstadoPago) ? row.EstadoPago : paid ? 'PAID' : pending ? 'PENDING' : 'UNKNOWN',
+    };
+}
 
 function renderHuancayoFast(item, plate) {
     const records = Array.isArray(item?.data) ? item.data : [];
@@ -225,12 +252,13 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
             // Detalle completo y responsivo de todas las papeletas de la municipalidad
             let detalleHTML = '';
             if (con && Array.isArray(m.data) && m.data.length > 0) {
-                const totalCount = m.data.length;
-                const pendientesCount = m.data.filter(d => d.EstadoPago === 'PENDING' || (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
-                const canceladasCount = m.data.filter(d => d.EstadoPago === 'PAID' || /PAGAD[AO]|CANCELAD[AO]/i.test(d['Situación'] || '')).length;
+                const records = m.data.map(normalizeMunicipalRecord);
+                const totalCount = records.length;
+                const pendientesCount = records.filter(d => d.EstadoPago === 'PENDING' || (d['Situación'] || '').toUpperCase().includes('PENDIENTE')).length;
+                const canceladasCount = records.filter(d => d.EstadoPago === 'PAID' || /PAGAD[AO]|CANCELAD[AO]/i.test(d['Situación'] || '')).length;
                 const unknownCount = totalCount - pendientesCount - canceladasCount;
 
-                const itemCards = m.data.map((d, idx) => {
+                const itemCards = records.map((d, idx) => {
                     const paymentStatus = d.EstadoPago || 'UNKNOWN';
                     const esPendiente = paymentStatus === 'PENDING' || (d['Situación'] || '').toUpperCase().includes('PENDIENTE');
                     const esPagada = paymentStatus === 'PAID' || /PAGAD[AO]|CANCELAD[AO]/i.test(d['Situación'] || '');
@@ -282,6 +310,7 @@ export async function runFetchMunicipal(plate, BACKEND_URL, callbacks) {
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 text-[10px] text-slate-600 dark:text-slate-300">
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Fecha:</strong> ${safe(d['Fecha'])}</div>
+                                ${d.Lugar ? `<div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Lugar:</strong> ${safe(d.Lugar)}</div>` : ''}
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Infractor:</strong> <span class="uppercase font-semibold">${safe(d['Conductor'])}</span></div>
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Propietario:</strong> <span class="uppercase font-semibold">${safe(d['Propietario'])}</span></div>
                                 <div><strong class="text-slate-400 dark:text-slate-500 text-[9px] uppercase block">Importe:</strong> <span class="font-black ${esPendiente ? 'text-rose-600 dark:text-rose-400' : ''}">${amountText}</span></div>
