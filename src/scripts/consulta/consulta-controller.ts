@@ -796,6 +796,7 @@
         const isRetryingCard: Record<string, boolean> = {};
         const retryQueue: Array<{ cardId: string; plate: string }> = [];
         let isProcessingRetryQueue = false;
+        let completedConsultationId: string | null = null;
 
         function showRetryNotice(html: string) {
             const status = document.getElementById('query-status');
@@ -806,6 +807,13 @@
 
         async function processRetryQueue() {
             if (isProcessingRetryQueue || retryQueue.length === 0) return;
+            // Control estricto de turno: si la consulta principal sigue activa,
+            // diferir el reintento hasta que termine para no competir por slots
+            // de navegador/OCR ni afectar las secciones que aún se resuelven.
+            if (consultationLifecycle === 'active') {
+                console.info('[RETRY-QUEUE] Consulta principal activa; reintento diferido hasta completar.');
+                return;
+            }
             isProcessingRetryQueue = true;
             const next = retryQueue.shift();
             if (!next) {
@@ -823,8 +831,8 @@
                 await executeReintentarSeccion(next.cardId, next.plate);
             } finally {
                 isProcessingRetryQueue = false;
-                if (retryQueue.length > 0) {
-                    window.setTimeout(processRetryQueue, 150);
+                if (retryQueue.length > 0 && consultationLifecycle !== 'active') {
+                    window.setTimeout(processRetryQueue, 200);
                 }
             }
         }
@@ -834,6 +842,7 @@
                 console.warn(`[RETRY-UI] Ya se está procesando el reintento para ${cardId}`);
                 return;
             }
+            const deferUntilConsultationEnds = consultationLifecycle === 'active';
             const container = document.getElementById(`${cardId}-card-container`);
             if (container) {
                 const buttons = container.querySelectorAll('button');
@@ -841,7 +850,9 @@
                     btn.disabled = true;
                     btn.setAttribute('data-prev-html', btn.innerHTML);
                     btn.classList.add('opacity-75', 'cursor-not-allowed');
-                    if (isProcessingRetryQueue) {
+                    if (deferUntilConsultationEnds) {
+                        btn.innerHTML = '<i class="fas fa-clock mr-1"></i> En cola (al finalizar)...';
+                    } else if (isProcessingRetryQueue) {
                         btn.innerHTML = '<i class="fas fa-hourglass-half mr-1"></i> En espera en cola...';
                     } else {
                         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reintentando carga...';
@@ -851,6 +862,12 @@
 
             isRetryingCard[cardId] = true;
             retryQueue.push({ cardId, plate });
+            if (deferUntilConsultationEnds) {
+                showRetryNotice(
+                    `<span class="text-amber-700 font-bold"><i class="fas fa-clock mr-1"></i>Reintento de ${cardId.replaceAll('_', ' ')} en cola: se ejecutará automáticamente al terminar la consulta actual.</span>`
+                );
+                return;
+            }
             void processRetryQueue();
         };
 
@@ -933,6 +950,9 @@
                 // SIEMPRE enviar el ticket válido en X-Consultation-Ticket para que verify_consultation_ticket
                 // no rechace con 403 Forbidden. El backend detecta X-Manual-Retry: 1 y omite el Gate automáticamente.
                 setConsultationTicket(effectiveTicket || activeConsultationTicket || currentRetryTicket);
+                if (completedConsultationId) {
+                    setConsultationId(completedConsultationId);
+                }
 
                 setManualRetrySection(cardId);
                 console.info('[MANUAL-RETRY]', {
@@ -1369,6 +1389,9 @@
                 sectionResults = {};
                 activeScorePlate = plate;
                 currentSunarpValidation = 'indeterminate';
+                // Limpiar cualquier reintento manual pendiente de una placa anterior.
+                retryQueue.length = 0;
+                for (const k of Object.keys(isRetryingCard)) delete isRetryingCard[k];
                 consultationGeneration += 1;
                 consultationLifecycle = 'active'; (window as any).__canitaConsultationDone = false;
                 const activeConsultationId = createConsultationId();
@@ -1893,6 +1916,7 @@
                         consultationLifecycle = 'completed'; (window as any).__canitaConsultationDone = true; void updateVehiclePreview(sectionResults);
                         clearTimeout(safetyLoaderTimeout);
                         hideLoadingOverlay();
+                        completedConsultationId = activeConsultationId || completedConsultationId;
                         if (activeConsultationTicket) {
                             const ticketToRelease = activeConsultationTicket;
                             completedConsultationTicket = ticketToRelease;
@@ -1905,7 +1929,11 @@
                             clearInterval(consultationHeartbeat);
                             consultationHeartbeat = null;
                         }
-                        if (!queueError) queryStatus.classList.add('opacity-0');
+                        if (retryQueue.length > 0) {
+                            window.setTimeout(processRetryQueue, 250);
+                        } else if (!queueError) {
+                            queryStatus.classList.add('opacity-0');
+                        }
                         if (submitBtn) {
                             let cooldown = 5;
                             const interval = setInterval(() => {
