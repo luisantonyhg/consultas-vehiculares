@@ -1,5 +1,5 @@
 import { openScannerModal } from '../../ui/scanner_modal.ts';
-import { setSection, badgeLoading, badgeWaiting } from './dni-state.ts';
+import { setSection, badgeLoading, badgeWaiting, resetMtcSectionState } from './dni-state.ts';
 import { startDniStream, type DniDiagnostic } from './dni-stream-client.ts';
 import { acquireConsultationSlot, waitForConsultationSlot, touchConsultationSlot, releaseConsultationSlot } from '../../services/consultation_queue.js';
 import { setConsultationTicket } from '../../services/api.js';
@@ -80,6 +80,25 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
             if (!btn || btn.hasAttribute('disabled')) return;
             ev.preventDefault();
             void retryDniSection(btn.getAttribute('data-dni-retry') || '', btn);
+        });
+        const activateMtcTab = (tabId: string) => {
+            document.querySelectorAll<HTMLElement>('[data-mtc-tab]').forEach((tab) => {
+                const active = tab.getAttribute('data-mtc-tab') === tabId;
+                tab.setAttribute('aria-selected', String(active));
+                tab.classList.toggle('bg-amber-700', active);
+                tab.classList.toggle('text-white', active);
+                tab.classList.toggle('bg-slate-100', !active);
+                tab.classList.toggle('text-slate-600', !active);
+            });
+            document.querySelectorAll<HTMLElement>('[data-mtc-panel]').forEach((panel) => {
+                panel.classList.toggle('hidden', panel.getAttribute('data-mtc-panel') !== tabId);
+            });
+        };
+        document.addEventListener('click', (ev) => {
+            const tab = (ev.target as HTMLElement)?.closest?.('[data-mtc-tab]') as HTMLElement | null;
+            if (!tab) return;
+            ev.preventDefault();
+            activateMtcTab(tab.getAttribute('data-mtc-tab') || 'licencias');
         });
 
         const releaseDniTicket = async (ticket: string, reason: string) => {
@@ -317,6 +336,8 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                     }
                 }
             });
+            resetMtcSectionState();
+            activateMtcTab('licencias');
 
             const hideDniModal = () => {
                 if (!dniLoadingOverlay || dniLoadingOverlay.classList.contains('hidden')) return;
@@ -492,7 +513,9 @@ export function initDniConsultation(plateInput: HTMLInputElement | null) {
                         // Las fuentes ya arrancan por carriles; indicar todas
                         // como consultando evita presentar una cola secuencial.
                         for (const providerId of dniSequence.slice(1)) {
-                            const providerCard = document.getElementById(`dni-card-${providerId}`);
+                            const providerCard = providerId.startsWith('transporte_')
+                                ? document.getElementById('dni-card-mtc')
+                                : document.getElementById(`dni-card-${providerId}`);
                             const providerBadge = providerCard?.querySelector('.status-badge-container');
                             if (providerBadge) providerBadge.innerHTML = badgeLoading();
                         }

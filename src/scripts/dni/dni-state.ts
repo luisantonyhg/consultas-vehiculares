@@ -4,8 +4,8 @@ export const DNI_SOURCE_URLS: Record<string, string> = {
   sunat: 'https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp',
   jne_multas: 'https://multas.jne.gob.pe/',
   transporte_licencias: 'https://licencias.mtc.gob.pe/',
-  transporte_record: 'https://recordconductor.mtc.gob.pe/',
-  transporte_papeletas: 'https://scppp.mtc.gob.pe/',
+  transporte_record: 'https://licencias.mtc.gob.pe/',
+  transporte_papeletas: 'https://licencias.mtc.gob.pe/',
   minedu: 'https://titulosinstitutos.minedu.gob.pe/',
   osce: 'https://bi.seace.gob.pe/pentaho/api/repos/:public:ANTECEDENTES_PROVEEDORES:ANTECEDENTES_PROVEEDORES.wcdf/generatedContent?userid=public&password=key',
   infogob: 'https://infogob.jne.gob.pe/',
@@ -82,6 +82,83 @@ export function badgePill(type: 'success' | 'danger' | 'warning' | 'neutral' | '
 export function setSection(name: string, data: unknown): void {
   state[name] = data;
   paintDniSection(name, data);
+  if (MTC_PROVIDER_IDS.includes(name)) {
+    paintMtcSummary();
+    paintMtcDerivedPanels();
+  }
+}
+
+const MTC_PROVIDER_IDS = ['transporte_licencias', 'transporte_record', 'transporte_papeletas'];
+
+export function resetMtcSectionState(): void {
+  for (const id of MTC_PROVIDER_IDS) delete state[id];
+  paintMtcSummary();
+  paintMtcDerivedPanels();
+}
+
+function mtcProvider(id: string): { status: string; data: Dict } {
+  const raw = state[id];
+  if (!isDict(raw)) return { status: '', data: {} };
+  const inner = isDict(raw.data) ? raw.data : raw;
+  return { status: str(raw.status).toUpperCase(), data: inner };
+}
+
+function paintMtcSummary(): void {
+  const card = document.getElementById('dni-card-mtc');
+  const badge = card?.querySelector('.status-badge-container');
+  if (!card || !badge) return;
+  const statuses = MTC_PROVIDER_IDS.map(id => mtcProvider(id).status);
+  const completed = statuses.filter(status => status && !['RUNNING', 'PENDING'].includes(status));
+  const successful = statuses.filter(status => status === 'OK').length;
+  if (!completed.length) {
+    badge.innerHTML = badgeWaiting();
+    card.setAttribute('data-status', 'esperando');
+  } else if (completed.length < MTC_PROVIDER_IDS.length) {
+    badge.innerHTML = badgePill('neutral', `MTC · ${completed.length}/3 secciones`);
+    card.setAttribute('data-status', 'consultando');
+  } else if (successful === MTC_PROVIDER_IDS.length) {
+    badge.innerHTML = badgePill('success', 'MTC · 3/3 verificadas');
+    card.setAttribute('data-status', 'funciona');
+  } else if (successful > 0) {
+    badge.innerHTML = badgePill('warning', `MTC · ${successful}/3 verificadas`);
+    card.setAttribute('data-status', 'parcial');
+  } else {
+    badge.innerHTML = badgePill('neutral', 'MTC · fuentes no verificadas');
+    card.setAttribute('data-status', 'no-verificado');
+  }
+}
+
+function paintMtcDerivedPanels(): void {
+  const pointsPanel = document.getElementById('mtc-puntos-content');
+  const record = mtcProvider('transporte_record');
+  if (pointsPanel) {
+    if (record.status !== 'OK') {
+      pointsPanel.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-600">Los puntos del conductor no se pudieron verificar en esta consulta.</div>';
+    } else {
+      pointsPanel.innerHTML = `<div class="overflow-x-auto w-full"><table class="w-full text-left border-collapse"><tbody class="divide-y divide-slate-100">${fila('Puntos firmes acumulados', record.data.puntos_firmes ?? '0')}${fila('Puntos en proceso', record.data.puntos_proceso ?? '0')}${fila('Estado del conductor', record.data.estado ?? '')}${fila('Número de licencia', record.data.numero_licencia ?? '')}</tbody></table></div>`;
+    }
+  }
+
+  const proceduresPanel = document.getElementById('mtc-tramites-content');
+  const licenses = mtcProvider('transporte_licencias');
+  if (!proceduresPanel) return;
+  if (licenses.status !== 'OK') {
+    proceduresPanel.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-600">Los trámites del MTC no se pudieron verificar en esta consulta.</div>';
+    return;
+  }
+  const tramites = arr(licenses.data.tramites);
+  if (!tramites.length) {
+    const confirmed = licenses.data.tramites_confirmado === true;
+    proceduresPanel.innerHTML = confirmed
+      ? '<div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center text-xs text-slate-700">El MTC confirmó que no hay trámites registrados para esta licencia.</div>'
+      : '<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-600">El MTC no devolvió datos verificables para la sección de trámites.</div>';
+    return;
+  }
+  proceduresPanel.innerHTML = `<div class="mb-2 text-xs font-bold text-slate-700">${tramites.length} trámite(s) informado(s) por el MTC</div><div class="space-y-2">${tramites.map((item, index) => {
+    if (!isDict(item)) return `<div class="rounded-xl border border-slate-200 p-3 text-xs">${escapeHtml(str(item))}</div>`;
+    const rows = Object.entries(item).map(([key, value]) => fila(key.replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2').replace(/_/g, ' '), value)).join('');
+    return `<div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left border-collapse"><tbody>${rows || fila('Trámite', `Registro ${index + 1}`)}</tbody></table></div>`;
+  }).join('')}</div>`;
 }
 
 export function paintDniSection(name: string, rawData: unknown): void {
@@ -546,7 +623,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
           <div class="p-4 text-center text-slate-600 bg-emerald-50/40 rounded-xl border border-emerald-100">
             <i class="fas fa-circle-check text-emerald-600 text-lg mb-1 block"></i>
             <p class="text-xs font-bold text-slate-900">No registra infracciones ni papeletas pendientes por DNI.</p>
-            <p class="text-[10px] text-slate-500 mt-0.5">Portal oficial SCPPP (MTC · SUTRAN · ATU) libre de sanciones firmes.</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">El MTC confirmó que no hay papeletas impagas.</p>
           </div>
         `;
       } else if (tieneInfracciones && resultadoConfirmado) {
@@ -985,7 +1062,7 @@ export function paintDniSection(name: string, rawData: unknown): void {
     jne_multas: 'JNE',
     transporte_licencias: 'MTC',
     transporte_record: 'MTC',
-    transporte_papeletas: 'MTC – CONSULTA DE PAPELETAS / SANCIONES',
+    transporte_papeletas: 'Papeletas impagas MTC',
     minedu: 'MINEDU / SUNEDU',
     osce: 'OECE / SEACE - Contrataciones Públicas',
     infogob: 'INFOGOB / JNE',

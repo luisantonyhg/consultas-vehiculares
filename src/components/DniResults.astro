@@ -1,6 +1,6 @@
 ---
 // src/components/DniResults.astro
-// Sección de resultados DNI (10 tarjetas oficiales con acordiones, insignias y verificación de fuente)
+// Resultados DNI: una tarjeta MTC con subsecciones y fuentes verificables.
 import { renderServiceOffers } from '../ui/service_offers.js';
 ---
 
@@ -29,7 +29,7 @@ import { renderServiceOffers } from '../ui/service_offers.js';
         </p>
     </div>
 
-    {/* Contenedor de Tarjetas de Secciones DNI (10 tarjetas oficiales) */}
+    {/* Contenedor de Tarjetas de Secciones DNI */}
     <div id="dni-cards-container" class="hidden flex-col gap-3.5 sm:gap-4 mt-4 mb-16">
         
         {/* 1. INFORMACIÓN PERSONAL */}
@@ -62,33 +62,54 @@ import { renderServiceOffers } from '../ui/service_offers.js';
             </div>
         </div>
 
-        {/* 2. LICENCIA DE CONDUCIR (MTC) */}
-        <div id="dni-card-transporte_licencias" class="accordion-card results-card bg-white border-2 border-slate-900 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300">
-            <div onclick="window.toggleDniAccordion('dni-card-transporte_licencias')" class="accordion-header flex items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 cursor-pointer select-none transition-all duration-300 hover:bg-slate-50/60 bg-white">
+        {/* 2. PORTAL ÚNICO DEL CONDUCTOR (MTC) */}
+        <div id="dni-card-mtc" class="accordion-card results-card bg-white border-2 border-slate-900 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300">
+            <div onclick="window.toggleDniAccordion('dni-card-mtc')" class="accordion-header flex items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 cursor-pointer select-none transition-all duration-300 hover:bg-slate-50/60 bg-white">
                 <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                     <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-1 sm:p-1.5">
                         <img src="/assets/mtc.png" alt="MTC" class="max-w-full max-h-full object-contain" />
                     </div>
                     <div class="min-w-0 text-left font-poppins">
-                        <h3 class="text-xs sm:text-sm font-black tracking-wide uppercase leading-tight text-slate-900">LICENCIA DE CONDUCIR MTC</h3>
-                        <p class="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase mt-0.5 text-slate-400">MTC SISTEMA NACIONAL DE CONDUCTORES</p>
+                        <h3 class="text-xs sm:text-sm font-black tracking-wide uppercase leading-tight text-slate-900">CONSULTA DEL CONDUCTOR · MTC</h3>
+                        <p class="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase mt-0.5 text-slate-400">LICENCIA, PUNTOS, RÉCORD, PAPELETAS Y TRÁMITES</p>
                     </div>
                 </div>
                 <div class="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-                    <div class="status-badge-container">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white border border-slate-900 shadow-sm uppercase tracking-wider font-poppins">
-                            <i class="fas fa-clock text-slate-300 animate-pulse text-[10px]"></i> En espera
-                        </span>
-                    </div>
+                    <div class="status-badge-container"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white border border-slate-900 shadow-sm uppercase tracking-wider font-poppins"><i class="fas fa-clock text-slate-300 animate-pulse text-[10px]"></i> En espera</span></div>
                     <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs sm:text-sm text-slate-400"></i>
                 </div>
             </div>
             <div class="accordion-body hidden border-t border-slate-100 bg-white p-4 sm:p-5 font-poppins">
-                <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center font-poppins">
-                    <span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span>
-                    <p class="text-xs font-bold text-slate-700">Verificando brevete oficial y vigencia MTC...</p>
+                <div role="tablist" aria-label="Secciones de la consulta MTC" class="mtc-tabs mb-4 flex gap-2 overflow-x-auto border-b border-slate-200 pb-2">
+                    <button type="button" role="tab" aria-selected="true" data-mtc-tab="licencias" class="mtc-tab active whitespace-nowrap rounded-lg bg-amber-700 px-3 py-2 text-[10px] font-extrabold uppercase text-white">Licencias</button>
+                    <button type="button" role="tab" aria-selected="false" data-mtc-tab="puntos" class="mtc-tab whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-extrabold uppercase text-slate-600">Puntos</button>
+                    <button type="button" role="tab" aria-selected="false" data-mtc-tab="record" class="mtc-tab whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-extrabold uppercase text-slate-600">Récord</button>
+                    <button type="button" role="tab" aria-selected="false" data-mtc-tab="papeletas" class="mtc-tab whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-extrabold uppercase text-slate-600">Papeletas impagas</button>
+                    <button type="button" role="tab" aria-selected="false" data-mtc-tab="tramites" class="mtc-tab whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-extrabold uppercase text-slate-600">Trámites</button>
                 </div>
-                <div class="card-body-content hidden"></div>
+                <section role="tabpanel" data-mtc-panel="licencias">
+                    <div id="dni-card-transporte_licencias" class="mtc-provider-pane">
+                        <div class="status-badge-container mb-3"></div>
+                        <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center"><span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span><p class="text-xs font-bold text-slate-700">Consultando licencia y trámites en el Portal Único MTC...</p></div>
+                        <div class="card-body-content hidden"></div>
+                    </div>
+                </section>
+                <section role="tabpanel" data-mtc-panel="puntos" class="hidden"><div id="mtc-puntos-content" class="text-xs text-slate-500">Esperando el resultado de puntos del MTC...</div></section>
+                <section role="tabpanel" data-mtc-panel="record" class="hidden">
+                    <div id="dni-card-transporte_record" class="mtc-provider-pane">
+                        <div class="status-badge-container mb-3"></div>
+                        <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center"><span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span><p class="text-xs font-bold text-slate-700">Consultando récord del conductor...</p></div>
+                        <div class="card-body-content hidden"></div>
+                    </div>
+                </section>
+                <section role="tabpanel" data-mtc-panel="papeletas" class="hidden">
+                    <div id="dni-card-transporte_papeletas" class="mtc-provider-pane">
+                        <div class="status-badge-container mb-3"></div>
+                        <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center"><span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span><p class="text-xs font-bold text-slate-700">Consultando papeletas impagas...</p></div>
+                        <div class="card-body-content hidden"></div>
+                    </div>
+                </section>
+                <section role="tabpanel" data-mtc-panel="tramites" class="hidden"><div id="mtc-tramites-content" class="text-xs text-slate-500">Esperando los trámites informados por el MTC...</div></section>
             </div>
         </div>
 
@@ -147,66 +168,6 @@ import { renderServiceOffers } from '../ui/service_offers.js';
                 <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center font-poppins">
                     <span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span>
                     <p class="text-xs font-bold text-slate-700">Consultando multas de votación y miembros de mesa...</p>
-                </div>
-                <div class="card-body-content hidden"></div>
-            </div>
-        </div>
-
-        {/* 5. RÉCORD DEL CONDUCTOR */}
-        <div id="dni-card-transporte_record" class="accordion-card results-card bg-white border-2 border-slate-900 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300">
-            <div onclick="window.toggleDniAccordion('dni-card-transporte_record')" class="accordion-header flex items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 cursor-pointer select-none transition-all duration-300 hover:bg-slate-50/60 bg-white">
-                <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                    <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-1 sm:p-1.5">
-                        <img src="/assets/mtc.png" alt="MTC" class="max-w-full max-h-full object-contain" />
-                    </div>
-                    <div class="min-w-0 text-left font-poppins">
-                        <h3 class="text-xs sm:text-sm font-black tracking-wide uppercase leading-tight text-slate-900">MTC - RÉCORD DEL CONDUCTOR</h3>
-                        <p class="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase mt-0.5 text-slate-400">MTC PUNTOS Y SANCIONES</p>
-                    </div>
-                </div>
-                <div class="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-                    <div class="status-badge-container">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white border border-slate-900 shadow-sm uppercase tracking-wider font-poppins">
-                            <i class="fas fa-clock text-slate-300 animate-pulse text-[10px]"></i> En espera
-                        </span>
-                    </div>
-                    <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs sm:text-sm text-slate-400"></i>
-                </div>
-            </div>
-            <div class="accordion-body hidden border-t border-slate-100 bg-white p-4 sm:p-5 font-poppins">
-                <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center font-poppins">
-                    <span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span>
-                    <p class="text-xs font-bold text-slate-700">Verificando puntos acumulados y sanciones firmes...</p>
-                </div>
-                <div class="card-body-content hidden"></div>
-            </div>
-        </div>
-
-        {/* 6. MTC - PAPELETAS Y SANCIONES */}
-        <div id="dni-card-transporte_papeletas" class="accordion-card results-card bg-white border-2 border-slate-900 rounded-2xl shadow-md flex flex-col overflow-hidden font-poppins transition-all duration-300">
-            <div onclick="window.toggleDniAccordion('dni-card-transporte_papeletas')" class="accordion-header flex items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 cursor-pointer select-none transition-all duration-300 hover:bg-slate-50/60 bg-white">
-                <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                    <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-1 sm:p-1.5">
-                        <img src="/assets/mtc.png" alt="MTC" class="max-w-full max-h-full object-contain" />
-                    </div>
-                    <div class="min-w-0 text-left font-poppins">
-                        <h3 class="text-xs sm:text-sm font-black tracking-wide uppercase leading-tight text-slate-900">MTC – CONSULTA DE PAPELETAS / SANCIONES</h3>
-                        <p class="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase mt-0.5 text-slate-400">MTC SISTEMA DE FISCALIZACIÓN Y SANCIONES</p>
-                    </div>
-                </div>
-                <div class="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-                    <div class="status-badge-container">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white border border-slate-900 shadow-sm uppercase tracking-wider font-poppins">
-                            <i class="fas fa-clock text-slate-300 animate-pulse text-[10px]"></i> En espera
-                        </span>
-                    </div>
-                    <i class="fas fa-chevron-down accordion-chevron transition-transform duration-300 text-xs sm:text-sm text-slate-400"></i>
-                </div>
-            </div>
-            <div class="accordion-body hidden border-t border-slate-100 bg-white p-4 sm:p-5 font-poppins">
-                <div class="card-skeleton flex flex-col items-center justify-center py-6 gap-3 text-center font-poppins">
-                    <span class="inline-block w-8 h-8 rounded-full border-2 border-slate-300 border-t-amber-600 animate-spin"></span>
-                    <p class="text-xs font-bold text-slate-700">Verificando infracciones y sanciones MTC asociadas al DNI...</p>
                 </div>
                 <div class="card-body-content hidden"></div>
             </div>
