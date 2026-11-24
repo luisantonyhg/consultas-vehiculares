@@ -32,6 +32,18 @@ test('T3/T4: error de red conserva retry y la ventana normal no es stale', () =>
     assert.match(source, /const staleWindowMs = Math\.max\(10000, delay \* 4\)/);
 });
 
+test('Lima no reabre un CAPTCHA pagado tras un error y el scheduler no duplica trabajo de proveedor', () => {
+    const decision = shouldAutoRetry({
+        cardId: 'lima',
+        error: { error: 'CapSolverError: presupuesto de CAPTCHA agotado' },
+        attempt: 1,
+        maxAttempts: 2,
+    });
+    assert.equal(decision.retry, false);
+    assert.match(source, /runFetchWithRetry\('lima',[^\n]+, plate\)\)/);
+    assert.match(source, /runFetchWithRetry\('cinemometro',[^\n]+, plate\)/);
+});
+
 test('T5: callback tardía omite el segundo GET con stale_timer', () => {
     assert.match(source, /if \(latenessMs > staleWindowMs\) skipReason = 'stale_timer'/);
     assert.match(source, /\[RETRY-SKIP\].*reason=\$\{skipReason\}/s);

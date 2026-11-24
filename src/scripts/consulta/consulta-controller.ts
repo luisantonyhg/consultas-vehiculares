@@ -131,6 +131,7 @@
         let consultationHeartbeat: ReturnType<typeof setInterval> | null = null;
         let consultationGeneration = 0;
         let consultationLifecycle: 'idle' | 'active' | 'completed' | 'cancelled' | 'superseded' = 'idle';
+        const isConsultationActive = () => consultationLifecycle === 'active';
 
         // Liberación best-effort si el usuario cierra o abandona la página. Si
         // el navegador no alcanza a enviarla, el lease expira en el backend.
@@ -689,7 +690,7 @@
 
         async function fetchLima(plate: string) {
             return runExclusive('lima', () =>
-                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate, 1, 2));
+                runFetchWithRetry('lima', (callbacks) => runFetchLima(plate, BACKEND_URL, callbacks), plate));
         }
 
         async function fetchSutran(plate: string) {
@@ -697,7 +698,9 @@
         }
 
         async function fetchCinemometro(plate: string) {
-            return runFetchWithRetry('cinemometro', (callbacks) => runFetchCinemometro(plate, BACKEND_URL, callbacks), plate, 1, 2);
+            // El backend ya tiene reintentos propios por formulario. No volver
+            // a ejecutar toda la sesión desde el navegador cuando el proveedor falla.
+            return runFetchWithRetry('cinemometro', (callbacks) => runFetchCinemometro(plate, BACKEND_URL, callbacks), plate);
         }
 
         async function fetchMunicipal(plate: string) {
@@ -810,7 +813,7 @@
             // Control estricto de turno: si la consulta principal sigue activa,
             // diferir el reintento hasta que termine para no competir por slots
             // de navegador/OCR ni afectar las secciones que aún se resuelven.
-            if (consultationLifecycle === 'active') {
+            if (isConsultationActive()) {
                 console.info('[RETRY-QUEUE] Consulta principal activa; reintento diferido hasta completar.');
                 return;
             }
@@ -831,7 +834,7 @@
                 await executeReintentarSeccion(next.cardId, next.plate);
             } finally {
                 isProcessingRetryQueue = false;
-                if (retryQueue.length > 0 && consultationLifecycle !== 'active') {
+                if (retryQueue.length > 0 && !isConsultationActive()) {
                     window.setTimeout(processRetryQueue, 200);
                 }
             }

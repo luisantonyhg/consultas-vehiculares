@@ -86,6 +86,9 @@ export function shouldAutoRetry({ cardId, error, attempt, maxAttempts }) {
     // Callao deja OCR cooperativo terminando en segundo plano cuando vence su
     // presupuesto. El siguiente intento solo debe ser manual y aislado.
     const retryableTimeout = new Set(['sunarp', 'fise']);
+    // Lima crea tareas CAPTCHA pagadas dentro del backend. Una falla de solver
+    // no debe iniciar otra consulta completa automáticamente desde el navegador.
+    if (cardId === 'lima' && !backpressure) return { retry: false, effectiveMaxAttempts: maxAttempts };
     if (is404 || gateClosed || permanentProxy || maintenance || citvTimeout || citvCaptchaExhausted || isSatCaptchaExhausted(cardId, error) || isSatTimeout(cardId, error) || isLunasTimeout(cardId, error) || isLunasCaptchaError(cardId, error) || isLimaTimeout(cardId, error) || isCallaoCleanupPending(cardId, error) || (timeout && !retryableTimeout.has(cardId))) return { retry: false, effectiveMaxAttempts: maxAttempts };
     if (isLunasRetryableError(cardId, error) || isFiseRetryableError(cardId, error)) {
         // Un segundo intento FISE crea un token CAPTCHA nuevo y no repite el

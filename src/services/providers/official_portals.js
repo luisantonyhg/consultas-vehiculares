@@ -96,7 +96,8 @@ export async function runFetchCallao(plate, BACKEND_URL, callbacks, { forceRefre
 export async function runFetchSutran(plate, BACKEND_URL, callbacks) {
     callbacks.setCardLoading('sutran', 'Papeletas SUTRAN', '', 'fas fa-road', '', 'SUTRAN');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    // El backend limita el servicio a 62 s y la ruta anuncia 70 s.
+    const timeoutId = setTimeout(() => controller.abort(), 70000);
     try {
         const res = await secureFetch(`${BACKEND_URL}/sutran/${plate}`, { signal: controller.signal });
         clearTimeout(timeoutId);
