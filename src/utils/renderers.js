@@ -587,12 +587,14 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
     const container = document.getElementById(`${cardId}-card-container`);
     if (!container) return;
     const errLower = (errorMessage || "").toLowerCase();
-    const proxyDenied = /traffic_exhausted|proxy_access_denied|\b407\b/.test(errLower);
+    const proxyDenied = /traffic_exhausted|proxy_access_denied|site_permanently_blocked|proxyerror|\b407\b/.test(errLower);
+    const providerRestricted = /proxy_access_denied|site_permanently_blocked|traffic_exhausted|proxyerror|\b407\b/.test(errLower);
     const safeErrorMessage = escapeHTML(proxyDenied
-        ? 'La conexión usada para consultar esta fuente no está disponible. Puedes verificar el portal oficial.'
+        ? 'El proveedor de conexión está rechazando temporalmente el acceso a esta fuente. No pudimos verificar si tiene registros. Vuelve a consultar más adelante o verifica el portal oficial.'
         : errorMessage || '');
-    // Connection failures and exhausted proxies do not establish portal maintenance.
-    const isMantenimiento = errLower.includes("mantenimiento") || errLower.includes("en desarrollo");
+    // Provider-side access restrictions are shown as a section-level temporary
+    // maintenance state. A successful later response replaces this card normally.
+    const isMantenimiento = providerRestricted || errLower.includes("mantenimiento") || errLower.includes("en desarrollo");
     let badgeHTML = '';
     let rightContent = '';
 
@@ -608,7 +610,7 @@ export function setCardError(cardId, title, sub, iconClass, bgColorClass, source
                     <i class="fas fa-screwdriver-wrench text-2xl text-amber-600 dark:text-amber-400"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-amber-800 dark:text-amber-300 leading-tight">Página Oficial en Mantenimiento</p>
+                    <p class="text-sm font-bold text-amber-800 dark:text-amber-300 leading-tight">${providerRestricted ? 'Sección temporalmente no disponible' : 'Página Oficial en Mantenimiento'}</p>
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-[340px] mx-auto leading-relaxed">${safeErrorMessage}</p>
                 </div>
                 <button onclick="window.reintentarSeccion('${cardId}', '${plate}')"
