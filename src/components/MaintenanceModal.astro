@@ -1,7 +1,7 @@
 ---
-// Modal global de mantenimiento: desactivado por defecto.
-// Solo se activa si se define explícitamente PUBLIC_MAINTENANCE_MODE=true en Vercel.
-const isMaintenance = import.meta.env.PUBLIC_MAINTENANCE_MODE === 'true';
+// Modal global de mantenimiento temporalmente activado.
+// Para desactivarlo, restaurar: import.meta.env.PUBLIC_MAINTENANCE_MODE === 'true'
+const isMaintenance = import.meta.env.PUBLIC_MAINTENANCE_MODE !== 'false';
 ---
 
 <div id="mnt-modal"
